@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (12 Tickets)         |  (0 Tickets)          |  (0 Tickets)          |
+|  (13 Tickets)         |  (0 Tickets)          |  (0 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -128,6 +128,18 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - [ ] Registro del pago (Efectivo/Transferencia/Tarjeta) y cambio de estado de cita a `Finalizada`.
   - [ ] Generación e impresión/descarga de recibo digital de cobro.
 * **Prioridad**: Alta | **Esfuerzo**: Alto (5 ptos) | **Dependencias**: TASK-009, TASK-010, TASK-011
+
+---
+
+### EPIC 6: Seguridad y Mantenimiento
+
+#### `[TASK-013]` Actualizar Next.js por vulnerabilidad de seguridad conocida
+* **Descripción**: Next.js 14.2.3 tiene una vulnerabilidad de seguridad confirmada por el equipo de Next.js (ver aviso oficial: https://nextjs.org/blog/security-update-2025-12-11, detectado vía warning de pnpm al instalar dependencias). Actualizar a una versión parcheada.
+* **Criterios de Aceptación**:
+  - [ ] Investigar el aviso oficial y determinar la versión mínima parcheada.
+  - [ ] Actualizar `next` y validar breaking changes de App Router (rutas, `instrumentation.ts`, Sentry).
+  - [ ] `pnpm build` y `pnpm dev` funcionando sin regresiones tras la actualización.
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: Ninguna
 
 ---
 
