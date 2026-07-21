@@ -1,6 +1,11 @@
-import { Models } from "node-appwrite";
+// Domain types shared with client components. These used to extend Appwrite's
+// `Models.Document` (which supplied `$id`, `$createdAt`, etc.). The Mongo-backed
+// repositories/actions now populate `$id` explicitly so existing components
+// (RegisterForm, AppointmentForm, columns.tsx, AppointmentModal) that read
+// `.patient.$id` / `.$id` keep working unchanged.
 
-export interface Patient extends Models.Document {
+export interface Patient {
+  $id: string;
   userId: string;
   name: string;
   email: string;
@@ -24,7 +29,8 @@ export interface Patient extends Models.Document {
   privacyConsent: boolean;
 }
 
-export interface Appointment extends Models.Document {
+export interface Appointment {
+  $id: string;
   patient: Patient;
   schedule: Date;
   status: Status;
