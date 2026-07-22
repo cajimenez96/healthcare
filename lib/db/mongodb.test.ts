@@ -27,9 +27,10 @@ describe("connectToDatabase", () => {
 
   it("connects to the database using MONGODB_URI", async () => {
     const conn = await connectToDatabase();
+    const expectedDbName = new URL(process.env.MONGODB_URI!).pathname.slice(1);
 
     expect(conn.connection.readyState).toBe(1);
-    expect(conn.connection.name).toBe("healthcare-dev");
+    expect(conn.connection.name).toBe(expectedDbName);
   });
 
   it("returns the same cached connection on subsequent calls", async () => {
