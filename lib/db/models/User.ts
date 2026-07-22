@@ -1,10 +1,14 @@
 import { Schema, model, models, Types } from "mongoose";
 
+export type UserRole = "Administrador" | "Secretaria" | "Doctor" | "Paciente";
+
 export interface IUser {
   _id: Types.ObjectId;
   name: string;
   email: string;
   phone: string;
+  role: UserRole;
+  hashedPassword?: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -18,6 +22,13 @@ const userSchema = new Schema<IUser>(
       trim: true,
     },
     phone: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["Administrador", "Secretaria", "Doctor", "Paciente"],
+      required: true,
+      default: "Paciente",
+    },
+    hashedPassword: { type: String, select: false },
   },
   { timestamps: true },
 );

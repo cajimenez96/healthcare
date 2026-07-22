@@ -4,6 +4,7 @@ import { User } from "../models/User";
 import type {
   CreateUserInput,
   IUserRepository,
+  UserCredentials,
   UserRecord,
 } from "../../repositories/IUserRepository";
 
@@ -15,6 +16,7 @@ function toUserRecord(doc: HydratedDocument<IUser>): UserRecord {
     name: doc.name,
     email: doc.email,
     phone: doc.phone,
+    role: doc.role,
   };
 }
 
@@ -45,5 +47,12 @@ export class MongoUserRepository implements IUserRepository {
     }
     const doc = await User.findById(id);
     return doc ? toUserRecord(doc) : null;
+  }
+
+  async findByEmailWithPassword(
+    email: string,
+  ): Promise<UserCredentials | null> {
+    const doc = await User.findOne({ email }).select("+hashedPassword");
+    return doc ? { ...toUserRecord(doc), hashedPassword: doc.hashedPassword } : null;
   }
 }

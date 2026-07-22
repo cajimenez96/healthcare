@@ -1,9 +1,13 @@
 // Pure port — no framework or Mongo imports. Implementations live in lib/db/repositories.
 
+export type UserRole = "Administrador" | "Secretaria" | "Doctor" | "Paciente";
+
 export interface CreateUserInput {
   name: string;
   email: string;
   phone: string;
+  role?: UserRole;
+  hashedPassword?: string;
 }
 
 export interface UserRecord {
@@ -11,6 +15,11 @@ export interface UserRecord {
   name: string;
   email: string;
   phone: string;
+  role: UserRole;
+}
+
+export interface UserCredentials extends UserRecord {
+  hashedPassword?: string;
 }
 
 export interface IUserRepository {
@@ -22,4 +31,10 @@ export interface IUserRepository {
   create(input: CreateUserInput): Promise<UserRecord>;
   findByEmail(email: string): Promise<UserRecord | null>;
   findById(id: string): Promise<UserRecord | null>;
+  /**
+   * Same lookup as findByEmail, but also includes hashedPassword (excluded
+   * by default via the schema's `select: false`). Only for use by the
+   * authentication flow — never expose this result outside it.
+   */
+  findByEmailWithPassword(email: string): Promise<UserCredentials | null>;
 }

@@ -40,6 +40,7 @@ interface CustomProps {
   children?: React.ReactNode;
   renderSkeleton?: (field: any) => React.ReactNode;
   fieldType: FormFieldType;
+  inputType?: React.HTMLInputTypeAttribute;
 }
 
 const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
@@ -58,6 +59,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
           )}
           <FormControl>
             <Input
+              type={props.inputType}
               placeholder={props.placeholder}
               {...field}
               className="shad-input border-0"

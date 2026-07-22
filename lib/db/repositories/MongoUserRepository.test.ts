@@ -92,4 +92,55 @@ describe("MongoUserRepository", () => {
       expect(result?.email).toBe("byid@example.com");
     });
   });
+
+  describe("role", () => {
+    it("defaults new users to the Paciente role", async () => {
+      const user = await repository.create({
+        name: "Default Role",
+        email: "defaultrole@example.com",
+        phone: "+1",
+      });
+
+      expect(user.role).toBe("Paciente");
+    });
+
+    it("persists a staff role and hashed password when provided", async () => {
+      const user = await repository.create({
+        name: "Staff",
+        email: "staffrole@example.com",
+        phone: "+1",
+        role: "Administrador",
+        hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+      });
+
+      expect(user.role).toBe("Administrador");
+    });
+  });
+
+  describe("findByEmailWithPassword", () => {
+    it("returns null when no user matches", async () => {
+      const result = await repository.findByEmailWithPassword(
+        "missing@example.com",
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("includes the hashed password and role", async () => {
+      await repository.create({
+        name: "Staff",
+        email: "creds@example.com",
+        phone: "+1",
+        role: "Doctor",
+        hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+      });
+
+      const result = await repository.findByEmailWithPassword(
+        "creds@example.com",
+      );
+
+      expect(result?.role).toBe("Doctor");
+      expect(result?.hashedPassword).toBe("$2a$10$abcdefghijklmnopqrstuv");
+    });
+  });
 });
