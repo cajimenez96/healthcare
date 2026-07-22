@@ -1,5 +1,6 @@
 "use server";
 
+import { connectToDatabase } from "../db/mongodb";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { MongoPatientRepository } from "../db/repositories/MongoPatientRepository";
 import { GridFsFileStorage } from "../storage/GridFsFileStorage";
@@ -13,6 +14,7 @@ const fileStorage = new GridFsFileStorage();
 // CREATE USER
 export const createUser = async (user: CreateUserParams) => {
   try {
+    await connectToDatabase();
     const newUser = await userRepository.create(user);
 
     return parseStringify(toUser(newUser));
@@ -24,6 +26,7 @@ export const createUser = async (user: CreateUserParams) => {
 // GET USER
 export const getUser = async (userId: string) => {
   try {
+    await connectToDatabase();
     const user = await userRepository.findById(userId);
 
     return user ? parseStringify(toUser(user)) : undefined;
@@ -41,6 +44,7 @@ export const registerPatient = async ({
   ...patient
 }: RegisterUserParams) => {
   try {
+    await connectToDatabase();
     let uploadedFile: { id: string; url: string } | undefined;
 
     if (identificationDocument) {
@@ -69,6 +73,7 @@ export const registerPatient = async ({
 // GET PATIENT
 export const getPatient = async (userId: string) => {
   try {
+    await connectToDatabase();
     const patient = await patientRepository.findByUserId(userId);
 
     return patient ? parseStringify(toPatient(patient)) : undefined;

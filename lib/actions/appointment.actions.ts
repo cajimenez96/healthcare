@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { connectToDatabase } from "../db/mongodb";
 import { MongoAppointmentRepository } from "../db/repositories/MongoAppointmentRepository";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { buildAppointmentSmsMessage } from "../notifications/buildAppointmentSmsMessage";
@@ -18,6 +19,7 @@ export const createAppointment = async (
   appointment: CreateAppointmentParams
 ) => {
   try {
+    await connectToDatabase();
     const newAppointment = await appointmentRepository.create({
       userId: appointment.userId,
       patientId: appointment.patient,
@@ -38,6 +40,7 @@ export const createAppointment = async (
 //  GET RECENT APPOINTMENTS
 export const getRecentAppointmentList = async () => {
   try {
+    await connectToDatabase();
     const appointments = await appointmentRepository.findRecent();
 
     const initialCounts = {
@@ -79,6 +82,7 @@ export const getRecentAppointmentList = async () => {
 //  SEND SMS NOTIFICATION
 export const sendSMSNotification = async (userId: string, content: string) => {
   try {
+    await connectToDatabase();
     const user = await userRepository.findById(userId);
 
     if (!user) {
@@ -100,6 +104,7 @@ export const updateAppointment = async ({
   type,
 }: UpdateAppointmentParams) => {
   try {
+    await connectToDatabase();
     const updatedAppointment = await appointmentRepository.update(
       appointmentId,
       appointment
@@ -128,6 +133,7 @@ export const updateAppointment = async ({
 // GET APPOINTMENT
 export const getAppointment = async (appointmentId: string) => {
   try {
+    await connectToDatabase();
     const appointment = await appointmentRepository.findById(appointmentId);
 
     return appointment ? parseStringify(toAppointment(appointment)) : undefined;
