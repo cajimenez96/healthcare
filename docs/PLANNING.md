@@ -9,25 +9,13 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (9 Tickets)          |  (0 Tickets)          |  (4 Tickets)          |
+|  (8 Tickets)          |  (0 Tickets)          |  (5 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
 ---
 
 ## 📋 BACKLOG (Por Hacer)
-
-### EPIC 2: Autenticación & Control de Acceso por Roles (RBAC)
-
-#### `[TASK-005]` Middleware de Protección de Rutas y RBAC Dinámico
-* **Descripción**: Restringir el acceso a páginas (`/admin`, `/doctor`, `/recepcion`, `/patients`) mediante middleware de Next.js según el rol asignado (`Admin`, `Secretaria`, `Doctor`, `Paciente`).
-* **Criterios de Aceptación**:
-  - [ ] Roles guardados en el token JWT / Session.
-  - [ ] Middleware redirige a `/unauthorized` o `/login` si no cumple permisos.
-  - [ ] Ocultar elementos de UI inaccesibles según rol.
-* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-004
-
----
 
 ### EPIC 3: Gestión Dinámica de Doctores y Agendas
 
@@ -128,6 +116,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - **Archivos creados**: `lib/db/mongodb.ts`, `lib/db/mongodb.test.ts`, `scripts/check-db-connection.ts`, `vitest.config.ts`, `vitest.setup.ts`, `.env.local`, `.env.example`
   - **Archivos modificados**: `package.json` (scripts `test`/`test:watch`/`db:ping`; dependencias `mongoose`, `vitest`, `dotenv`, `tsx`)
 * **Observaciones**: El proyecto no tenía ningún test runner configurado; se evaluó Jest vs. Vitest y se optó por Vitest (cero-config con TS/ESM, sin tradeoffs arquitectónicos relevantes). Los tests son de integración real contra Mongo local, no mocks — consistente con el resto del proyecto.
+  - **Gap detectado y corregido recién en TASK-005**: `vitest.setup.ts` conectaba los tests a la misma base que usa la app en desarrollo (`MONGODB_URI` de `.env.local`), sin aislar una base de test separada. Como varios tests hacen `deleteMany({})` en su limpieza, correr la suite borraba datos reales/sembrados (pasó con el usuario admin de TASK-004). Corregido en TASK-005 — ver esa entrada para el detalle.
 
 #### `[TASK-002]` Definición de Esquemas Mongoose y Migración de Modelos
 * **Descripción**: Crear las colecciones base de MongoDB (`User`, `Patient`, `Appointment`, `Doctor`, `Treatment`) traduciendo los tipos de `types/appwrite.types.ts` a esquemas de Mongoose con validación.
@@ -181,3 +170,19 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - Los destinos de redirección por rol para Secretaria (`/recepcion`) y Doctor (`/doctor`) están implementados pero esas páginas **todavía no existen** (llegan con TASK-006/TASK-008) — van a dar 404 hasta entonces. Comportamiento esperado y documentado, no se ocultó redirigiendo todo a `/admin`.
   - La verificación end-to-end del login se hizo con un script que lee `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` directo del `.env.local` del usuario, sin mostrarlas nunca en la conversación.
   - Se detectaron y terminaron procesos `pnpm dev` huérfanos en puertos 3000/3001, remanentes de sesiones anteriores.
+
+#### `[TASK-005]` Middleware de Protección de Rutas y RBAC Dinámico
+* **Descripción**: Restringir el acceso a páginas (`/admin`, `/doctor`, `/recepcion`, `/patients`) mediante middleware de Next.js según el rol asignado (`Admin`, `Secretaria`, `Doctor`, `Paciente`).
+* **Criterios de Aceptación**:
+  - [x] Roles guardados en el token JWT / Session. *(ya lo hacía TASK-004)*
+  - [x] Middleware redirige a `/unauthorized` o `/login` si no cumple permisos.
+  - [x] Ocultar elementos de UI inaccesibles según rol.
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-004
+* **Resultado**: `middleware.ts` protege `/admin` (Administrador), `/doctor` (Doctor) y `/recepcion` (Secretaria) vía `withAuth` de NextAuth v4: sin sesión → redirige a `/login`; sesión con rol incorrecto → redirige a `/unauthorized` (página nueva). Se eliminó por completo el gate inseguro anterior (`PasskeyModal.tsx`, el PIN en `localStorage`, y el chequeo duplicado en `DataTable.tsx`) — era exactamente la deuda técnica que `ARQUITECTURA.md` §4.3 marcaba como crítica, y dejarlo en paralelo al middleware real hubiera sido un doble gate confuso. El link "Admin" de la home ahora apunta a `/login`.
+  - **Archivos creados**: `middleware.ts`, `lib/auth/getRequiredRoleForPath.ts` (+test), `app/unauthorized/page.tsx`
+  - **Archivos modificados**: `components/table/DataTable.tsx`, `app/page.tsx`, `lib/utils.ts` (removidos `encryptKey`/`decryptKey`), `vitest.setup.ts`
+  - **Archivos eliminados**: `components/PasskeyModal.tsx`
+* **Observaciones**:
+  - `/patients/*` (el flujo público de pacientes) **no se protegió** — es la consecuencia directa de la decisión de TASK-004 de no implementar login de pacientes; proteger esa ruta hubiera roto el registro/turnos públicos que sí funcionan hoy.
+  - **Bug real encontrado durante la verificación, con una vuelta en falso antes de dar con la causa**: el login empezó a fallar (401) y el middleware redirigía todo a `/login` incluso con sesión válida. Primer intento (incorrecto): pensé que `withAuth` no encontraba el `NEXTAUTH_SECRET` dentro del middleware y se lo pasé explícito — no cambió nada (quedó igual, es una buena práctica de todos modos así que no se revirtió). Reinicié el servidor por si el middleware no había recompilado — tampoco. Recién aislando el problema (probando `authenticateCredentials` directo contra Mongo, sin pasar por HTTP) apareció la causa real: **el usuario admin sembrado ya no existía en la base**. Motivo: los tests corren contra la misma base que la app (`healthcare-dev`), y varios tests hacen `User.deleteMany({})` en su limpieza — correr `npm run test` durante la verificación de TASK-005 borró el admin. Fix real: `vitest.setup.ts` ahora redirige `MONGODB_URI` a una base hermana `-test` para que la suite nunca pueda tocar datos de desarrollo. Se corrigió también un test de TASK-001 que tenía el nombre de la base hardcodeado. Verificado de punta a punta: sesión válida → `/admin` 200; rol incorrecto → `/unauthorized`; sin sesión → `/login`.
+  - Este bug (base de test compartida con desarrollo) estuvo latente desde TASK-001 — pudo haber afectado datos de cualquier sesión anterior, aunque no había nada valioso sembrado hasta el admin de TASK-004.
