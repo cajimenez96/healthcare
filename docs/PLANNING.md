@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (8 Tickets)          |  (0 Tickets)          |  (5 Tickets)          |
+|  (7 Tickets)          |  (0 Tickets)          |  (6 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -18,14 +18,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ## 📋 BACKLOG (Por Hacer)
 
 ### EPIC 3: Gestión Dinámica de Doctores y Agendas
-
-#### `[TASK-006]` CRUD de Doctores, Especialidades y Consultorios
-* **Descripción**: Reemplazar el listado hardcodeado en `constants/index.ts` por un módulo administrativo de alta/baja/modificación de profesionales.
-* **Criterios de Aceptación**:
-  - [ ] Formulario de Alta de Doctor (Nombre, Especialidad, Matrícula, Foto, Días/Horarios de atención).
-  - [ ] Persistencia en colección `Doctors`.
-  - [ ] API / Server Action para listar doctores activos en la interfaz de turnos.
-* **Prioridad**: Media | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-003, TASK-005
 
 #### `[TASK-007]` Selector Dinámico de Horarios Disponibles
 * **Descripción**: Actualizar el formulario de citas (`AppointmentForm.tsx`) para que calcule los slots de tiempo libres según la agenda del doctor seleccionado.
@@ -186,3 +178,20 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - `/patients/*` (el flujo público de pacientes) **no se protegió** — es la consecuencia directa de la decisión de TASK-004 de no implementar login de pacientes; proteger esa ruta hubiera roto el registro/turnos públicos que sí funcionan hoy.
   - **Bug real encontrado durante la verificación, con una vuelta en falso antes de dar con la causa**: el login empezó a fallar (401) y el middleware redirigía todo a `/login` incluso con sesión válida. Primer intento (incorrecto): pensé que `withAuth` no encontraba el `NEXTAUTH_SECRET` dentro del middleware y se lo pasé explícito — no cambió nada (quedó igual, es una buena práctica de todos modos así que no se revirtió). Reinicié el servidor por si el middleware no había recompilado — tampoco. Recién aislando el problema (probando `authenticateCredentials` directo contra Mongo, sin pasar por HTTP) apareció la causa real: **el usuario admin sembrado ya no existía en la base**. Motivo: los tests corren contra la misma base que la app (`healthcare-dev`), y varios tests hacen `User.deleteMany({})` en su limpieza — correr `npm run test` durante la verificación de TASK-005 borró el admin. Fix real: `vitest.setup.ts` ahora redirige `MONGODB_URI` a una base hermana `-test` para que la suite nunca pueda tocar datos de desarrollo. Se corrigió también un test de TASK-001 que tenía el nombre de la base hardcodeado. Verificado de punta a punta: sesión válida → `/admin` 200; rol incorrecto → `/unauthorized`; sin sesión → `/login`.
   - Este bug (base de test compartida con desarrollo) estuvo latente desde TASK-001 — pudo haber afectado datos de cualquier sesión anterior, aunque no había nada valioso sembrado hasta el admin de TASK-004.
+
+### EPIC 3: Gestión Dinámica de Doctores y Agendas
+
+#### `[TASK-006]` CRUD de Doctores, Especialidades y Consultorios
+* **Descripción**: Reemplazar el listado hardcodeado en `constants/index.ts` por un módulo administrativo de alta/baja/modificación de profesionales.
+* **Criterios de Aceptación**:
+  - [x] Formulario de Alta de Doctor (Nombre, Especialidad, Matrícula, Foto, Días/Horarios de atención).
+  - [x] Persistencia en colección `Doctors`.
+  - [x] API / Server Action para listar doctores activos en la interfaz de turnos.
+* **Prioridad**: Media | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-003, TASK-005
+* **Resultado**: Extendido el schema `Doctor` (TASK-002) con `specialty` (ahora requerido), `licenseNumber`, `availability` (array estructurado `{dayOfWeek, startTime, endTime}`, pensado para que TASK-007 lo consuma) e `isActive`. Repositorio + Server Actions (`createDoctor`, `getActiveDoctors`) reutilizando el GridFS de TASK-003 para la foto. Página `/admin/doctors` (protegida por el middleware de TASK-005) con listado + formulario de alta. Los 4 consumidores del `Doctors` hardcodeado (`RegisterForm.tsx`, `AppointmentForm.tsx`, `columns.tsx`, `success/page.tsx`) migrados a datos reales sin cambiar el contrato que ya usaban — `primaryPhysician` se sigue guardando como el **nombre** del doctor (string), no como referencia por ID, para no tener que tocar `Patient`/`Appointment` ni la lógica de matching existente. `constants.Doctors` eliminado. Verificado de punta a punta con un script que crea un doctor real (con foto) y confirma que aparece en el listado activo y que la foto se puede descargar — datos de prueba borrados después.
+  - **Archivos creados**: `lib/repositories/IDoctorRepository.ts`, `lib/db/repositories/MongoDoctorRepository.ts` (+test), `lib/actions/doctor.actions.ts`, `components/forms/DoctorForm.tsx`, `components/forms/DoctorAvailabilityPicker.tsx`, `app/admin/doctors/page.tsx`
+  - **Archivos modificados**: `lib/db/models/Doctor.ts` (+test), `lib/validation.ts` (`DoctorFormValidation`), `components/forms/RegisterForm.tsx`, `components/forms/AppointmentForm.tsx`, `components/AppointmentModal.tsx`, `components/table/columns.tsx` (ahora `getColumns(doctors)`), `app/admin/page.tsx`, `app/patients/[userId]/register/page.tsx`, `app/patients/[userId]/new-appointment/page.tsx`, `app/patients/[userId]/new-appointment/success/page.tsx`, `constants/index.ts`
+* **Observaciones**:
+  - El ticket dice "CRUD" pero los criterios de aceptación solo piden Alta + listado — no se construyó edición/baja de doctores (`isActive` existe en el schema para soportarlo a futuro, pero no hay UI para desactivar todavía). Si se necesita, es un ticket/tarea aparte.
+  - El horario de atención se simplificó a un rango de hora único aplicado a los días seleccionados (no horarios distintos por día) — alcanza para lo que pide el ticket y para lo que va a necesitar TASK-007; horarios per-día distintos quedan como posible mejora futura.
+  - La foto del doctor reutiliza el mismo bucket GridFS que los documentos de identificación de pacientes (`patientDocuments`) en vez de crear uno nuevo — es solo una etiqueta interna sin implicancia de seguridad distinta, y evita tocar la ruta `/api/files/[fileId]` que tiene el nombre de bucket fijo.
