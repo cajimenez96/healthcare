@@ -2,12 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { StatCard } from "@/components/StatCard";
-import { columns } from "@/components/table/columns";
+import { getColumns } from "@/components/table/columns";
 import { DataTable } from "@/components/table/DataTable";
 import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
+import { getActiveDoctors } from "@/lib/actions/doctor.actions";
 
 const AdminPage = async () => {
   const appointments = await getRecentAppointmentList();
+  const doctors = await getActiveDoctors();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
@@ -23,6 +25,10 @@ const AdminPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Admin Dashboard</p>
+
+        <Link href="/admin/doctors" className="text-green-500">
+          Doctores
+        </Link>
       </header>
 
       <main className="admin-main">
@@ -54,7 +60,7 @@ const AdminPage = async () => {
           />
         </section>
 
-        <DataTable columns={columns} data={appointments.documents} />
+        <DataTable columns={getColumns(doctors)} data={appointments.documents} />
       </main>
     </div>
   );

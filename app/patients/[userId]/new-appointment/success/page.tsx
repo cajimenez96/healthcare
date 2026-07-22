@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Doctors } from "@/constants";
 import { getAppointment } from "@/lib/actions/appointment.actions";
+import { getActiveDoctors } from "@/lib/actions/doctor.actions";
 import { formatDateTime } from "@/lib/utils";
 
 const RequestSuccess = async ({
@@ -12,9 +12,10 @@ const RequestSuccess = async ({
 }: SearchParamProps) => {
   const appointmentId = (searchParams?.appointmentId as string) || "";
   const appointment = await getAppointment(appointmentId);
+  const doctors = await getActiveDoctors();
 
-  const doctor = Doctors.find(
-    (doctor) => doctor.name === appointment.primaryPhysician
+  const doctor = doctors.find(
+    (doctor: { name: string }) => doctor.name === appointment.primaryPhysician
   );
 
   return (

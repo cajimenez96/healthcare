@@ -111,6 +111,31 @@ export const LoginFormValidation = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const DoctorAvailabilityValidation = z.object({
+  dayOfWeek: z.coerce.number().min(0).max(6),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+});
+
+export const DoctorFormValidation = z.object({
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name must be at most 50 characters"),
+  specialty: z
+    .string()
+    .min(2, "Specialty must be at least 2 characters")
+    .max(100, "Specialty must be at most 100 characters"),
+  licenseNumber: z
+    .string()
+    .min(2, "License number must be at least 2 characters")
+    .max(50, "License number must be at most 50 characters"),
+  photo: z.custom<File[]>().refine((files) => files?.length === 1, "A photo is required"),
+  availability: z
+    .array(DoctorAvailabilityValidation)
+    .min(1, "Select at least one day of availability"),
+});
+
 export function getAppointmentSchema(type: string) {
   switch (type) {
     case "create":

@@ -3,14 +3,17 @@
 import { ColumnDef } from "@tanstack/react-table";
 import Image from "next/image";
 
-import { Doctors } from "@/constants";
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
 
 import { AppointmentModal } from "../AppointmentModal";
 import { StatusBadge } from "../StatusBadge";
 
-export const columns: ColumnDef<Appointment>[] = [
+type DoctorOption = { name: string; image: string };
+
+export const getColumns = (
+  doctors: DoctorOption[],
+): ColumnDef<Appointment>[] => [
   {
     header: "#",
     cell: ({ row }) => {
@@ -55,7 +58,7 @@ export const columns: ColumnDef<Appointment>[] = [
     cell: ({ row }) => {
       const appointment = row.original;
 
-      const doctor = Doctors.find(
+      const doctor = doctors.find(
         (doctor) => doctor.name === appointment.primaryPhysician
       );
 
@@ -88,6 +91,7 @@ export const columns: ColumnDef<Appointment>[] = [
             type="schedule"
             title="Schedule Appointment"
             description="Please confirm the following details to schedule."
+            doctors={doctors}
           />
           <AppointmentModal
             patientId={appointment.patient.$id}
@@ -96,6 +100,7 @@ export const columns: ColumnDef<Appointment>[] = [
             type="cancel"
             title="Cancel Appointment"
             description="Are you sure you want to cancel your appointment?"
+            doctors={doctors}
           />
         </div>
       );
