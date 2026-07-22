@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (13 Tickets)         |  (0 Tickets)          |  (0 Tickets)          |
+|  (9 Tickets)          |  (0 Tickets)          |  (4 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -17,43 +17,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## 📋 BACKLOG (Por Hacer)
 
-### EPIC 1: Infraestructura & Migración a MongoDB
-
-#### `[TASK-001]` Configuración de Conexión a MongoDB y ODM
-* **Descripción**: Configurar la conexión persistente a MongoDB mediante Mongoose/Prisma en Next.js 14, reemplazando las variables de entorno y cliente de Appwrite.
-* **Criterios de Aceptación**:
-  - [ ] Conexión a MongoDB URI mediante singleton pattern en `lib/db/mongodb.ts`.
-  - [ ] Manejo adecuado de variables de entorno (`MONGODB_URI`).
-  - [ ] Script de prueba de conexión ejecutable.
-* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: Ninguna
-
-#### `[TASK-002]` Definición de Esquemas Mongoose y Migración de Modelos
-* **Descripción**: Crear las colecciones base de MongoDB (`User`, `Patient`, `Appointment`, `Doctor`, `Treatment`) traduciendo los tipos de `types/appwrite.types.ts` a esquemas de Mongoose con validación.
-* **Criterios de Aceptación**:
-  - [ ] Esquemas creados en `lib/db/models/`.
-  - [ ] Validaciones de campos obligatorios y tipos coincidentes con Zod schemas.
-  - [ ] Índices creados para búsquedas eficientes (ej: `userId`, `patientId`, `status`, `schedule`).
-* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-001
-
-#### `[TASK-003]` Refactorización de Server Actions a Patrón Repositorio
-* **Descripción**: Reemplazar las llamadas directas de Appwrite en `lib/actions/patient.actions.ts` y `appointment.actions.ts` por repositorios desacoplados que interactúen con MongoDB.
-* **Criterios de Aceptación**:
-  - [ ] Interfaz de repositorio `IPatientRepository` e `IAppointmentRepository`.
-  - [ ] Creación, lectura y actualización de pacientes y citas funcionando con MongoDB.
-  - [ ] Eliminación completa de la dependencia `node-appwrite`.
-* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-002
-
----
-
 ### EPIC 2: Autenticación & Control de Acceso por Roles (RBAC)
-
-#### `[TASK-004]` Autenticación Segura con NextAuth.js y MongoDB Adapter
-* **Descripción**: Implementar autenticación real por Email/Password usando NextAuth.js (Auth.js) en reemplazo del PIN estático en `PasskeyModal.tsx`.
-* **Criterios de Aceptación**:
-  - [ ] Endpoint `/api/auth/[...nextauth]` configurado con MongoDB Adapter.
-  - [ ] Hashing de contraseñas con `bcryptjs`.
-  - [ ] Formulario de Login funcional con redirección según rol.
-* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-003
 
 #### `[TASK-005]` Middleware de Protección de Rutas y RBAC Dinámico
 * **Descripción**: Restringir el acceso a páginas (`/admin`, `/doctor`, `/recepcion`, `/patients`) mediante middleware de Next.js según el rol asignado (`Admin`, `Secretaria`, `Doctor`, `Paciente`).
@@ -151,4 +115,68 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## ✅ COMPLETADO
 
-*(No hay tareas completadas aún)*
+### EPIC 1: Infraestructura & Migración a MongoDB
+
+#### `[TASK-001]` Configuración de Conexión a MongoDB y ODM
+* **Descripción**: Configurar la conexión persistente a MongoDB mediante Mongoose/Prisma en Next.js 14, reemplazando las variables de entorno y cliente de Appwrite.
+* **Criterios de Aceptación**:
+  - [x] Conexión a MongoDB URI mediante singleton pattern en `lib/db/mongodb.ts`.
+  - [x] Manejo adecuado de variables de entorno (`MONGODB_URI`).
+  - [x] Script de prueba de conexión ejecutable.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: Ninguna
+* **Resultado**: Implementado el singleton de conexión en `lib/db/mongodb.ts` con el patrón de cache global de Next.js (sobrevive HMR/cold starts), validando `MONGODB_URI` en tiempo de ejecución con error claro si falta. Se agregó `scripts/check-db-connection.ts` (`npm run db:ping`) como verificación manual ejecutable. Ciclo TDD completo (RED→GREEN) contra MongoDB local real.
+  - **Archivos creados**: `lib/db/mongodb.ts`, `lib/db/mongodb.test.ts`, `scripts/check-db-connection.ts`, `vitest.config.ts`, `vitest.setup.ts`, `.env.local`, `.env.example`
+  - **Archivos modificados**: `package.json` (scripts `test`/`test:watch`/`db:ping`; dependencias `mongoose`, `vitest`, `dotenv`, `tsx`)
+* **Observaciones**: El proyecto no tenía ningún test runner configurado; se evaluó Jest vs. Vitest y se optó por Vitest (cero-config con TS/ESM, sin tradeoffs arquitectónicos relevantes). Los tests son de integración real contra Mongo local, no mocks — consistente con el resto del proyecto.
+
+#### `[TASK-002]` Definición de Esquemas Mongoose y Migración de Modelos
+* **Descripción**: Crear las colecciones base de MongoDB (`User`, `Patient`, `Appointment`, `Doctor`, `Treatment`) traduciendo los tipos de `types/appwrite.types.ts` a esquemas de Mongoose con validación.
+* **Criterios de Aceptación**:
+  - [x] Esquemas creados en `lib/db/models/`.
+  - [x] Validaciones de campos obligatorios y tipos coincidentes con Zod schemas.
+  - [x] Índices creados para búsquedas eficientes (`userId`, `patientId`, `status`, `schedule`).
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-001
+* **Resultado**: Creados los 5 esquemas Mongoose con validaciones de campos obligatorios, enums (`Gender`, `Status`) y los índices pedidos por el ticket en `Appointment` (`userId`, `patientId`, `status`, `schedule`). 16 tests cubriendo validación, valores por defecto, enums e índices, corridos contra Mongo real.
+  - **Archivos creados**: `lib/db/models/User.ts` (+`.test.ts`), `Patient.ts` (+`.test.ts`), `Doctor.ts` (+`.test.ts`), `Appointment.ts` (+`.test.ts`), `Treatment.ts` (+`.test.ts`), `lib/db/models/testHelpers.ts`
+* **Observaciones**:
+  - Se eligió **Mongoose sobre Prisma+conector Mongo** por mejor soporte de documentos embebidos/anidados (relevante para el futuro `odontograma_json` de TASK-009), a pesar de que otro proyecto del usuario (`az-store`) usa Prisma.
+  - `userId` en `Patient`/`Appointment` se modeló como `ObjectId` con `ref: "User"` (relación real), no como string suelto como en Appwrite — deja el terreno preparado para TASK-004 (NextAuth suele usar una colección `User` equivalente).
+  - Se detectó y corrigió un warning de deprecación de Mongoose (`validateSync`, a eliminarse en Mongoose 10) reemplazándolo por la API async `validate()` antes de dar la tarea por cerrada (requisito de salida "pristina" del proyecto).
+
+#### `[TASK-003]` Refactorización de Server Actions a Patrón Repositorio
+* **Descripción**: Reemplazar las llamadas directas de Appwrite en `lib/actions/patient.actions.ts` y `appointment.actions.ts` por repositorios desacoplados que interactúen con MongoDB.
+* **Criterios de Aceptación**:
+  - [x] Interfaz de repositorio `IPatientRepository` e `IAppointmentRepository`.
+  - [x] Creación, lectura y actualización de pacientes y citas funcionando con MongoDB.
+  - [x] Eliminación completa de la dependencia `node-appwrite`.
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-002
+* **Resultado**: Reemplazadas las Server Actions basadas en Appwrite por un patrón de puertos/adaptadores (`lib/repositories/` para las interfaces, `lib/db/repositories/` para las implementaciones Mongo). `node-appwrite` eliminado de `package.json` y `lib/appwrite.config.ts` borrado. 47/47 tests pasando, cero componentes de UI modificados (compatibilidad mantenida vía `lib/actions/serializers.ts`, que mapea los registros Mongo de vuelta al contrato `$id` que ya consumían los formularios).
+  - **Archivos creados**: `lib/repositories/{IUserRepository,IPatientRepository,IAppointmentRepository,IFileStorage,INotificationService}.ts`, `lib/db/repositories/Mongo{User,Patient,Appointment}Repository.ts` (+tests), `lib/storage/GridFsFileStorage.ts` (+test), `app/api/files/[fileId]/route.ts` (+test), `lib/notifications/{TwilioNotificationService,buildAppointmentSmsMessage}.ts` (+test), `lib/actions/serializers.ts`
+  - **Archivos modificados**: `lib/actions/patient.actions.ts`, `lib/actions/appointment.actions.ts`, `types/appwrite.types.ts`, `types/index.d.ts`, `package.json`
+  - **Archivos eliminados**: `lib/appwrite.config.ts`
+* **Observaciones**:
+  - El ticket original no contemplaba qué reemplaza a **Appwrite Storage** (documento de identificación del paciente) ni **Appwrite Messaging** (SMS) — gaps reales detectados al ejecutar la tarea, no cubiertos por ningún otro ticket de este EPIC. Se resolvieron junto con el usuario: **GridFS** (nativo de Mongo, sin dependencias/credenciales nuevas) para archivos, **Twilio real** para SMS.
+  - Se generó **TASK-013** (fuera del alcance de este ticket) al detectar, vía warning de `pnpm install`, una vulnerabilidad de seguridad conocida en Next.js 14.2.3.
+  - Se detectó y corrigió un **drift de versión de `react-hook-form`/`@hookform/resolvers`** (causado por la pérdida de `package-lock.json` al migrar de npm a pnpm en paralelo a esta tarea), fijando versiones exactas a las que el template usaba originalmente.
+  - Se cablearon las variables de entorno de Sentry (`NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`), que estaban hardcodeadas apuntando a la cuenta del autor original del template — trabajo adicional pedido explícitamente por el usuario durante esta misma sesión, no parte del criterio de aceptación original.
+  - Durante la sesión se pegaron credenciales de Twilio en texto plano en el chat (dos veces) y por error una vez en `.env.example` (corregido antes de commitear). Se recomendó regenerar el Auth Token desde la consola de Twilio — **pendiente de confirmación por el usuario**.
+
+### EPIC 2: Autenticación & Control de Acceso por Roles (RBAC)
+
+#### `[TASK-004]` Autenticación Segura con NextAuth.js y MongoDB Adapter
+* **Descripción**: Implementar autenticación real por Email/Password usando NextAuth.js (Auth.js) en reemplazo del PIN estático en `PasskeyModal.tsx`.
+* **Criterios de Aceptación**:
+  - [x] Endpoint `/api/auth/[...nextauth]` configurado con MongoDB Adapter.
+  - [x] Hashing de contraseñas con `bcryptjs`.
+  - [x] Formulario de Login funcional con redirección según rol.
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-003
+* **Resultado**: Implementado NextAuth v4 (Credentials Provider + JWT strategy) con `MongoDBAdapter` sobre un `MongoClient` nativo (`lib/db/mongoClientPromise.ts`), separado del singleton de Mongoose usado por el resto de la app. `User` extendido con `role` (enum `Administrador|Secretaria|Doctor|Paciente`, default `Paciente`) y `hashedPassword` (`select: false`, nunca se serializa por accidente). Login funcional en `/login` para Secretaría/Doctor/Administrador, con redirección real según rol. Seeder (`pnpm db:seed-admin`) para crear el admin de arranque leyendo credenciales desde variables de entorno. Verificado end-to-end contra el servidor real: flujo CSRF → credenciales → sesión con `role`/`id` correctos.
+  - **Archivos creados**: `lib/db/mongoClientPromise.ts` (+test), `lib/auth/authenticateCredentials.ts` (+test), `lib/auth/authOptions.ts`, `lib/auth/roleHomeRoute.ts` (+test), `app/api/auth/[...nextauth]/route.ts`, `scripts/seed-admin.ts`, `components/forms/LoginForm.tsx`, `components/providers/AuthSessionProvider.tsx`, `app/login/page.tsx`, `types/next-auth.d.ts`
+  - **Archivos modificados**: `lib/db/models/User.ts` (+test), `lib/repositories/IUserRepository.ts`, `lib/db/repositories/MongoUserRepository.ts` (+test), `lib/validation.ts` (`LoginFormValidation`), `components/CustomFormField.tsx` (soporte `inputType` para password), `app/layout.tsx` (envuelto en `SessionProvider`), `package.json` (`next-auth`, `@next-auth/mongodb-adapter`, `mongodb`, `bcryptjs`; script `db:seed-admin`), `.env.example`
+* **Observaciones**:
+  - Se descartó **Auth.js v5** (verificado: sigue en beta, `5.0.0-beta.32`, pese al tiempo transcurrido) en favor de **NextAuth v4 estable** (`4.24.15`) — no corresponde apostar por software beta en un proyecto de salud.
+  - Se detectó y evitó a tiempo un mismatch de peer dependencies: `@next-auth/mongodb-adapter@1.1.3` sólo soporta `mongodb ^4||^5`, mientras la última versión del driver nativo es 7.x. Se pineó `mongodb@5.9.2` explícitamente (mismo tipo de trampa que el drift de `react-hook-form` en TASK-003, esta vez evitado verificando versiones antes de instalar en lugar de después).
+  - Por decisión explícita del usuario, el **login de pacientes quedó fuera de alcance** — `RegisterForm.tsx` no se tocó. Idea planteada para el futuro (identificación por DNI en vez de password) sin ticket formal todavía.
+  - Los destinos de redirección por rol para Secretaria (`/recepcion`) y Doctor (`/doctor`) están implementados pero esas páginas **todavía no existen** (llegan con TASK-006/TASK-008) — van a dar 404 hasta entonces. Comportamiento esperado y documentado, no se ocultó redirigiendo todo a `/admin`.
+  - La verificación end-to-end del login se hizo con un script que lee `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` directo del `.env.local` del usuario, sin mostrarlas nunca en la conversación.
+  - Se detectaron y terminaron procesos `pnpm dev` huérfanos en puertos 3000/3001, remanentes de sesiones anteriores.
