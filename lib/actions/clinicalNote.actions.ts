@@ -5,6 +5,7 @@ import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoClinicalNoteRepository } from "../db/repositories/MongoClinicalNoteRepository";
 import { parseStringify } from "../utils";
+import type { ClinicalNoteTreatment } from "../repositories/IClinicalNoteRepository";
 
 const clinicalNoteRepository = new MongoClinicalNoteRepository();
 
@@ -13,6 +14,7 @@ export const createClinicalNote = async (
   patientId: string,
   appointmentId: string,
   note: string,
+  treatments: ClinicalNoteTreatment[] = [],
 ) => {
   try {
     const doctorSession = await requireDoctorSession();
@@ -23,6 +25,7 @@ export const createClinicalNote = async (
       appointmentId,
       doctorName: doctorSession.name,
       note,
+      treatments,
     });
 
     revalidatePath(`/doctor/patient/${patientId}`);

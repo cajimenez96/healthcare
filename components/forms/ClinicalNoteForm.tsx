@@ -16,28 +16,52 @@ import SubmitButton from "../SubmitButton";
 interface ClinicalNoteFormProps {
   patientId: string;
   appointmentId: string;
+  treatments: { id: string; name: string; price: number }[];
 }
 
-const ClinicalNoteForm = ({ patientId, appointmentId }: ClinicalNoteFormProps) => {
+const ClinicalNoteForm = ({ patientId, appointmentId, treatments }: ClinicalNoteFormProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof ClinicalNoteValidation>>({
     resolver: zodResolver(ClinicalNoteValidation),
     defaultValues: { note: "" },
   });
 
+  const toggleTreatment = (treatmentId: string) => {
+    setSelectedTreatmentIds((current) =>
+      current.includes(treatmentId)
+        ? current.filter((id) => id !== treatmentId)
+        : [...current, treatmentId],
+    );
+  };
+
   const onSubmit = async (values: z.infer<typeof ClinicalNoteValidation>) => {
     setIsLoading(true);
     setError(null);
 
-    const created = await createClinicalNote(patientId, appointmentId, values.note);
+    const performedTreatments = treatments
+      .filter((treatment) => selectedTreatmentIds.includes(treatment.id))
+      .map((treatment) => ({
+        treatmentId: treatment.id,
+        name: treatment.name,
+        price: treatment.price,
+      }));
+
+    const created = await createClinicalNote(
+      patientId,
+      appointmentId,
+      values.note,
+      performedTreatments,
+    );
 
     setIsLoading(false);
 
     if (created) {
       form.reset();
+      setSelectedTreatmentIds([]);
       router.refresh();
     } else {
       setError("No se pudo guardar la nota. Intentá de nuevo.");
@@ -54,6 +78,27 @@ const ClinicalNoteForm = ({ patientId, appointmentId }: ClinicalNoteFormProps) =
           label="Nota de evolución"
           placeholder="Anamnesis, hallazgos, tratamiento realizado..."
         />
+
+        {treatments.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-14-medium">Prestaciones realizadas</p>
+            <div className="space-y-2">
+              {treatments.map((treatment) => (
+                <label
+                  key={treatment.id}
+                  className="flex cursor-pointer items-center gap-2 text-14-regular"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTreatmentIds.includes(treatment.id)}
+                    onChange={() => toggleTreatment(treatment.id)}
+                  />
+                  {treatment.name} — ${treatment.price.toLocaleString("es-AR")}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 

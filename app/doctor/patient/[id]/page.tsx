@@ -7,6 +7,7 @@ import { Odontogram } from "@/components/Odontogram";
 import { getClinicalNotesForPatient } from "@/lib/actions/clinicalNote.actions";
 import { getOdontogram } from "@/lib/actions/odontogram.actions";
 import { getPatientById } from "@/lib/actions/patient.actions";
+import { getActiveTreatments } from "@/lib/actions/treatment.actions";
 import { formatDateTime } from "@/lib/utils";
 
 const DoctorPatientPage = async ({
@@ -22,6 +23,7 @@ const DoctorPatientPage = async ({
 
   const notes = await getClinicalNotesForPatient(id);
   const odontogram = await getOdontogram(id);
+  const treatments = await getActiveTreatments();
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col space-y-14">
@@ -72,7 +74,11 @@ const DoctorPatientPage = async ({
         {appointmentId && (
           <section className="w-full max-w-lg space-y-4">
             <h2 className="header">Nueva evolución</h2>
-            <ClinicalNoteForm patientId={id} appointmentId={appointmentId} />
+            <ClinicalNoteForm
+              patientId={id}
+              appointmentId={appointmentId}
+              treatments={treatments}
+            />
           </section>
         )}
 
@@ -80,12 +86,23 @@ const DoctorPatientPage = async ({
           <h2 className="header">Histórico de evoluciones</h2>
           <ul className="space-y-4">
             {notes.map(
-              (note: { id: string; doctorName: string; note: string; createdAt: string }) => (
+              (note: {
+                id: string;
+                doctorName: string;
+                note: string;
+                treatments: { treatmentId: string; name: string; price: number }[];
+                createdAt: string;
+              }) => (
                 <li key={note.id} className="border-b border-dark-500 pb-4">
                   <p className="text-dark-700 text-12-regular">
                     {formatDateTime(note.createdAt).dateTime} · {note.doctorName}
                   </p>
                   <p className="text-14-regular">{note.note}</p>
+                  {note.treatments.length > 0 && (
+                    <p className="text-dark-700 text-12-regular">
+                      Prestaciones: {note.treatments.map((t) => t.name).join(", ")}
+                    </p>
+                  )}
                 </li>
               ),
             )}

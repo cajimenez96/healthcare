@@ -1,6 +1,6 @@
 import { Schema, model, models, Types } from "mongoose";
 
-export type AppointmentStatus = "pending" | "scheduled" | "cancelled";
+export type AppointmentStatus = "pending" | "scheduled" | "cancelled" | "completed";
 
 export interface IAppointment {
   _id: Types.ObjectId;
@@ -32,7 +32,7 @@ const appointmentSchema = new Schema<IAppointment>(
     schedule: { type: Date, required: true, index: true },
     status: {
       type: String,
-      enum: ["pending", "scheduled", "cancelled"],
+      enum: ["pending", "scheduled", "cancelled", "completed"],
       required: true,
       default: "pending",
       index: true,

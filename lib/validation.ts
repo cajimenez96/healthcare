@@ -156,6 +156,12 @@ export const TreatmentFormValidation = z.object({
   description: z.string().max(500, "Description must be at most 500 characters").optional(),
 });
 
+export const PaymentFormValidation = z.object({
+  paymentMethod: z.enum(["cash", "transfer", "card"], {
+    required_error: "Seleccioná un medio de pago",
+  }),
+});
+
 export function getAppointmentSchema(type: string) {
   switch (type) {
     case "create":

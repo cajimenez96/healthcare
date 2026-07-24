@@ -16,6 +16,13 @@ function toClinicalNoteRecord(
     appointmentId: doc.appointmentId.toString(),
     doctorName: doc.doctorName,
     note: doc.note,
+    // Explicit field mapping, not a subdocument spread: spreading a Mongoose
+    // subdocument copies its internal properties, not the actual values.
+    treatments: doc.treatments.map((t) => ({
+      treatmentId: t.treatmentId.toString(),
+      name: t.name,
+      price: t.price,
+    })),
     createdAt: doc.createdAt,
   };
 }
@@ -28,6 +35,11 @@ export class MongoClinicalNoteRepository implements IClinicalNoteRepository {
 
   async findByPatientId(patientId: string): Promise<ClinicalNoteRecord[]> {
     const docs = await ClinicalNote.find({ patientId }).sort({ createdAt: -1 });
+    return docs.map(toClinicalNoteRecord);
+  }
+
+  async findByAppointmentId(appointmentId: string): Promise<ClinicalNoteRecord[]> {
+    const docs = await ClinicalNote.find({ appointmentId }).sort({ createdAt: 1 });
     return docs.map(toClinicalNoteRecord);
   }
 }
