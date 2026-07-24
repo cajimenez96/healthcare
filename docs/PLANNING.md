@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (4 Tickets)          |  (0 Tickets)          |  (9 Tickets)          |
+|  (3 Tickets)          |  (0 Tickets)          |  (10 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -18,13 +18,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ## 📋 BACKLOG (Por Hacer)
 
 ### EPIC 5: Motor de Tarifas, Obras Sociales y Cobro en Recepción
-
-#### `[TASK-010]` Nomenclador de Prestaciones y Seeder "Particular"
-* **Descripción**: Crear el catálogo de tratamientos/prestaciones con sus precios base y pre-cargar la entidad `Particular / Sin Convenio` en MongoDB.
-* **Criterios de Aceptación**:
-  - [ ] Script Seeder que inserta la Obra Social `Particular` y el Nomenclador Base (Consultas, Obturaciones, Limpiezas).
-  - [ ] Panel CRUD para administrar el catálogo de prestaciones y sus montos.
-* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-002
 
 #### `[TASK-011]` Selección de Obra Social / Particular en Onboarding
 * **Descripción**: Extender el formulario de registro de paciente (`RegisterForm.tsx`) para incluir la selección de Obra Social, Plan y N° de Afiliado (Default: Particular).
@@ -227,3 +220,19 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - Simplificación de modelado: estados que en la práctica son de toda la pieza (Ausente, Corona) se guardan igual que los demás, pintando las 5 caras a la vez desde la UI — evita tener un concepto paralelo "estado de pieza completa" en el schema.
   - **Bug real encontrado en la verificación manual, no en los tests automatizados** (mismo patrón que TASK-007): `faces` es un subdocumento de Mongoose, no un objeto plano — sus valores viven detrás de getters, no como propiedades propias enumerables. El mapeo del repositorio hacía `faces: { ...faces }`, que copiaba las propiedades internas de Mongoose (`$__parent`, `_doc`, etc.) en vez de los valores reales, así que **todo lo guardado se leía vacío** al pasar por el repositorio. El test automatizado que debía cubrir esto verificaba contra `Odontogram.find()` (el documento crudo, con getters funcionando), no contra lo que devuelve el repositorio — pasaba igual aunque el bug estuviera presente. Corregido accediendo cada cara explícitamente en vez de spread, y se reforzaron los tests para verificar valores reales devueltos por el repositorio (no por consulta directa a Mongoose), que sí hubieran fallado con el código viejo.
   - Este es el tercer bug de esta sesión que los tests no agarraron por verificar "por el costado" en vez de a través de la ruta real que usa la aplicación (el de TASK-003 con la conexión, el de TASK-007 con la zona horaria, y este). Vale la pena tenerlo presente como categoría de riesgo recurrente, no solo como incidentes aislados.
+
+### EPIC 5: Motor de Tarifas, Obras Sociales y Cobro en Recepción
+
+#### `[TASK-010]` Nomenclador de Prestaciones y Seeder "Particular"
+* **Descripción**: Crear el catálogo de tratamientos/prestaciones con sus precios base y pre-cargar la entidad `Particular / Sin Convenio` en MongoDB.
+* **Criterios de Aceptación**:
+  - [x] Script Seeder que inserta la Obra Social `Particular` y el Nomenclador Base (Consultas, Obturaciones, Limpiezas).
+  - [x] Panel CRUD para administrar el catálogo de prestaciones y sus montos.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-002
+* **Resultado**: Extendido `Treatment` (schema base ya creado en TASK-002) con `isActive` (mismo patrón soft-delete de Doctor/TASK-006). Nueva colección `InsuranceProvider` (Obra Social) — solo lo mínimo que pide este ticket: nombre único + `isActive`, sin Planes/Coberturas todavía (eso es alcance de TASK-011/012). Seeder (`pnpm db:seed-nomenclador`, idempotente) crea "Particular / Sin Convenio" y 3 prestaciones base (Consulta Odontológica, Obturación de Resina, Limpieza Dental). Panel `/admin/treatments` con alta, edición y desactivar/reactivar — mismo patrón de UI que `/admin/doctors` (fila con modo edición inline), pero sin foto ni disponibilidad, mucho más simple. Todas las mutaciones protegidas con `requireAdminSession` (mismo patrón defensivo de TASK-006/008).
+  - **Archivos creados**: `lib/db/models/InsuranceProvider.ts` (+test), `lib/repositories/ITreatmentRepository.ts`, `lib/db/repositories/MongoTreatmentRepository.ts` (+test), `lib/repositories/IInsuranceProviderRepository.ts`, `lib/db/repositories/MongoInsuranceProviderRepository.ts` (+test), `lib/actions/treatment.actions.ts`, `scripts/seed-nomenclador.ts`, `components/forms/TreatmentForm.tsx`, `components/TreatmentRow.tsx`, `app/admin/treatments/page.tsx`
+  - **Archivos modificados**: `lib/db/models/Treatment.ts` (+test, `isActive`), `lib/validation.ts` (`TreatmentFormValidation`), `app/admin/page.tsx` (link "Nomenclador"), `package.json` (script `db:seed-nomenclador`)
+* **Observaciones**:
+  - No se creó Server Action para `InsuranceProvider` más allá del repositorio — el ticket no pide UI para Obras Sociales todavía (solo el seeder de "Particular"), y TASK-011 es quien realmente va a necesitar leerlas desde un desplegable. Se agregan cuando haga falta, no antes.
+  - `TreatmentForm.tsx` maneja alta y edición en un solo componente (a diferencia de `DoctorForm`/`EditDoctorForm`, separados en TASK-006) — la diferencia ahí era la foto opcional en edición; acá no hay archivos de por medio, así que un solo formulario con prop `treatment?` opcional alcanza sin duplicar código.
+  - Verificado con script real: alta, edición de precio, desactivar (excluido de `findActive`, presente en `findAll`), reactivar. Seeder verificado idempotente (correrlo dos veces no duplica nada).
