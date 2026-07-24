@@ -136,6 +136,10 @@ export const DoctorFormValidation = z.object({
     .min(1, "Select at least one day of availability"),
 });
 
+export const DoctorEditFormValidation = DoctorFormValidation.extend({
+  photo: z.custom<File[]>().optional(),
+});
+
 export function getAppointmentSchema(type: string) {
   switch (type) {
     case "create":

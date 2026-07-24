@@ -1,10 +1,11 @@
-import type { HydratedDocument } from "mongoose";
+import mongoose, { type HydratedDocument } from "mongoose";
 import type { IDoctor } from "../models/Doctor";
 import { Doctor } from "../models/Doctor";
 import type {
   CreateDoctorInput,
   DoctorRecord,
   IDoctorRepository,
+  UpdateDoctorInput,
 } from "../../repositories/IDoctorRepository";
 
 function toDoctorRecord(doc: HydratedDocument<IDoctor>): DoctorRecord {
@@ -32,5 +33,35 @@ export class MongoDoctorRepository implements IDoctorRepository {
   async findActive(): Promise<DoctorRecord[]> {
     const docs = await Doctor.find({ isActive: true }).sort({ name: 1 });
     return docs.map(toDoctorRecord);
+  }
+
+  async findAll(): Promise<DoctorRecord[]> {
+    const docs = await Doctor.find({}).sort({ name: 1 });
+    return docs.map(toDoctorRecord);
+  }
+
+  async update(
+    id: string,
+    input: UpdateDoctorInput,
+  ): Promise<DoctorRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await Doctor.findByIdAndUpdate(id, input, {
+      returnDocument: "after",
+    });
+    return doc ? toDoctorRecord(doc) : null;
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<DoctorRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await Doctor.findByIdAndUpdate(
+      id,
+      { isActive },
+      { returnDocument: "after" },
+    );
+    return doc ? toDoctorRecord(doc) : null;
   }
 }

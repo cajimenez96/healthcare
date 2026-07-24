@@ -5,11 +5,12 @@ import { StatCard } from "@/components/StatCard";
 import { getColumns } from "@/components/table/columns";
 import { DataTable } from "@/components/table/DataTable";
 import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
-import { getActiveDoctors } from "@/lib/actions/doctor.actions";
+import { getActiveDoctors, getAllDoctors } from "@/lib/actions/doctor.actions";
 
 const AdminPage = async () => {
   const appointments = await getRecentAppointmentList();
-  const doctors = await getActiveDoctors();
+  const allDoctors = await getAllDoctors();
+  const activeDoctors = await getActiveDoctors();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
@@ -60,7 +61,10 @@ const AdminPage = async () => {
           />
         </section>
 
-        <DataTable columns={getColumns(doctors)} data={appointments.documents} />
+        <DataTable
+          columns={getColumns(allDoctors, activeDoctors)}
+          data={appointments.documents}
+        />
       </main>
     </div>
   );

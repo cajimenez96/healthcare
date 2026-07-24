@@ -12,7 +12,8 @@ import { StatusBadge } from "../StatusBadge";
 type DoctorOption = { name: string; image: string };
 
 export const getColumns = (
-  doctors: DoctorOption[],
+  allDoctors: DoctorOption[],
+  activeDoctors: DoctorOption[],
 ): ColumnDef<Appointment>[] => [
   {
     header: "#",
@@ -58,7 +59,7 @@ export const getColumns = (
     cell: ({ row }) => {
       const appointment = row.original;
 
-      const doctor = doctors.find(
+      const doctor = allDoctors.find(
         (doctor) => doctor.name === appointment.primaryPhysician
       );
 
@@ -91,7 +92,7 @@ export const getColumns = (
             type="schedule"
             title="Schedule Appointment"
             description="Please confirm the following details to schedule."
-            doctors={doctors}
+            doctors={activeDoctors}
           />
           <AppointmentModal
             patientId={appointment.patient.$id}
@@ -100,7 +101,7 @@ export const getColumns = (
             type="cancel"
             title="Cancel Appointment"
             description="Are you sure you want to cancel your appointment?"
-            doctors={doctors}
+            doctors={activeDoctors}
           />
         </div>
       );

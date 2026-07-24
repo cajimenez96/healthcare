@@ -54,4 +54,62 @@ describe("MongoDoctorRepository", () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe("findAll", () => {
+    it("returns both active and inactive doctors", async () => {
+      await repository.create(validDoctor);
+      await Doctor.create({ ...validDoctor, name: "Dr. Inactive", isActive: false });
+
+      const result = await repository.findAll();
+
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe("update", () => {
+    it("updates a doctor's fields", async () => {
+      const created = await repository.create(validDoctor);
+
+      const updated = await repository.update(created.id, {
+        ...validDoctor,
+        specialty: "Ortodoncia",
+      });
+
+      expect(updated?.specialty).toBe("Ortodoncia");
+    });
+
+    it("returns null for a non-existent id", async () => {
+      const result = await repository.update(
+        new mongoose.Types.ObjectId().toString(),
+        validDoctor,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(
+        repository.update("not-an-object-id", validDoctor),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe("setActive", () => {
+    it("deactivates a doctor", async () => {
+      const created = await repository.create(validDoctor);
+
+      const updated = await repository.setActive(created.id, false);
+
+      expect(updated?.isActive).toBe(false);
+    });
+
+    it("reactivates a doctor", async () => {
+      const created = await repository.create(validDoctor);
+      await repository.setActive(created.id, false);
+
+      const updated = await repository.setActive(created.id, true);
+
+      expect(updated?.isActive).toBe(true);
+    });
+  });
 });

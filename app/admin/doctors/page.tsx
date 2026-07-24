@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { DoctorRow } from "@/components/DoctorRow";
 import DoctorForm from "@/components/forms/DoctorForm";
-import { getActiveDoctors } from "@/lib/actions/doctor.actions";
+import { getAllDoctors } from "@/lib/actions/doctor.actions";
 
 const DoctorsPage = async () => {
-  const doctors = await getActiveDoctors();
+  const doctors = await getAllDoctors();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
@@ -25,25 +26,25 @@ const DoctorsPage = async () => {
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Doctores activos</h1>
+          <h1 className="header">Doctores</h1>
           <ul className="space-y-4">
-            {doctors.map((doctor: { id: string; name: string; specialty: string; licenseNumber: string; image: string }) => (
-              <li key={doctor.id} className="flex items-center gap-4">
-                <Image
-                  src={doctor.image}
-                  alt={doctor.name}
-                  width={40}
-                  height={40}
-                  className="rounded-full border border-dark-500"
-                />
-                <div>
-                  <p className="text-14-medium">{doctor.name}</p>
-                  <p className="text-dark-700 text-12-regular">
-                    {doctor.specialty} · {doctor.licenseNumber}
-                  </p>
-                </div>
-              </li>
-            ))}
+            {doctors.map(
+              (doctor: {
+                id: string;
+                name: string;
+                specialty: string;
+                licenseNumber: string;
+                image: string;
+                isActive: boolean;
+                availability: {
+                  dayOfWeek: number;
+                  startTime: string;
+                  endTime: string;
+                }[];
+              }) => (
+                <DoctorRow key={doctor.id} doctor={doctor} />
+              ),
+            )}
             {doctors.length === 0 && (
               <p className="text-dark-700">Todavía no hay doctores cargados.</p>
             )}
