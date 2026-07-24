@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:ping": "tsx scripts/check-db-connection.ts",
-    "db:seed-admin": "tsx scripts/seed-admin.ts"
+    "db:seed-admin": "tsx scripts/seed-admin.ts",
+    "db:seed-nomenclador": "tsx scripts/seed-nomenclador.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "3.3.4",

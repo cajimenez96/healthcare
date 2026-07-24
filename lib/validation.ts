@@ -147,6 +147,15 @@ export const ClinicalNoteValidation = z.object({
     .max(2000, "Note must be at most 2000 characters"),
 });
 
+export const TreatmentFormValidation = z.object({
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be at most 100 characters"),
+  price: z.coerce.number().positive("Price must be greater than 0"),
+  description: z.string().max(500, "Description must be at most 500 characters").optional(),
+});
+
 export function getAppointmentSchema(type: string) {
   switch (type) {
     case "create":

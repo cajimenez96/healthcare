@@ -5,6 +5,7 @@ export interface ITreatment {
   name: string;
   price: number;
   description?: string;
+  isActive: boolean;
 }
 
 const treatmentSchema = new Schema<ITreatment>(
@@ -12,6 +13,7 @@ const treatmentSchema = new Schema<ITreatment>(
     name: { type: String, required: true },
     price: { type: Number, required: true },
     description: String,
+    isActive: { type: Boolean, required: true, default: true },
   },
   { timestamps: true },
 );

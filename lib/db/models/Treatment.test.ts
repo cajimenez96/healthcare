@@ -33,4 +33,13 @@ describe("Treatment model", () => {
     expect(treatment.name).toBe("Obturación de resina");
     expect(treatment.price).toBe(15000);
   });
+
+  it("defaults isActive to true", async () => {
+    const treatment = await Treatment.create({
+      name: "Limpieza dental",
+      price: 8000,
+    });
+
+    expect(treatment.isActive).toBe(true);
+  });
 });
