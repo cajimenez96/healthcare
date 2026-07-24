@@ -2,8 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { StatCard } from "@/components/StatCard";
-import { getColumns } from "@/components/table/columns";
-import { DataTable } from "@/components/table/DataTable";
+import { AppointmentsTable } from "@/components/table/AppointmentsTable";
 import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
 import { getActiveDoctors, getAllDoctors } from "@/lib/actions/doctor.actions";
 
@@ -61,9 +60,10 @@ const AdminPage = async () => {
           />
         </section>
 
-        <DataTable
-          columns={getColumns(allDoctors, activeDoctors)}
+        <AppointmentsTable
           data={appointments.documents}
+          allDoctors={allDoctors}
+          activeDoctors={activeDoctors}
         />
       </main>
     </div>
