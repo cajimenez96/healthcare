@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 
 import RegisterForm from "@/components/forms/RegisterForm";
 import { getActiveDoctors } from "@/lib/actions/doctor.actions";
+import { getActiveInsuranceProviders } from "@/lib/actions/insuranceProvider.actions";
 import { getPatient, getUser } from "@/lib/actions/patient.actions";
 
 const Register = async ({ params: { userId } }: SearchParamProps) => {
   const user = await getUser(userId);
   const patient = await getPatient(userId);
   const doctors = await getActiveDoctors();
+  const insuranceProviders = await getActiveInsuranceProviders();
 
   if (patient) redirect(`/patients/${userId}/new-appointment`);
 
@@ -24,7 +26,11 @@ const Register = async ({ params: { userId } }: SearchParamProps) => {
             className="mb-12 h-10 w-fit"
           />
 
-          <RegisterForm user={user} doctors={doctors} />
+          <RegisterForm
+            user={user}
+            doctors={doctors}
+            insuranceProviders={insuranceProviders}
+          />
 
           <p className="copyright py-12">© 2024 CarePluse</p>
         </div>

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SelectItem } from "@/components/ui/select";
 import {
+  DEFAULT_INSURANCE_PROVIDER,
   GenderOptions,
   IdentificationTypes,
   PatientFormDefaultValues,
@@ -28,9 +29,11 @@ import SubmitButton from "../SubmitButton";
 const RegisterForm = ({
   user,
   doctors,
+  insuranceProviders,
 }: {
   user: User;
   doctors: { name: string; image: string }[];
+  insuranceProviders: { name: string }[];
 }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +45,7 @@ const RegisterForm = ({
       name: user.name,
       email: user.email,
       phone: user.phone,
+      insuranceProvider: DEFAULT_INSURANCE_PROVIDER,
     },
   });
 
@@ -256,12 +260,18 @@ const RegisterForm = ({
           {/* INSURANCE & POLICY NUMBER */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
-              fieldType={FormFieldType.INPUT}
+              fieldType={FormFieldType.SELECT}
               control={form.control}
               name="insuranceProvider"
               label="Insurance provider"
-              placeholder="BlueCross BlueShield"
-            />
+              placeholder="Select an insurance provider"
+            >
+              {insuranceProviders.map((provider) => (
+                <SelectItem key={provider.name} value={provider.name}>
+                  {provider.name}
+                </SelectItem>
+              ))}
+            </CustomFormField>
 
             <CustomFormField
               fieldType={FormFieldType.INPUT}

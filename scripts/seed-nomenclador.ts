@@ -2,6 +2,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import mongoose from "mongoose";
+import { DEFAULT_INSURANCE_PROVIDER } from "../constants";
 import { connectToDatabase } from "../lib/db/mongodb";
 import { MongoInsuranceProviderRepository } from "../lib/db/repositories/MongoInsuranceProviderRepository";
 import { MongoTreatmentRepository } from "../lib/db/repositories/MongoTreatmentRepository";
@@ -31,9 +32,9 @@ async function main() {
   const treatmentRepository = new MongoTreatmentRepository();
 
   const particular = await insuranceProviderRepository.create(
-    "Particular / Sin Convenio",
+    DEFAULT_INSURANCE_PROVIDER,
   );
-  console.log(`Obra Social "Particular / Sin Convenio" lista (id: ${particular.id}).`);
+  console.log(`Obra Social "${DEFAULT_INSURANCE_PROVIDER}" lista (id: ${particular.id}).`);
 
   const existingTreatments = await treatmentRepository.findAll();
   const existingNames = new Set(existingTreatments.map((t) => t.name));

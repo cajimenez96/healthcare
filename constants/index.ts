@@ -1,5 +1,7 @@
 export const GenderOptions = ["Male", "Female", "Other"];
 
+export const DEFAULT_INSURANCE_PROVIDER = "Particular / Sin Convenio";
+
 export const PatientFormDefaultValues = {
   firstName: "",
   lastName: "",
