@@ -9,24 +9,13 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (7 Tickets)          |  (0 Tickets)          |  (6 Tickets)          |
+|  (6 Tickets)          |  (0 Tickets)          |  (7 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
 ---
 
 ## 📋 BACKLOG (Por Hacer)
-
-### EPIC 3: Gestión Dinámica de Doctores y Agendas
-
-#### `[TASK-007]` Selector Dinámico de Horarios Disponibles
-* **Descripción**: Actualizar el formulario de citas (`AppointmentForm.tsx`) para que calcule los slots de tiempo libres según la agenda del doctor seleccionado.
-* **Criterios de Aceptación**:
-  - [ ] El paciente/secretaria elige doctor y fecha; el sistema deshabilita horas ocupadas.
-  - [ ] Validación anti-solapamiento de turnos en backend.
-* **Prioridad**: Media | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-006
-
----
 
 ### EPIC 4: Ficha Clínica y Odontograma Interactivo
 
@@ -206,3 +195,17 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
     - **Fix de código**: nuevo componente cliente `components/table/AppointmentsTable.tsx` que recibe `data`/`allDoctors`/`activeDoctors` (props planas y serializables) y arma `getColumns(...)` **adentro**, en código que ya corre en el cliente. `app/admin/page.tsx` ahora solo pasa datos, nunca llama a una función de un módulo `"use client"`. Verificado con `.next/` borrado y arranque en frío, simulando tanto un request SSR normal como un request RSC con los headers que usa `router.push()` (`RSC: 1`, `Next-Router-Prefetch`) — los 4 casos devolvieron `200` sin error.
     - **Lección operativa**: cuando un error "imposible" sobrevive a dos rondas de remedios de infraestructura (reinicio de proceso, limpieza de caché), dejar de insistir por ese lado y volver a mirar el código — en este caso había un problema real de arquitectura (límite RSC cruzado incorrectamente) que la infraestructura nunca iba a arreglar.
     - **Confirmado por el usuario en el navegador**: login como admin y `/admin` funcionando de punta a punta tras el fix.
+
+#### `[TASK-007]` Selector Dinámico de Horarios Disponibles
+* **Descripción**: Actualizar el formulario de citas (`AppointmentForm.tsx`) para que calcule los slots de tiempo libres según la agenda del doctor seleccionado.
+* **Criterios de Aceptación**:
+  - [x] El paciente/secretaria elige doctor y fecha; el sistema deshabilita horas ocupadas.
+  - [x] Validación anti-solapamiento de turnos en backend.
+* **Prioridad**: Media | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-006
+* **Resultado**: Función pura `lib/scheduling/getAvailableSlots.ts` (TDD) calcula slots libres de 30 minutos combinando la `availability` del doctor (TASK-006) con los horarios ya ocupados ese día. Server Action `getAvailableSlotsForDoctor` la conecta a datos reales (`MongoDoctorRepository.findByName` + nuevo `MongoAppointmentRepository.findBookedTimes`). `AppointmentForm.tsx` llama a esa acción cuando cambian doctor/fecha y usa `includeTimes` de `react-datepicker` (extendí `CustomFormField` para soportarlo, junto con `filterDate` para deshabilitar días enteros sin disponibilidad). Validación anti-solapamiento real en el backend (`existsOverlapping`, nuevo método del repositorio) corriendo antes de `createAppointment` y `updateAppointment` (caso "schedule") — si el horario ya está ocupado, la creación/reprogramación se rechaza; el formulario ahora muestra un mensaje de error en ese caso en vez de fallar en silencio.
+  - **Archivos creados**: `lib/scheduling/getAvailableSlots.ts` (+test)
+  - **Archivos modificados**: `lib/repositories/IAppointmentRepository.ts`, `lib/db/repositories/MongoAppointmentRepository.ts` (+test), `lib/repositories/IDoctorRepository.ts`, `lib/db/repositories/MongoDoctorRepository.ts` (+test), `lib/actions/appointment.actions.ts`, `components/forms/AppointmentForm.tsx`, `components/AppointmentModal.tsx`, `components/CustomFormField.tsx`
+* **Observaciones**:
+  - **Bug real encontrado durante la verificación manual, no durante los tests**: la función pura usa `date.getDay()` (hora local) para el día de la semana, pero `findBookedTimes` calculaba los límites del día y extraía las horas en **UTC** (`getUTCDate`/`getUTCHours`). En un servidor que no corre en UTC+0 (este, en particular), esto desalinea todo — un script de verificación manual mostró `[]` slots disponibles incluso sin ningún turno reservado. Los tests automatizados no lo agarraron porque construían las fechas de prueba con timestamps UTC explícitos (`...Z`) consistentes entre sí, ocultando la inconsistencia real. Corregido: `findBookedTimes` ahora usa hora local en todos lados, igual que `getAvailableSlots` y que el resto del sistema (el `<input type="time">` del selector de disponibilidad de TASK-006 tampoco tiene noción de timezone). Se reescribieron los tests afectados con fechas construidas en local (`new Date(2026, 7, 1, 10, 0)`) en vez de strings ISO UTC, y se verificó el flujo completo (slots antes/después de reservar, rechazo de duplicado) con un script real.
+  - Este es el mismo tipo de riesgo que ya se anotó como pendiente en TASK-003/TASK-004 (manejo de timezone flojo en todo el proyecto, más allá del `timeZone` explícito que ya viaja para el armado del SMS) — se resolvió puntualmente acá, pero sigue siendo una limitación de arquitectura para una futura clínica que opere en más de un huso horario.
+  - La duración de turno se asume fija en 30 minutos (coincide con el `timeIntervals` por defecto de `react-datepicker`, que no se tocó) — no hay un campo de duración configurable por tratamiento; se podría necesitar más adelante si se agregan prestaciones de duración variable (EPIC 5).
