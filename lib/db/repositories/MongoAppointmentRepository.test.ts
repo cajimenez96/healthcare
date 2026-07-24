@@ -136,4 +136,93 @@ describe("MongoAppointmentRepository", () => {
       expect(result?.reason).toBe("Annual checkup");
     });
   });
+
+  describe("findBookedTimes", () => {
+    it("returns HH:mm times booked for the doctor on that day, excluding cancelled", async () => {
+      const patientId = await createPatient();
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 10, 0),
+        status: "scheduled",
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 11, 0),
+        status: "cancelled",
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        primaryPhysician: "Dr. Other",
+        schedule: new Date(2026, 7, 1, 12, 0),
+        status: "scheduled",
+      });
+
+      const result = await repository.findBookedTimes(
+        "Dr. Cameron",
+        new Date(2026, 7, 1),
+      );
+
+      expect(result).toEqual(["10:00"]);
+    });
+
+    it("returns an empty array when nothing is booked that day", async () => {
+      const result = await repository.findBookedTimes(
+        "Dr. Cameron",
+        new Date("2026-08-01T00:00:00Z"),
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("existsOverlapping", () => {
+    it("returns true when the doctor has a non-cancelled appointment at that exact time", async () => {
+      const patientId = await createPatient();
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date("2026-08-01T10:00:00Z"),
+        status: "scheduled",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date("2026-08-01T10:00:00Z"),
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it("returns false when the conflicting appointment is cancelled", async () => {
+      const patientId = await createPatient();
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date("2026-08-01T10:00:00Z"),
+        status: "cancelled",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date("2026-08-01T10:00:00Z"),
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it("excludes the given appointment id (for rescheduling in place)", async () => {
+      const patientId = await createPatient();
+      const created = await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date("2026-08-01T10:00:00Z"),
+        status: "scheduled",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date("2026-08-01T10:00:00Z"),
+        created.id,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
 });

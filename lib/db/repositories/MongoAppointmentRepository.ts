@@ -99,4 +99,43 @@ export class MongoAppointmentRepository implements IAppointmentRepository {
     const doc = await Appointment.findById(id);
     return doc ? toAppointmentRecord(doc) : null;
   }
+
+  async findBookedTimes(primaryPhysician: string, date: Date): Promise<string[]> {
+    // Local time throughout, matching getAvailableSlots()'s use of
+    // date.getDay() and the doctor availability picker's plain <input
+    // type="time">: neither carries a timezone, both implicitly assume
+    // "server-local = clinic time" for this MVP. Mixing UTC boundaries here
+    // with local day-of-week there caused every slot to look booked/closed
+    // whenever the server's local offset wasn't UTC+0.
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+    const docs = await Appointment.find({
+      primaryPhysician,
+      schedule: { $gte: startOfDay, $lt: endOfDay },
+      status: { $ne: "cancelled" },
+    });
+
+    return docs.map((doc) => {
+      const hours = doc.schedule.getHours().toString().padStart(2, "0");
+      const minutes = doc.schedule.getMinutes().toString().padStart(2, "0");
+      return `${hours}:${minutes}`;
+    });
+  }
+
+  async existsOverlapping(
+    primaryPhysician: string,
+    schedule: Date,
+    excludeAppointmentId?: string,
+  ): Promise<boolean> {
+    const count = await Appointment.countDocuments({
+      primaryPhysician,
+      schedule,
+      status: { $ne: "cancelled" },
+      ...(excludeAppointmentId && mongoose.isValidObjectId(excludeAppointmentId)
+        ? { _id: { $ne: excludeAppointmentId } }
+        : {}),
+    });
+    return count > 0;
+  }
 }

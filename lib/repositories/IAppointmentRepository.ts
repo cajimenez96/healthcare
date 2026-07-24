@@ -33,4 +33,12 @@ export interface IAppointmentRepository {
   findRecent(): Promise<AppointmentWithPatient[]>;
   update(id: string, data: UpdateAppointmentInput): Promise<AppointmentRecord | null>;
   findById(id: string): Promise<AppointmentRecord | null>;
+  /** "HH:mm" times already booked (non-cancelled) for a doctor on a given calendar day. */
+  findBookedTimes(primaryPhysician: string, date: Date): Promise<string[]>;
+  /** Whether a doctor already has a non-cancelled appointment at that exact time. */
+  existsOverlapping(
+    primaryPhysician: string,
+    schedule: Date,
+    excludeAppointmentId?: string,
+  ): Promise<boolean>;
 }

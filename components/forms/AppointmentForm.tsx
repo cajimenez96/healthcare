@@ -3,13 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Dispatch, SetStateAction, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { SelectItem } from "@/components/ui/select";
 import {
   createAppointment,
+  getAvailableSlotsForDoctor,
   updateAppointment,
 } from "@/lib/actions/appointment.actions";
 import { getAppointmentSchema } from "@/lib/validation";
@@ -20,6 +21,22 @@ import "react-datepicker/dist/react-datepicker.css";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
 import { Form } from "../ui/form";
+
+interface DoctorAvailability {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+interface DoctorOption {
+  name: string;
+  image: string;
+  availability?: DoctorAvailability[];
+}
+
+function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
 
 export const AppointmentForm = ({
   userId,
@@ -34,10 +51,12 @@ export const AppointmentForm = ({
   type: "create" | "schedule" | "cancel";
   appointment?: Appointment;
   setOpen?: Dispatch<SetStateAction<boolean>>;
-  doctors: { name: string; image: string }[];
+  doctors: DoctorOption[];
 }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<Date[] | null>(null);
 
   const AppointmentFormValidation = getAppointmentSchema(type);
 
@@ -54,10 +73,42 @@ export const AppointmentForm = ({
     },
   });
 
+  const selectedDoctorName = form.watch("primaryPhysician" as any) as
+    | string
+    | undefined;
+  const selectedDate = form.watch("schedule" as any) as Date | undefined;
+  const selectedDoctor = doctors.find((doctor) => doctor.name === selectedDoctorName);
+
+  useEffect(() => {
+    if (!selectedDoctorName || !selectedDate || type === "cancel") {
+      setAvailableTimes(null);
+      return;
+    }
+
+    let cancelled = false;
+    getAvailableSlotsForDoctor(selectedDoctorName, selectedDate).then((slots: string[]) => {
+      if (cancelled) return;
+      setAvailableTimes(
+        slots.map((slot) => {
+          const [hours, minutes] = slot.split(":").map(Number);
+          const time = new Date(selectedDate);
+          time.setHours(hours, minutes, 0, 0);
+          return time;
+        }),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDoctorName, selectedDate && dayKey(selectedDate)]);
+
   const onSubmit = async (
     values: z.infer<typeof AppointmentFormValidation>
   ) => {
     setIsLoading(true);
+    setSubmitError(null);
 
     let status;
     switch (type) {
@@ -90,6 +141,10 @@ export const AppointmentForm = ({
           router.push(
             `/patients/${userId}/new-appointment/success?appointmentId=${newAppointment.$id}`
           );
+        } else {
+          setSubmitError(
+            "No se pudo guardar el turno. Es posible que el horario ya no esté disponible — elegí otro e intentá de nuevo."
+          );
         }
       } else {
         const appointmentToUpdate = {
@@ -109,6 +164,10 @@ export const AppointmentForm = ({
         if (updatedAppointment) {
           setOpen && setOpen(false);
           form.reset();
+        } else if (type === "schedule") {
+          setSubmitError(
+            "No se pudo guardar el turno. Es posible que el horario ya no esté disponible — elegí otro e intentá de nuevo."
+          );
         }
       }
     } catch (error) {
@@ -173,6 +232,15 @@ export const AppointmentForm = ({
               label="Expected appointment date"
               showTimeSelect
               dateFormat="MM/dd/yyyy  -  h:mm aa"
+              includeTimes={availableTimes ?? undefined}
+              filterDate={
+                selectedDoctor?.availability
+                  ? (date: Date) =>
+                      selectedDoctor.availability!.some(
+                        (entry) => entry.dayOfWeek === date.getDay(),
+                      )
+                  : undefined
+              }
             />
 
             <div
@@ -207,6 +275,10 @@ export const AppointmentForm = ({
             label="Reason for cancellation"
             placeholder="Urgent meeting came up"
           />
+        )}
+
+        {submitError && (
+          <p className="shad-error text-14-regular">{submitError}</p>
         )}
 
         <SubmitButton

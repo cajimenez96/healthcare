@@ -4,13 +4,16 @@ import { revalidatePath } from "next/cache";
 
 import { connectToDatabase } from "../db/mongodb";
 import { MongoAppointmentRepository } from "../db/repositories/MongoAppointmentRepository";
+import { MongoDoctorRepository } from "../db/repositories/MongoDoctorRepository";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { buildAppointmentSmsMessage } from "../notifications/buildAppointmentSmsMessage";
 import { TwilioNotificationService } from "../notifications/TwilioNotificationService";
+import { getAvailableSlots } from "../scheduling/getAvailableSlots";
 import { parseStringify } from "../utils";
 import { toAppointment, toAppointmentWithPatient } from "./serializers";
 
 const appointmentRepository = new MongoAppointmentRepository();
+const doctorRepository = new MongoDoctorRepository();
 const userRepository = new MongoUserRepository();
 const notificationService = new TwilioNotificationService();
 
@@ -20,6 +23,15 @@ export const createAppointment = async (
 ) => {
   try {
     await connectToDatabase();
+
+    const isTaken = await appointmentRepository.existsOverlapping(
+      appointment.primaryPhysician,
+      new Date(appointment.schedule),
+    );
+    if (isTaken) {
+      throw new Error("SLOT_TAKEN");
+    }
+
     const newAppointment = await appointmentRepository.create({
       userId: appointment.userId,
       patientId: appointment.patient,
@@ -34,6 +46,31 @@ export const createAppointment = async (
     return parseStringify(toAppointment(newAppointment));
   } catch (error) {
     console.error("An error occurred while creating a new appointment:", error);
+  }
+};
+
+// GET AVAILABLE SLOTS
+export const getAvailableSlotsForDoctor = async (
+  primaryPhysician: string,
+  date: Date,
+) => {
+  try {
+    await connectToDatabase();
+
+    const doctor = await doctorRepository.findByName(primaryPhysician);
+    if (!doctor) {
+      return [];
+    }
+
+    const bookedTimes = await appointmentRepository.findBookedTimes(
+      primaryPhysician,
+      new Date(date),
+    );
+
+    return getAvailableSlots(doctor.availability, new Date(date), bookedTimes);
+  } catch (error) {
+    console.error("An error occurred while retrieving available slots:", error);
+    return [];
   }
 };
 
@@ -105,6 +142,18 @@ export const updateAppointment = async ({
 }: UpdateAppointmentParams) => {
   try {
     await connectToDatabase();
+
+    if (type !== "cancel" && appointment.schedule && appointment.primaryPhysician) {
+      const isTaken = await appointmentRepository.existsOverlapping(
+        appointment.primaryPhysician,
+        new Date(appointment.schedule),
+        appointmentId,
+      );
+      if (isTaken) {
+        throw new Error("SLOT_TAKEN");
+      }
+    }
+
     const updatedAppointment = await appointmentRepository.update(
       appointmentId,
       appointment

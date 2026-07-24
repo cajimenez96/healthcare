@@ -30,7 +30,11 @@ export const AppointmentModal = ({
   type: "schedule" | "cancel";
   title: string;
   description: string;
-  doctors: { name: string; image: string }[];
+  doctors: {
+    name: string;
+    image: string;
+    availability?: { dayOfWeek: number; startTime: string; endTime: string }[];
+  }[];
 }) => {
   const [open, setOpen] = useState(false);
 

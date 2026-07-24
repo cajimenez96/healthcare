@@ -66,6 +66,22 @@ describe("MongoDoctorRepository", () => {
     });
   });
 
+  describe("findByName", () => {
+    it("returns the doctor matching the exact name", async () => {
+      await repository.create(validDoctor);
+
+      const result = await repository.findByName("Dr. Cameron");
+
+      expect(result?.licenseNumber).toBe("MP-12345");
+    });
+
+    it("returns null when no doctor matches", async () => {
+      const result = await repository.findByName("Dr. Missing");
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe("update", () => {
     it("updates a doctor's fields", async () => {
       const created = await repository.create(validDoctor);

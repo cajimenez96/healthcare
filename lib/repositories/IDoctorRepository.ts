@@ -23,6 +23,7 @@ export interface IDoctorRepository {
   create(input: CreateDoctorInput): Promise<DoctorRecord>;
   findActive(): Promise<DoctorRecord[]>;
   findAll(): Promise<DoctorRecord[]>;
+  findByName(name: string): Promise<DoctorRecord | null>;
   update(id: string, input: UpdateDoctorInput): Promise<DoctorRecord | null>;
   setActive(id: string, isActive: boolean): Promise<DoctorRecord | null>;
 }

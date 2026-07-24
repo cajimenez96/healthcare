@@ -40,6 +40,11 @@ export class MongoDoctorRepository implements IDoctorRepository {
     return docs.map(toDoctorRecord);
   }
 
+  async findByName(name: string): Promise<DoctorRecord | null> {
+    const doc = await Doctor.findOne({ name });
+    return doc ? toDoctorRecord(doc) : null;
+  }
+
   async update(
     id: string,
     input: UpdateDoctorInput,

@@ -41,6 +41,11 @@ interface CustomProps {
   renderSkeleton?: (field: any) => React.ReactNode;
   fieldType: FormFieldType;
   inputType?: React.HTMLInputTypeAttribute;
+  excludeTimes?: Date[];
+  includeTimes?: Date[];
+  minTime?: Date;
+  maxTime?: Date;
+  filterDate?: (date: Date) => boolean;
 }
 
 const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
@@ -125,6 +130,11 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               timeInputLabel="Time:"
               dateFormat={props.dateFormat ?? "MM/dd/yyyy"}
               wrapperClassName="date-picker"
+              excludeTimes={props.excludeTimes}
+              includeTimes={props.includeTimes}
+              minTime={props.minTime}
+              maxTime={props.maxTime}
+              filterDate={props.filterDate}
             />
           </FormControl>
         </div>
