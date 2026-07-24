@@ -9,25 +9,13 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (5 Tickets)          |  (0 Tickets)          |  (8 Tickets)          |
+|  (4 Tickets)          |  (0 Tickets)          |  (9 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
 ---
 
 ## 📋 BACKLOG (Por Hacer)
-
-### EPIC 4: Ficha Clínica y Odontograma Interactivo
-
-#### `[TASK-009]` Integración del Componente de Odontograma Interactivo
-* **Descripción**: Integrar el componente visual de odontograma (piezas dentales 2D/3D) para registrar el estado de cada diente y guardarlo como JSON en MongoDB.
-* **Criterios de Aceptación**:
-  - [ ] Renderizado gráfico de las 32 piezas dentales permanentes y temporales.
-  - [ ] Selección de estados por pieza/cara (Caries, Obturado, Ausente, Endodoncia, Corona).
-  - [ ] Guardado y lectura del `odontograma_json` en la colección `ClinicalRecord`.
-* **Prioridad**: Alta | **Esfuerzo**: Alto (5 ptos) | **Dependencias**: TASK-008
-
----
 
 ### EPIC 5: Motor de Tarifas, Obras Sociales y Cobro en Recepción
 
@@ -222,3 +210,20 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - Límite conocido, no resuelto: si el Administrador crea un segundo acceso para un doctor que ya tiene uno (con otro email), `createDoctorAccess` no lo detecta y quedan dos cuentas de login apuntando al mismo `doctorId`. No había urgencia de resolverlo para el MVP; anotado para cuando exista una pantalla de gestión de usuarios.
   - Cualquier doctor autenticado puede ver el historial clínico de cualquier paciente (no solo de sus propios turnos) — coincide con cómo suele operar una clínica real (el historial completo es relevante para cualquier profesional que atienda al paciente), pero es una decisión implícita, no pedida explícitamente por el ticket.
   - Verificado de punta a punta con un script que crea un doctor, su acceso vinculado, un paciente y un turno, y confirma: la agenda del doctor lo muestra, la ficha trae los antecedentes, se puede cargar y leer una evolución. Se verificó también contra el servidor real que `/doctor` y `/doctor/patient/[id]` redirigen a `/login` sin sesión y a `/unauthorized` con un rol incorrecto (probado con una sesión de Administrador).
+
+#### `[TASK-009]` Integración del Componente de Odontograma Interactivo
+* **Descripción**: Integrar el componente visual de odontograma (piezas dentales 2D/3D) para registrar el estado de cada diente y guardarlo como JSON en MongoDB.
+* **Criterios de Aceptación**:
+  - [x] Renderizado gráfico de las 32 piezas dentales permanentes *(temporales quedó fuera de alcance, ver Observaciones)*.
+  - [x] Selección de estados por pieza/cara (Caries, Obturado, Ausente, Endodoncia, Corona).
+  - [x] Guardado y lectura del odontograma en MongoDB *(colección `Odontogram`, no `ClinicalRecord` — ver Observaciones)*.
+* **Prioridad**: Alta | **Esfuerzo**: Alto (5 ptos) | **Dependencias**: TASK-008
+* **Resultado**: Odontograma de 32 piezas permanentes (notación FDI 11-48), cada una con 5 caras (mesial, distal, vestibular, palatal, oclusal), cada cara pintable con uno de los 5 estados del ticket. Gráfico HTML/CSS (grid de 5 zonas por diente, sin SVG anatómico) integrado en `/doctor/patient/[id]`, debajo de los antecedentes médicos. Un click en una cara rota el estado (sano→Caries→Obturado→Ausente→Endodoncia→Corona→sano); un botón "Guardar odontograma" persiste todo el estado de una vez (no autosave por click). Se crea automáticamente un odontograma vacío la primera vez que se abre la ficha de un paciente sin uno.
+  - **Archivos creados**: `lib/odontogram/createEmptyOdontogram.ts` (+test), `lib/db/models/Odontogram.ts` (+test), `lib/repositories/IOdontogramRepository.ts`, `lib/db/repositories/MongoOdontogramRepository.ts` (+test), `lib/actions/odontogram.actions.ts`, `components/Odontogram.tsx`
+  - **Archivos modificados**: `app/doctor/patient/[id]/page.tsx`
+* **Observaciones**:
+  - Alcance acotado con el usuario antes de empezar: el ticket decía "32 piezas permanentes y temporales", ambiguo entre "32 piezas (que son permanentes)" y "necesito ambas denticiones". Se decidió **solo dentición permanente** por ahora — la temporal (20 piezas, numeración FDI 51-85, pacientes pediátricos) queda pendiente si la clínica atiende niños.
+  - El modelo se llama `Odontogram` (un documento por paciente, no por turno), no `ClinicalRecord` como sugería el ticket — ya existía `ClinicalNote` de TASK-008 para las evoluciones por turno, y mezclar ambas cosas en una sola colección hubiera sido peor diseño que dos colecciones con responsabilidad única.
+  - Simplificación de modelado: estados que en la práctica son de toda la pieza (Ausente, Corona) se guardan igual que los demás, pintando las 5 caras a la vez desde la UI — evita tener un concepto paralelo "estado de pieza completa" en el schema.
+  - **Bug real encontrado en la verificación manual, no en los tests automatizados** (mismo patrón que TASK-007): `faces` es un subdocumento de Mongoose, no un objeto plano — sus valores viven detrás de getters, no como propiedades propias enumerables. El mapeo del repositorio hacía `faces: { ...faces }`, que copiaba las propiedades internas de Mongoose (`$__parent`, `_doc`, etc.) en vez de los valores reales, así que **todo lo guardado se leía vacío** al pasar por el repositorio. El test automatizado que debía cubrir esto verificaba contra `Odontogram.find()` (el documento crudo, con getters funcionando), no contra lo que devuelve el repositorio — pasaba igual aunque el bug estuviera presente. Corregido accediendo cada cara explícitamente en vez de spread, y se reforzaron los tests para verificar valores reales devueltos por el repositorio (no por consulta directa a Mongoose), que sí hubieran fallado con el código viejo.
+  - Este es el tercer bug de esta sesión que los tests no agarraron por verificar "por el costado" en vez de a través de la ruta real que usa la aplicación (el de TASK-003 con la conexión, el de TASK-007 con la zona horaria, y este). Vale la pena tenerlo presente como categoría de riesgo recurrente, no solo como incidentes aislados.
