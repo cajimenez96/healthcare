@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import ClinicalNoteForm from "@/components/forms/ClinicalNoteForm";
+import { Odontogram } from "@/components/Odontogram";
 import { getClinicalNotesForPatient } from "@/lib/actions/clinicalNote.actions";
+import { getOdontogram } from "@/lib/actions/odontogram.actions";
 import { getPatientById } from "@/lib/actions/patient.actions";
 import { formatDateTime } from "@/lib/utils";
 
@@ -19,6 +21,7 @@ const DoctorPatientPage = async ({
   }
 
   const notes = await getClinicalNotesForPatient(id);
+  const odontogram = await getOdontogram(id);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col space-y-14">
@@ -58,6 +61,13 @@ const DoctorPatientPage = async ({
             </p>
           </div>
         </section>
+
+        {odontogram && (
+          <section className="w-full space-y-4">
+            <h2 className="header">Odontograma</h2>
+            <Odontogram patientId={id} initialTeeth={odontogram.teeth} />
+          </section>
+        )}
 
         {appointmentId && (
           <section className="w-full max-w-lg space-y-4">
