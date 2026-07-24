@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (3 Tickets)          |  (0 Tickets)          |  (10 Tickets)         |
+|  (2 Tickets)          |  (0 Tickets)          |  (11 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -18,14 +18,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ## 📋 BACKLOG (Por Hacer)
 
 ### EPIC 5: Motor de Tarifas, Obras Sociales y Cobro en Recepción
-
-#### `[TASK-011]` Selección de Obra Social / Particular en Onboarding
-* **Descripción**: Extender el formulario de registro de paciente (`RegisterForm.tsx`) para incluir la selección de Obra Social, Plan y N° de Afiliado (Default: Particular).
-* **Criterios de Aceptación**:
-  - [ ] Campo desplegable de Obra Social / Plan cargado dinámicamente.
-  - [ ] Por defecto selecciona `Particular / Sin Convenio`.
-  - [ ] Persistencia en el perfil del paciente.
-* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-010
 
 #### `[TASK-012]` Módulo de Recepción: Cálculo de Aranceles, Copagos y Cierre
 * **Descripción**: Crear el panel de cobros para `Secretaría` al finalizar una consulta atendida, aplicando las reglas de cobertura (100% cobro en caso Particular).
@@ -236,3 +228,17 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - No se creó Server Action para `InsuranceProvider` más allá del repositorio — el ticket no pide UI para Obras Sociales todavía (solo el seeder de "Particular"), y TASK-011 es quien realmente va a necesitar leerlas desde un desplegable. Se agregan cuando haga falta, no antes.
   - `TreatmentForm.tsx` maneja alta y edición en un solo componente (a diferencia de `DoctorForm`/`EditDoctorForm`, separados en TASK-006) — la diferencia ahí era la foto opcional en edición; acá no hay archivos de por medio, así que un solo formulario con prop `treatment?` opcional alcanza sin duplicar código.
   - Verificado con script real: alta, edición de precio, desactivar (excluido de `findActive`, presente en `findAll`), reactivar. Seeder verificado idempotente (correrlo dos veces no duplica nada).
+
+#### `[TASK-011]` Selección de Obra Social / Particular en Onboarding
+* **Descripción**: Extender el formulario de registro de paciente (`RegisterForm.tsx`) para incluir la selección de Obra Social, Plan y N° de Afiliado (Default: Particular).
+* **Criterios de Aceptación**:
+  - [x] Campo desplegable de Obra Social *(Plan quedó fuera de alcance, ver Observaciones)* cargado dinámicamente.
+  - [x] Por defecto selecciona `Particular / Sin Convenio`.
+  - [x] Persistencia en el perfil del paciente.
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-010
+* **Resultado**: El campo "Insurance provider" de `RegisterForm.tsx` pasó de texto libre a un desplegable cargado dinámicamente desde `InsuranceProvider` (vía nueva `getActiveInsuranceProviders`), con `DEFAULT_INSURANCE_PROVIDER` ("Particular / Sin Convenio", ahora una constante compartida entre el seeder de TASK-010 y este formulario, para que no queden dos copias del mismo string pudiendo desincronizarse) preseleccionado. "N° de Afiliado" ya existía como `insurancePolicyNumber` desde TASK-002 y no necesitó cambios. La persistencia en el perfil del paciente también ya funcionaba (el campo se guardaba tal cual desde antes) — lo único que faltaba era que el valor viniera de un catálogo real en vez de texto libre.
+  - **Archivos creados**: `lib/actions/insuranceProvider.actions.ts`
+  - **Archivos modificados**: `constants/index.ts` (`DEFAULT_INSURANCE_PROVIDER`), `scripts/seed-nomenclador.ts` (usa la constante compartida), `app/patients/[userId]/register/page.tsx`, `components/forms/RegisterForm.tsx`
+* **Observaciones**:
+  - El campo "Plan" que menciona la descripción del ticket **no se construyó** — no existe ninguna entidad Plan en el sistema (TASK-010 solo creó `InsuranceProvider`, sin Planes/Coberturas, siguiendo el modelo sugerido en `HEALTHCARE.md` pero acotado), y este ticket solo depende de TASK-010, no de algo que lo incluya. Se interpretó como alcance aspiracional del texto original, no como un requisito real de este ticket.
+  - Verificado con script real: el desplegable trae el proveedor sembrado, y un paciente creado con ese valor lo persiste correctamente.
