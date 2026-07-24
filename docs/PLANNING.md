@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (6 Tickets)          |  (0 Tickets)          |  (7 Tickets)          |
+|  (5 Tickets)          |  (0 Tickets)          |  (8 Tickets)          |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -18,14 +18,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ## 📋 BACKLOG (Por Hacer)
 
 ### EPIC 4: Ficha Clínica y Odontograma Interactivo
-
-#### `[TASK-008]` Vista de Perfil Clínico y Historial de Evoluciones
-* **Descripción**: Crear la vista exclusiva para el rol `Doctor` donde consulta el antecedente médico del paciente y registra notas de evolución por consulta.
-* **Criterios de Aceptación**:
-  - [ ] Vista `/doctor/patient/[id]` protegida para profesionales.
-  - [ ] Formulario para agregar notas de evolución ligadas a la cita.
-  - [ ] Histórico cronológico de atenciones anteriores.
-* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-005
 
 #### `[TASK-009]` Integración del Componente de Odontograma Interactivo
 * **Descripción**: Integrar el componente visual de odontograma (piezas dentales 2D/3D) para registrar el estado de cada diente y guardarlo como JSON en MongoDB.
@@ -209,3 +201,24 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - **Bug real encontrado durante la verificación manual, no durante los tests**: la función pura usa `date.getDay()` (hora local) para el día de la semana, pero `findBookedTimes` calculaba los límites del día y extraía las horas en **UTC** (`getUTCDate`/`getUTCHours`). En un servidor que no corre en UTC+0 (este, en particular), esto desalinea todo — un script de verificación manual mostró `[]` slots disponibles incluso sin ningún turno reservado. Los tests automatizados no lo agarraron porque construían las fechas de prueba con timestamps UTC explícitos (`...Z`) consistentes entre sí, ocultando la inconsistencia real. Corregido: `findBookedTimes` ahora usa hora local en todos lados, igual que `getAvailableSlots` y que el resto del sistema (el `<input type="time">` del selector de disponibilidad de TASK-006 tampoco tiene noción de timezone). Se reescribieron los tests afectados con fechas construidas en local (`new Date(2026, 7, 1, 10, 0)`) en vez de strings ISO UTC, y se verificó el flujo completo (slots antes/después de reservar, rechazo de duplicado) con un script real.
   - Este es el mismo tipo de riesgo que ya se anotó como pendiente en TASK-003/TASK-004 (manejo de timezone flojo en todo el proyecto, más allá del `timeZone` explícito que ya viaja para el armado del SMS) — se resolvió puntualmente acá, pero sigue siendo una limitación de arquitectura para una futura clínica que opere en más de un huso horario.
   - La duración de turno se asume fija en 30 minutos (coincide con el `timeIntervals` por defecto de `react-datepicker`, que no se tocó) — no hay un campo de duración configurable por tratamiento; se podría necesitar más adelante si se agregan prestaciones de duración variable (EPIC 5).
+
+### EPIC 4: Ficha Clínica y Odontograma Interactivo
+
+#### `[TASK-008]` Vista de Perfil Clínico y Historial de Evoluciones
+* **Descripción**: Crear la vista exclusiva para el rol `Doctor` donde consulta el antecedente médico del paciente y registra notas de evolución por consulta.
+* **Criterios de Aceptación**:
+  - [x] Vista `/doctor/patient/[id]` protegida para profesionales.
+  - [x] Formulario para agregar notas de evolución ligadas a la cita.
+  - [x] Histórico cronológico de atenciones anteriores.
+  - [x] *(extendido, ver Observaciones)* Vínculo entre el login del Doctor y su perfil clínico, alta de acceso de doctores, y página `/doctor` con la agenda propia.
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: TASK-005
+* **Resultado**: `/doctor/patient/[id]` muestra los antecedentes médicos del paciente (alergias, medicación actual, antecedentes familiares/personales, ya existentes desde TASK-002), un formulario para cargar una nota de evolución ligada a la cita (`ClinicalNote`, colección nueva) y el histórico cronológico de evoluciones previas. `/doctor` (nueva) lista la agenda propia del doctor logueado con link directo a la ficha de cada paciente.
+  - **Gap resuelto (no cubierto por ningún ticket anterior)**: no existía ningún vínculo entre el login de un Doctor (`User`, rol=Doctor, TASK-004) y su perfil clínico (`Doctor`, TASK-006) — sin eso, un doctor logueado no tenía forma de saber "cuáles son mis turnos". Se agregó `doctorId` (ref `Doctor`) a `User`, se propagó a la sesión (JWT + `next-auth.d.ts`), y se agregó un flujo de alta ("Crear acceso") en `/admin/doctors` para que el Administrador cree el login de un doctor ya cargado, vinculándolo a su perfil clínico existente.
+  - **Archivos creados**: `lib/db/models/ClinicalNote.ts` (+test), `lib/repositories/IClinicalNoteRepository.ts`, `lib/db/repositories/MongoClinicalNoteRepository.ts` (+test), `lib/actions/clinicalNote.actions.ts`, `lib/auth/requireDoctorSession.ts`, `components/forms/ClinicalNoteForm.tsx`, `components/forms/CreateDoctorAccessForm.tsx`, `app/doctor/page.tsx`, `app/doctor/patient/[id]/page.tsx`
+  - **Archivos modificados**: `lib/db/models/User.ts` (+test, `doctorId`), `lib/repositories/IUserRepository.ts`, `lib/db/repositories/MongoUserRepository.ts` (+test), `lib/auth/authenticateCredentials.ts` (+test), `lib/auth/authOptions.ts`, `types/next-auth.d.ts`, `lib/repositories/IDoctorRepository.ts` + `MongoDoctorRepository.ts` (+test, `findById`), `lib/actions/doctor.actions.ts` (`createDoctorAccess`), `components/DoctorRow.tsx`, `lib/repositories/IAppointmentRepository.ts` + `MongoAppointmentRepository.ts` (+test, `findByDoctor`), `lib/actions/appointment.actions.ts` (`getMyAppointments`), `lib/repositories/IPatientRepository.ts` + `MongoPatientRepository.ts` (+test, `findById`), `lib/actions/patient.actions.ts` (`getPatientById`), `lib/validation.ts` (`ClinicalNoteValidation`)
+* **Observaciones**:
+  - Esto fue una decisión de alcance consultada con el usuario: la alternativa más chica era solo agregar un link "Ver ficha clínica" en `/admin` sin resolver el vínculo Doctor↔User. Se optó por la solución completa porque sin ella el rol Doctor no podía usar su propio login para nada — el ticket original la subestimaba.
+  - Todas las acciones de escritura (`createDoctorAccess`, `createClinicalNote`) y de lectura sensible (`getPatientById`, `getClinicalNotesForPatient`) verifican la sesión del lado del servidor (`requireAdminSession`/`requireDoctorSession` nuevo, mismo patrón defensivo de TASK-006) — no dependen solo del middleware de página.
+  - Límite conocido, no resuelto: si el Administrador crea un segundo acceso para un doctor que ya tiene uno (con otro email), `createDoctorAccess` no lo detecta y quedan dos cuentas de login apuntando al mismo `doctorId`. No había urgencia de resolverlo para el MVP; anotado para cuando exista una pantalla de gestión de usuarios.
+  - Cualquier doctor autenticado puede ver el historial clínico de cualquier paciente (no solo de sus propios turnos) — coincide con cómo suele operar una clínica real (el historial completo es relevante para cualquier profesional que atienda al paciente), pero es una decisión implícita, no pedida explícitamente por el ticket.
+  - Verificado de punta a punta con un script que crea un doctor, su acceso vinculado, un paciente y un turno, y confirma: la agenda del doctor lo muestra, la ficha trae los antecedentes, se puede cargar y leer una evolución. Se verificó también contra el servidor real que `/doctor` y `/doctor/patient/[id]` redirigen a `/login` sin sesión y a `/unauthorized` con un rol incorrecto (probado con una sesión de Administrador).
