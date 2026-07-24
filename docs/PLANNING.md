@@ -9,25 +9,13 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (2 Tickets)          |  (0 Tickets)          |  (11 Tickets)         |
+|  (1 Ticket)           |  (0 Tickets)          |  (12 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
 ---
 
 ## 📋 BACKLOG (Por Hacer)
-
-### EPIC 5: Motor de Tarifas, Obras Sociales y Cobro en Recepción
-
-#### `[TASK-012]` Módulo de Recepción: Cálculo de Aranceles, Copagos y Cierre
-* **Descripción**: Crear el panel de cobros para `Secretaría` al finalizar una consulta atendida, aplicando las reglas de cobertura (100% cobro en caso Particular).
-* **Criterios de Aceptación**:
-  - [ ] Cálculo automático del saldo a cobrar según las prestaciones marcadas por el doctor.
-  - [ ] Registro del pago (Efectivo/Transferencia/Tarjeta) y cambio de estado de cita a `Finalizada`.
-  - [ ] Generación e impresión/descarga de recibo digital de cobro.
-* **Prioridad**: Alta | **Esfuerzo**: Alto (5 ptos) | **Dependencias**: TASK-009, TASK-010, TASK-011
-
----
 
 ### EPIC 6: Seguridad y Mantenimiento
 
@@ -242,3 +230,19 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 * **Observaciones**:
   - El campo "Plan" que menciona la descripción del ticket **no se construyó** — no existe ninguna entidad Plan en el sistema (TASK-010 solo creó `InsuranceProvider`, sin Planes/Coberturas, siguiendo el modelo sugerido en `HEALTHCARE.md` pero acotado), y este ticket solo depende de TASK-010, no de algo que lo incluya. Se interpretó como alcance aspiracional del texto original, no como un requisito real de este ticket.
   - Verificado con script real: el desplegable trae el proveedor sembrado, y un paciente creado con ese valor lo persiste correctamente.
+
+#### `[TASK-012]` Módulo de Recepción: Cálculo de Aranceles, Copagos y Cierre
+* **Descripción**: Crear el panel de cobros para `Secretaría` al finalizar una consulta atendida, aplicando las reglas de cobertura (100% cobro en caso Particular).
+* **Criterios de Aceptación**:
+  - [x] Cálculo automático del saldo a cobrar según las prestaciones marcadas por el doctor.
+  - [x] Registro del pago (Efectivo/Transferencia/Tarjeta) y cambio de estado de cita a `Finalizada`.
+  - [x] Generación e impresión/descarga de recibo digital de cobro.
+* **Prioridad**: Alta | **Esfuerzo**: Alto (5 ptos) | **Dependencias**: TASK-009, TASK-010, TASK-011
+* **Resultado**: Se decidió no avanzar con la Fase 2 de `docs/obra-social.md` (Obras Sociales/Planes/Matriz de Coberturas) por decisión explícita del usuario tras completar TASK-011 — solo se implementó la Fase 1 (MVP "Particular First"), que coincide exactamente con los criterios de aceptación reales de este ticket (100% a cargo del paciente, sin copagos diferenciados). Se detectó y resolvió un prerrequisito no listado explícitamente: el doctor no tenía forma de marcar qué prestaciones realizó durante la consulta, así que `ClinicalNote` se extendió con un array `treatments` (snapshot de `treatmentId`/`name`/`price` al momento de marcarlo, no una referencia viva, para que cambios de precio futuros no alteren historial ya facturado). Se agregó el estado `completed` a `Appointment` (mostrado como "Finalizada" solo para ese valor, sin tocar el resto de los badges existentes, que siguen en inglés por ser comportamiento previo no relacionado a este ticket). Se creó el modelo `Payment` (nomenclatura en inglés, consistente con el resto del código; toda la UI nueva de este ticket está en español) con índice único por `appointmentId` para impedir el doble cobro de un mismo turno. El flujo completo: el doctor marca prestaciones al cargar una evolución (`/doctor/patient/[id]`) → `/recepcion` lista los turnos agendados con prestaciones cargadas y sin cobrar → la Secretaría elige medio de pago y cierra el cobro → se genera un recibo imprimible en `/recepcion/recibo/[appointmentId]` (usa `window.print()` del navegador, sin agregar ninguna librería de PDF nueva).
+  - **Archivos creados**: `lib/db/models/Payment.ts`, `lib/repositories/IPaymentRepository.ts`, `lib/db/repositories/MongoPaymentRepository.ts`, `lib/db/repositories/MongoPaymentRepository.test.ts`, `lib/auth/requireSecretariaSession.ts`, `lib/actions/payment.actions.ts`, `components/forms/BillingForm.tsx`, `components/PrintButton.tsx`, `app/recepcion/page.tsx`, `app/recepcion/recibo/[appointmentId]/page.tsx`
+  - **Archivos modificados**: `lib/db/models/ClinicalNote.ts`, `lib/repositories/IClinicalNoteRepository.ts`, `lib/db/repositories/MongoClinicalNoteRepository.ts`, `lib/db/repositories/MongoClinicalNoteRepository.test.ts` (treatments + `findByAppointmentId`), `lib/actions/clinicalNote.actions.ts`, `components/forms/ClinicalNoteForm.tsx`, `app/doctor/patient/[id]/page.tsx` (selección de prestaciones), `lib/db/models/Appointment.ts`, `types/index.d.ts` (estado `completed`), `components/StatusBadge.tsx`, `constants/index.ts` (`StatusIcon.completed`), `lib/validation.ts` (`PaymentFormValidation`)
+* **Observaciones**:
+  - No se construyeron `PlanObraSocial`, `MatrizCoberturas` ni `ComprobanteCobro` como entidades separadas (esos nombres en español venían del spec en `docs/obra-social.md`) — se usó nomenclatura en inglés (`Payment`) siguiendo la convención ya establecida en `Appointment`/`Treatment`/`Doctor`, con la UI 100% en español por decisión explícita del usuario. `docs/obra-social.md` queda como referencia conceptual para una futura Fase 2, no como spec de implementación literal.
+  - `Payment` guarda snapshots (`patientName`, `doctorName`, ítems con nombre/precio) en vez de solo referencias, mismo patrón ya usado en `ClinicalNote.doctorName` — evita que un recibo ya emitido cambie si se edita el paciente o el precio de una prestación después.
+  - El dashboard de `/admin` no fue tocado: los contadores de `getRecentAppointmentList` (scheduled/pending/cancelled) no suman turnos `completed`, quedan simplemente sin contar en ningún stat card. No estaba en el alcance de este ticket agregar un "Finalizadas" al dashboard de admin.
+  - Verificado con script real (`scripts/tmp-verify-billing.ts`, borrado tras usarlo): creación de nota clínica con dos prestaciones, agregación correcta del total ($23.000), creación del pago, transición del turno a `completed`, recuperación del recibo por `appointmentId`, y bloqueo real (no solo a nivel de tipos) del doble cobro vía el índice único de Mongo.
