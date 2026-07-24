@@ -1,14 +1,17 @@
 "use server";
 
+import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "../auth/requireAdminSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoDoctorRepository } from "../db/repositories/MongoDoctorRepository";
+import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { GridFsFileStorage } from "../storage/GridFsFileStorage";
 import { parseStringify } from "../utils";
 import type { CreateDoctorInput } from "../repositories/IDoctorRepository";
 
 const doctorRepository = new MongoDoctorRepository();
+const userRepository = new MongoUserRepository();
 const fileStorage = new GridFsFileStorage();
 
 async function uploadPhoto(photo: FormData): Promise<string> {
@@ -92,6 +95,38 @@ export const setDoctorActive = async (id: string, isActive: boolean) => {
       "An error occurred while changing the doctor's active status:",
       error,
     );
+  }
+};
+
+// CREATE DOCTOR LOGIN ACCESS (links a User with role=Doctor to a Doctor document)
+export const createDoctorAccess = async (
+  doctorId: string,
+  email: string,
+  password: string,
+) => {
+  try {
+    await requireAdminSession();
+    await connectToDatabase();
+
+    const doctor = await doctorRepository.findById(doctorId);
+    if (!doctor) {
+      throw new Error(`Doctor ${doctorId} not found`);
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await userRepository.create({
+      name: doctor.name,
+      email,
+      phone: "N/A",
+      role: "Doctor",
+      hashedPassword,
+      doctorId,
+    });
+
+    revalidatePath("/admin/doctors");
+    return parseStringify(user);
+  } catch (error) {
+    console.error("An error occurred while creating doctor access:", error);
   }
 };
 

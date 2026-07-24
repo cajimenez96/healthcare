@@ -82,6 +82,28 @@ describe("MongoDoctorRepository", () => {
     });
   });
 
+  describe("findById", () => {
+    it("returns the doctor matching the id", async () => {
+      const created = await repository.create(validDoctor);
+
+      const result = await repository.findById(created.id);
+
+      expect(result?.name).toBe("Dr. Cameron");
+    });
+
+    it("returns null for a non-existent id", async () => {
+      const result = await repository.findById(
+        new mongoose.Types.ObjectId().toString(),
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(repository.findById("not-an-object-id")).resolves.toBeNull();
+    });
+  });
+
   describe("update", () => {
     it("updates a doctor's fields", async () => {
       const created = await repository.create(validDoctor);

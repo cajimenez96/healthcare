@@ -93,6 +93,30 @@ describe("MongoAppointmentRepository", () => {
     });
   });
 
+  describe("findByDoctor", () => {
+    it("returns only that doctor's appointments, soonest first, with the patient populated", async () => {
+      const patientId = await createPatient();
+      const earlier = await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 9, 0),
+      });
+      const later = await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 2, 9, 0),
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        primaryPhysician: "Dr. Other",
+        schedule: new Date(2026, 7, 1, 10, 0),
+      });
+
+      const result = await repository.findByDoctor("Dr. Cameron");
+
+      expect(result.map((r) => r.id)).toEqual([earlier.id, later.id]);
+      expect(result[0].patient.name).toBe("John Doe");
+    });
+  });
+
   describe("update", () => {
     it("updates fields and returns the updated appointment", async () => {
       const patientId = await createPatient();

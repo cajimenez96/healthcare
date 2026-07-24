@@ -8,6 +8,7 @@ export interface CreateUserInput {
   phone: string;
   role?: UserRole;
   hashedPassword?: string;
+  doctorId?: string;
 }
 
 export interface UserRecord {
@@ -16,6 +17,7 @@ export interface UserRecord {
   email: string;
   phone: string;
   role: UserRole;
+  doctorId?: string;
 }
 
 export interface UserCredentials extends UserRecord {

@@ -32,4 +32,5 @@ export type CreatePatientInput = Omit<PatientRecord, "id">;
 export interface IPatientRepository {
   create(input: CreatePatientInput): Promise<PatientRecord>;
   findByUserId(userId: string): Promise<PatientRecord | null>;
+  findById(id: string): Promise<PatientRecord | null>;
 }

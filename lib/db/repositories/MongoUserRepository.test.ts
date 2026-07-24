@@ -93,6 +93,23 @@ describe("MongoUserRepository", () => {
     });
   });
 
+  describe("doctorId", () => {
+    it("persists and returns doctorId for a Doctor-role user", async () => {
+      const doctorId = new mongoose.Types.ObjectId().toString();
+
+      const user = await repository.create({
+        name: "Dr. Cameron",
+        email: "drcameron2@example.com",
+        phone: "+1",
+        role: "Doctor",
+        hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+        doctorId,
+      });
+
+      expect(user.doctorId).toBe(doctorId);
+    });
+  });
+
   describe("role", () => {
     it("defaults new users to the Paciente role", async () => {
       const user = await repository.create({

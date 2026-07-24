@@ -140,6 +140,13 @@ export const DoctorEditFormValidation = DoctorFormValidation.extend({
   photo: z.custom<File[]>().optional(),
 });
 
+export const ClinicalNoteValidation = z.object({
+  note: z
+    .string()
+    .min(2, "Note must be at least 2 characters")
+    .max(2000, "Note must be at most 2000 characters"),
+});
+
 export function getAppointmentSchema(type: string) {
   switch (type) {
     case "create":

@@ -66,7 +66,22 @@ export class MongoAppointmentRepository implements IAppointmentRepository {
       .sort({ createdAt: -1, _id: -1 })
       .populate<{ patientId: IPatient }>("patientId");
 
-    return docs.map((doc) => {
+    return this.mapWithPatient(docs);
+  }
+
+  async findByDoctor(primaryPhysician: string): Promise<AppointmentWithPatient[]> {
+    const docs = await Appointment.find({ primaryPhysician })
+      .sort({ schedule: 1 })
+      .populate<{ patientId: IPatient }>("patientId");
+
+    return this.mapWithPatient(docs);
+  }
+
+  private mapWithPatient(docs: unknown[]): AppointmentWithPatient[] {
+    return docs.map((rawDoc) => {
+      const doc = rawDoc as HydratedDocument<IAppointment> & {
+        patientId: IPatient;
+      };
       const populatedPatient = doc.patientId as unknown as IPatient;
       const record = toAppointmentRecord(
         doc as unknown as HydratedDocument<IAppointment>,

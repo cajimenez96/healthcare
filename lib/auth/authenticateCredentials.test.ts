@@ -111,4 +111,24 @@ describe("authenticateCredentials", () => {
       role: "Administrador",
     });
   });
+
+  it("includes doctorId for a linked Doctor-role user", async () => {
+    const doctorId = new mongoose.Types.ObjectId().toString();
+    await userRepository.create({
+      name: "Dr. Cameron",
+      email: "drcameron@example.com",
+      phone: "+1",
+      role: "Doctor",
+      hashedPassword,
+      doctorId,
+    });
+
+    const result = await authenticateCredentials(
+      "drcameron@example.com",
+      correctPassword,
+      userRepository,
+    );
+
+    expect(result?.doctorId).toBe(doctorId);
+  });
 });

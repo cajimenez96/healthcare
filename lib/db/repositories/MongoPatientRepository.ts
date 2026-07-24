@@ -48,4 +48,12 @@ export class MongoPatientRepository implements IPatientRepository {
     const doc = await Patient.findOne({ userId });
     return doc ? toPatientRecord(doc) : null;
   }
+
+  async findById(id: string): Promise<PatientRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await Patient.findById(id);
+    return doc ? toPatientRecord(doc) : null;
+  }
 }

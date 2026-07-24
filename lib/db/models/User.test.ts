@@ -109,4 +109,19 @@ describe("User model", () => {
 
     expect(found?.hashedPassword).toBe("$2a$10$abcdefghijklmnopqrstuv");
   });
+
+  it("links a Doctor-role user to a Doctor document via doctorId", async () => {
+    const doctorId = new mongoose.Types.ObjectId();
+
+    const user = await User.create({
+      name: "Dr. Cameron",
+      email: "drcameron@example.com",
+      phone: "+1",
+      role: "Doctor",
+      hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+      doctorId,
+    });
+
+    expect(user.doctorId?.toString()).toBe(doctorId.toString());
+  });
 });

@@ -6,6 +6,7 @@ export interface AuthenticatedUser {
   name: string;
   email: string;
   role: UserRole;
+  doctorId?: string;
 }
 
 export async function authenticateCredentials(
@@ -32,5 +33,6 @@ export async function authenticateCredentials(
     name: user.name,
     email: user.email,
     role: user.role,
+    doctorId: user.doctorId,
   };
 }

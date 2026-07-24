@@ -17,6 +17,7 @@ function toUserRecord(doc: HydratedDocument<IUser>): UserRecord {
     email: doc.email,
     phone: doc.phone,
     role: doc.role,
+    doctorId: doc.doctorId?.toString(),
   };
 }
 

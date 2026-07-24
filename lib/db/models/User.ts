@@ -9,6 +9,7 @@ export interface IUser {
   phone: string;
   role: UserRole;
   hashedPassword?: string;
+  doctorId?: Types.ObjectId;
 }
 
 const userSchema = new Schema<IUser>(
@@ -29,6 +30,7 @@ const userSchema = new Schema<IUser>(
       default: "Paciente",
     },
     hashedPassword: { type: String, select: false },
+    doctorId: { type: Schema.Types.ObjectId, ref: "Doctor" },
   },
   { timestamps: true },
 );

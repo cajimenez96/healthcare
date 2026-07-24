@@ -82,4 +82,24 @@ describe("MongoPatientRepository", () => {
       expect(result?.email).toBe("john@example.com");
     });
   });
+
+  describe("findById", () => {
+    it("returns the patient matching the id", async () => {
+      const created = await repository.create(basePatient);
+
+      const result = await repository.findById(created.id);
+      expect(result?.email).toBe("john@example.com");
+    });
+
+    it("returns null for a non-existent id", async () => {
+      const result = await repository.findById(
+        new mongoose.Types.ObjectId().toString(),
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(repository.findById("not-an-object-id")).resolves.toBeNull();
+    });
+  });
 });

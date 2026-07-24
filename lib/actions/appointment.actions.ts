@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoAppointmentRepository } from "../db/repositories/MongoAppointmentRepository";
 import { MongoDoctorRepository } from "../db/repositories/MongoDoctorRepository";
@@ -70,6 +71,25 @@ export const getAvailableSlotsForDoctor = async (
     return getAvailableSlots(doctor.availability, new Date(date), bookedTimes);
   } catch (error) {
     console.error("An error occurred while retrieving available slots:", error);
+    return [];
+  }
+};
+
+// GET MY APPOINTMENTS (the logged-in Doctor's own agenda)
+export const getMyAppointments = async () => {
+  try {
+    const doctorSession = await requireDoctorSession();
+    await connectToDatabase();
+
+    const doctor = await doctorRepository.findById(doctorSession.doctorId);
+    if (!doctor) {
+      return [];
+    }
+
+    const appointments = await appointmentRepository.findByDoctor(doctor.name);
+    return parseStringify(appointments.map(toAppointmentWithPatient));
+  } catch (error) {
+    console.error("An error occurred while retrieving your appointments:", error);
     return [];
   }
 };

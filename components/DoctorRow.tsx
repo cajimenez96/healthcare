@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import CreateDoctorAccessForm from "@/components/forms/CreateDoctorAccessForm";
 import EditDoctorForm from "@/components/forms/EditDoctorForm";
 import { Button } from "@/components/ui/button";
 import { setDoctorActive } from "@/lib/actions/doctor.actions";
@@ -19,8 +20,10 @@ interface DoctorRowProps {
   };
 }
 
+type RowMode = "view" | "edit" | "createAccess";
+
 export const DoctorRow = ({ doctor }: DoctorRowProps) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [mode, setMode] = useState<RowMode>("view");
   const [isToggling, setIsToggling] = useState(false);
 
   const toggleActive = async () => {
@@ -29,10 +32,21 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
     setIsToggling(false);
   };
 
-  if (isEditing) {
+  if (mode === "edit") {
     return (
       <li className="rounded-md border border-dark-500 p-4">
-        <EditDoctorForm doctor={doctor} onDone={() => setIsEditing(false)} />
+        <EditDoctorForm doctor={doctor} onDone={() => setMode("view")} />
+      </li>
+    );
+  }
+
+  if (mode === "createAccess") {
+    return (
+      <li className="rounded-md border border-dark-500 p-4">
+        <CreateDoctorAccessForm
+          doctorId={doctor.id}
+          onDone={() => setMode("view")}
+        />
       </li>
     );
   }
@@ -61,7 +75,15 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
         variant="outline"
         size="sm"
         className="shad-gray-btn"
-        onClick={() => setIsEditing(true)}
+        onClick={() => setMode("createAccess")}
+      >
+        Crear acceso
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="shad-gray-btn"
+        onClick={() => setMode("edit")}
       >
         Editar
       </Button>

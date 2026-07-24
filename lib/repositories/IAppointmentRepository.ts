@@ -41,4 +41,6 @@ export interface IAppointmentRepository {
     schedule: Date,
     excludeAppointmentId?: string,
   ): Promise<boolean>;
+  /** A doctor's own appointments (their agenda), soonest first, with the patient populated. */
+  findByDoctor(primaryPhysician: string): Promise<AppointmentWithPatient[]>;
 }

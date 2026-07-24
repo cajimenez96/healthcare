@@ -1,5 +1,6 @@
 "use server";
 
+import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { MongoPatientRepository } from "../db/repositories/MongoPatientRepository";
@@ -67,6 +68,22 @@ export const registerPatient = async ({
     return parseStringify(toPatient(newPatient));
   } catch (error) {
     console.error("An error occurred while creating a new patient:", error);
+  }
+};
+
+// GET PATIENT BY ID (for the Doctor's clinical view — patientId, not userId)
+export const getPatientById = async (id: string) => {
+  try {
+    await requireDoctorSession();
+    await connectToDatabase();
+    const patient = await patientRepository.findById(id);
+
+    return patient ? parseStringify(toPatient(patient)) : undefined;
+  } catch (error) {
+    console.error(
+      "An error occurred while retrieving the patient details:",
+      error
+    );
   }
 };
 

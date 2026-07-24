@@ -45,6 +45,14 @@ export class MongoDoctorRepository implements IDoctorRepository {
     return doc ? toDoctorRecord(doc) : null;
   }
 
+  async findById(id: string): Promise<DoctorRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await Doctor.findById(id);
+    return doc ? toDoctorRecord(doc) : null;
+  }
+
   async update(
     id: string,
     input: UpdateDoctorInput,
