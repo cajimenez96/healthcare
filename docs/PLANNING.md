@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (8 Tickets)          |  (0 Tickets)          |  (13 Tickets)         |
+|  (8 Tickets)          |  (0 Tickets)          |  (14 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -321,3 +321,19 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - No se migró a Auth.js v5 — sigue en beta (`5.0.0-beta.32`, publicada el 20 de julio de 2026) sin fecha de estabilización confirmada, y no hizo falta porque next-auth v4 ya soporta Next 15/16 oficialmente.
   - Quedan warnings no bloqueantes tras el upgrade: peer dependencies desactualizadas en `react-datepicker`, `react-onclickoutside`, `next-themes` y `lucide-react` (declaran soporte hasta React 18, pero funcionan correctamente en la práctica — se verificó `pnpm build` y el flujo de auth end-to-end sin errores), y un warning preexistente de `react-hooks/exhaustive-deps` en `FileUploader.tsx` no relacionado a este ticket.
   - Verificado con usuarios descartables creados y borrados por script (`scripts/tmp-verify-next15-auth.ts` + `scripts/tmp-cleanup-next15-auth.ts`, ambos borrados tras usarlos): login real vía `/api/auth/callback/credentials` para los tres roles, confirmando altas (200) y denegaciones (307 a `/unauthorized`) correctas de `middleware.ts`, y que `/recepcion` como Secretaria renderiza contenido real (la Server Action `getBillableAppointments`, gateada por `requireSecretariaSession`, funciona en Next 15).
+
+### EPIC 7: Consistencia de Idioma
+
+#### `[TASK-022]` Traducir el portal público del paciente a español
+* **Descripción**: `/`, `/patients/[userId]/register`, `/patients/[userId]/new-appointment` y su página de éxito quedaron en inglés (texto original del template CarePulse, decisión explícita de fuera-de-alcance en TASK-004). El resto del sistema (`/admin/**`, `/doctor/**`, `/recepcion/**`, `/login`) ya estaba en español. A pedido del usuario, se unificó todo a español.
+* **Criterios de Aceptación**:
+  - [x] Todo el texto visible (headers, labels, placeholders, botones) del portal de paciente traducido a español.
+  - [x] Los valores de enum (`Gender`, `IdentificationTypes`) mantienen sus valores internos en inglés (persistidos en Mongo, validados por `lib/validation.ts`) — solo se tradujo la etiqueta mostrada, mismo patrón ya usado para `PaymentMethod`.
+  - [x] La suite de Playwright (`e2e/*.spec.ts`) actualizada en el mismo commit para los selectores que dependían del texto en inglés.
+  - [x] `docs/TESTING.md` actualizado donde citaba texto literal en inglés que dejó de existir.
+* **Prioridad**: Media | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: Ninguna
+* **Resultado**: El alcance terminó siendo más amplio que "solo el portal del paciente": al inventariar el texto en inglés (delegado a una exploración dedicada, cruzada contra los selectores de `e2e/*.spec.ts` para no romper la suite recién agregada), aparecieron mensajes de validación de Zod en **todo el sistema** (`lib/validation.ts` — usados también por `/admin/doctors`, `/admin/treatments`, la evolución clínica del doctor, etc.), no solo en el portal público. Se tradujeron los ~40 mensajes de error de las 12 schemas de `lib/validation.ts`, y se introdujo el patrón "enum en inglés + label map en español" (`GenderLabels`, `IdentificationTypeLabels`, `StatusLabels` en `constants/index.ts`) para no tocar los valores persistidos en Mongo ni las validaciones de Zod — mismo patrón ya usado para `PaymentMethod` en TASK-012. De paso se corrigió un bug real preexistente en `AppointmentModal.tsx`: los props `title`/`description` se declaraban pero nunca se renderizaban (el componente hardcodeaba su propio texto en inglés) — ahora sí se usan.
+  - **Archivos modificados**: `lib/validation.ts` (todos los mensajes), `constants/index.ts` (`GenderLabels`, `IdentificationTypeLabels`, `StatusLabels`), `components/StatusBadge.tsx`, `app/page.tsx`, `app/admin/page.tsx`, `app/patients/[userId]/new-appointment/success/page.tsx`, `components/forms/PatientForm.tsx`, `components/forms/RegisterForm.tsx`, `components/forms/AppointmentForm.tsx`, `components/AppointmentModal.tsx` (+ fix de `title`/`description`), `components/table/columns.tsx`, `components/table/DataTable.tsx`, `components/FileUploader.tsx`, `components/SubmitButton.tsx`, `components/CustomFormField.tsx`, `app/loading.tsx`, `docs/TESTING.md`, `e2e/patient-flow.ts`, `e2e/02-flujo.spec.ts`, `e2e/03-adm-extra.spec.ts`, `e2e/04-security.spec.ts`.
+* **Observaciones**:
+  - El nombre de marca "CarePluse" (typo del template original de "CarePulse") y el prefijo "Dr." se dejaron sin tocar a propósito — no son un problema de idioma, son una decisión de branding fuera del alcance de este ticket.
+  - Verificado de punta a punta: `tsc --noEmit` limpio, 148/148 tests de Vitest, y **35/35 tests de Playwright pasando contra el servidor real** (incluye los 4 flujos de negocio completos de punta a punta, RBAC, y los dos hallazgos de seguridad SEG-01/SEG-02) — la corrida completa confirmó que ningún selector de la suite quedó desalineado con el nuevo texto en español.
