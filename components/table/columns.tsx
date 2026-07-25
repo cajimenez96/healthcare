@@ -23,7 +23,7 @@ export const getColumns = (
   },
   {
     accessorKey: "patient",
-    header: "Patient",
+    header: "Paciente",
     cell: ({ row }) => {
       const appointment = row.original;
       return <p className="text-14-medium ">{appointment.patient.name}</p>;
@@ -31,7 +31,7 @@ export const getColumns = (
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: "Estado",
     cell: ({ row }) => {
       const appointment = row.original;
       return (
@@ -43,7 +43,7 @@ export const getColumns = (
   },
   {
     accessorKey: "schedule",
-    header: "Appointment",
+    header: "Turno",
     cell: ({ row }) => {
       const appointment = row.original;
       return (
@@ -79,7 +79,7 @@ export const getColumns = (
   },
   {
     id: "actions",
-    header: () => <div className="pl-4">Actions</div>,
+    header: () => <div className="pl-4">Acciones</div>,
     cell: ({ row }) => {
       const appointment = row.original;
 
@@ -90,8 +90,8 @@ export const getColumns = (
             userId={appointment.userId}
             appointment={appointment}
             type="schedule"
-            title="Schedule Appointment"
-            description="Please confirm the following details to schedule."
+            title="Confirmar turno"
+            description="Confirmá los siguientes datos para agendar el turno."
             doctors={activeDoctors}
           />
           <AppointmentModal
@@ -99,8 +99,8 @@ export const getColumns = (
             userId={appointment.userId}
             appointment={appointment}
             type="cancel"
-            title="Cancel Appointment"
-            description="Are you sure you want to cancel your appointment?"
+            title="Cancelar turno"
+            description="¿Estás seguro de que querés cancelar el turno?"
             doctors={activeDoctors}
           />
         </div>

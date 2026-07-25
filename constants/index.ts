@@ -1,5 +1,13 @@
 export const GenderOptions = ["Male", "Female", "Other"];
 
+// Display-only labels — the enum values above stay in English because
+// they're validated by lib/validation.ts and persisted in Mongo as-is.
+export const GenderLabels: Record<string, string> = {
+  Male: "Masculino",
+  Female: "Femenino",
+  Other: "Otro",
+};
+
 export const DEFAULT_INSURANCE_PROVIDER = "Particular / Sin Convenio";
 
 export const PatientFormDefaultValues = {
@@ -42,9 +50,33 @@ export const IdentificationTypes = [
   "Voter ID Card",
 ];
 
+// Display-only labels — same rationale as GenderLabels above.
+export const IdentificationTypeLabels: Record<string, string> = {
+  "Birth Certificate": "Partida de nacimiento",
+  "Driver's License": "Licencia de conducir",
+  "Medical Insurance Card/Policy": "Carnet/póliza de obra social",
+  "Military ID Card": "Cédula militar",
+  "National Identity Card": "Documento Nacional de Identidad (DNI)",
+  Passport: "Pasaporte",
+  "Resident Alien Card (Green Card)": "Residencia permanente (Green Card)",
+  "Social Security Card": "Número de Seguridad Social",
+  "State ID Card": "Cédula de identidad provincial",
+  "Student ID Card": "Credencial de estudiante",
+  "Voter ID Card": "Documento electoral",
+};
+
 export const StatusIcon = {
   scheduled: "/assets/icons/check.svg",
   pending: "/assets/icons/pending.svg",
   cancelled: "/assets/icons/cancelled.svg",
   completed: "/assets/icons/check.svg",
+};
+
+// Display-only labels — same rationale as GenderLabels above (the Status
+// enum values themselves stay in English, persisted in Mongo as-is).
+export const StatusLabels: Record<string, string> = {
+  scheduled: "Confirmada",
+  pending: "Pendiente",
+  cancelled: "Cancelada",
+  completed: "Finalizada",
 };

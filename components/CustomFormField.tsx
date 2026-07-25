@@ -127,7 +127,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               showTimeSelect={props.showTimeSelect ?? false}
               selected={field.value}
               onChange={(date: Date) => field.onChange(date)}
-              timeInputLabel="Time:"
+              timeInputLabel="Hora:"
               dateFormat={props.dateFormat ?? "MM/dd/yyyy"}
               wrapperClassName="date-picker"
               excludeTimes={props.excludeTimes}

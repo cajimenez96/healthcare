@@ -15,7 +15,7 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 | **Doctor** | Usuario staff con `role: Doctor`, **vinculado obligatoriamente** a un documento `Doctor` (`doctorId`). Se crea únicamente desde "Crear acceso" en `/admin/doctors`. | `/doctor` | `/doctor/**` |
 | **Secretaria** | Usuario staff con `role: Secretaria`, login por email + contraseña. No hay alta desde la UI — se crea directamente en base (ver §3). | `/recepcion` | `/recepcion/**` |
 
-> ⚠️ **Nota de idioma para QA**: la UI del portal del paciente (`/`, `/patients/**`) quedó en **inglés** (texto original del template CarePulse, nunca traducido). Toda la UI construida en este proyecto para Administrador/Doctor/Secretaria (`/admin/**`, `/doctor/**`, `/recepcion/**`, `/login`) está en **español**. Esto es un estado conocido, no un bug — no reportarlo como tal salvo que el negocio decida traducir el portal público.
+> ℹ️ **Nota de idioma para QA**: desde `TASK-022`, toda la UI (incluido el portal público del paciente en `/` y `/patients/**`, que hasta entonces había quedado en inglés por decisión de alcance de `TASK-004`) está en español. Los valores de enum persistidos en Mongo (`Gender`, `IdentificationType`, `Status`, `PaymentMethod`) siguen en inglés internamente — solo cambió la etiqueta mostrada en pantalla.
 
 ## 3. Preparación del entorno de pruebas
 
@@ -60,7 +60,7 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 
 ### AUTH-04 — Validación de formato en login (Validación · Media)
 **Pasos**: dejar el email vacío o con formato inválido (`asd`); dejar la contraseña vacía.
-**Resultado esperado**: email → **"Invalid email address"**; contraseña vacía → **"Password is required"**. No se envía el formulario.
+**Resultado esperado**: email → **"Correo electrónico inválido"**; contraseña vacía → **"La contraseña es obligatoria"**. No se envía el formulario.
 
 ### AUTH-05 — Redirección post-login según rol (Funcional · Alta)
 **Pasos**: loguearse como cada uno de los 3 roles staff.
@@ -87,16 +87,16 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 ### 6.1 Paciente (`/`, `/patients/**`)
 
 #### PAC-01 — Alta inicial de paciente (Funcional · Alta)
-**Pasos**: en `/`, completar "Full name", "Email", "Phone number" y enviar.
+**Pasos**: en `/`, completar "Nombre completo", "Correo electrónico", "Número de teléfono" y enviar.
 **Resultado esperado**: redirige a `/patients/[userId]/register`.
 
 #### PAC-02 — Validaciones del formulario inicial (Validación · Media)
 | Campo | Caso inválido | Mensaje esperado |
 |---|---|---|
-| Full name | 1 carácter | "Name must be at least 2 characters" |
-| Full name | 51+ caracteres | "Name must be at most 50 characters" |
-| Email | `sin-arroba` | "Invalid email address" |
-| Phone | sin código de país / formato libre | "Invalid phone number" (regex `^\+\d{10,15}$`, exige `+` y 10 a 15 dígitos, sin espacios ni guiones) |
+| Nombre completo | 1 carácter | "El nombre debe tener al menos 2 caracteres" |
+| Nombre completo | 51+ caracteres | "El nombre debe tener como máximo 50 caracteres" |
+| Correo electrónico | `sin-arroba` | "Correo electrónico inválido" |
+| Teléfono | sin código de país / formato libre | "Número de teléfono inválido" (regex `^\+\d{10,15}$`, exige `+` y 10 a 15 dígitos, sin espacios ni guiones) |
 
 #### PAC-03 — Registro completo del paciente (Funcional · Alta)
 **Pasos**: completar todo `/patients/[userId]/register`: datos personales, género (radio), dirección, ocupación, contacto de emergencia, médico de cabecera (desplegable de doctores **activos**), obra social (desplegable, default **"Particular / Sin Convenio"**), N° de afiliado, antecedentes médicos (opcionales), tipo y número de identificación, documento escaneado (opcional, drag & drop), y tildar los 3 consentimientos.
@@ -104,10 +104,10 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 
 #### PAC-04 — Consentimientos obligatorios (Validación · Alta)
 **Pasos**: intentar enviar el registro sin tildar "treatmentConsent", "disclosureConsent" o "privacyConsent" (uno por vez).
-**Resultado esperado**: respectivamente — "You must consent to treatment in order to proceed", "You must consent to disclosure in order to proceed", "You must consent to privacy in order to proceed". No se crea el paciente.
+**Resultado esperado**: respectivamente — "Debés dar tu consentimiento de tratamiento para continuar", "Debés dar tu consentimiento de divulgación para continuar", "Debés aceptar la política de privacidad para continuar". No se crea el paciente.
 
 #### PAC-05 — Selector de obra social trae datos reales (Funcional · Media)
-**Pasos**: abrir el desplegable de "Insurance provider" en el registro.
+**Pasos**: abrir el desplegable de "Obra social" en el registro.
 **Resultado esperado**: lista al menos "Particular / Sin Convenio" (sembrada por `pnpm db:seed-nomenclador`), preseleccionada por default.
 
 #### PAC-06 — Paciente ya registrado no puede re-registrarse (Funcional · Media)
@@ -119,8 +119,8 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 **Resultado esperado**: crea la cita con estado **`pending`** (no `scheduled` — la confirmación la hace el Administrador) y redirige a la página de éxito.
 
 #### PAC-08 — Validaciones del formulario de turno (Validación · Media)
-- Sin doctor seleccionado → "Select at least one doctor".
-- "Appointment reason" vacío o de 1 carácter → "Reason must be at least 2 characters".
+- Sin doctor seleccionado → "Seleccioná al menos un doctor".
+- "Motivo del turno" vacío o de 1 carácter → "El motivo debe tener al menos 2 caracteres".
 
 ---
 
@@ -137,11 +137,11 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 #### ADM-03 — Validaciones de alta de doctor (Validación · Media)
 | Campo | Caso inválido | Mensaje |
 |---|---|---|
-| Nombre | 1 carácter | "Name must be at least 2 characters" |
-| Especialidad | 1 carácter | "Specialty must be at least 2 characters" |
-| Matrícula | 1 carácter | "License number must be at least 2 characters" |
-| Foto | sin adjuntar | "A photo is required" |
-| Disponibilidad | ningún día tildado | "Select at least one day of availability" |
+| Nombre | 1 carácter | "El nombre debe tener al menos 2 caracteres" |
+| Especialidad | 1 carácter | "La especialidad debe tener al menos 2 caracteres" |
+| Matrícula | 1 carácter | "La matrícula debe tener al menos 2 caracteres" |
+| Foto | sin adjuntar | "La foto es obligatoria" |
+| Disponibilidad | ningún día tildado | "Seleccioná al menos un día de disponibilidad" |
 
 #### ADM-04 — Edición de doctor sin cambiar la foto (Funcional · Media)
 **Pasos**: editar un doctor existente sin tocar el campo de foto.
@@ -177,9 +177,9 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 **Resultado esperado**: igual patrón que doctores — soft delete, desaparece de `getActiveTreatments` (usado por el Doctor al cargar una evolución) pero se sigue viendo en el listado admin.
 
 #### ADM-12 — Validaciones de prestación (Validación · Media)
-- Nombre 1 carácter → "Name must be at least 2 characters".
-- Precio 0 o negativo → "Price must be greater than 0".
-- Descripción de 501+ caracteres → "Description must be at most 500 characters".
+- Nombre 1 carácter → "El nombre debe tener al menos 2 caracteres".
+- Precio 0 o negativo → "El precio debe ser mayor a 0".
+- Descripción de 501+ caracteres → "La descripción debe tener como máximo 500 caracteres".
 
 ---
 
@@ -217,7 +217,7 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 
 #### DOC-08 — Validación de nota de evolución (Validación · Media)
 **Pasos**: enviar con 1 carácter, o con 2001+ caracteres.
-**Resultado esperado**: **"Note must be at least 2 characters"** / **"Note must be at most 2000 characters"**.
+**Resultado esperado**: **"La nota debe tener al menos 2 caracteres"** / **"La nota debe tener como máximo 2000 caracteres"**.
 
 #### DOC-09 — Carga de evolución con prestaciones realizadas (Funcional · Alta — clave para el flujo de cobro)
 **Pasos**: tildar 1 o más prestaciones activas (con su precio visible junto al nombre, ej. "Limpieza Dental — $8.000") y guardar.
@@ -241,7 +241,7 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 
 #### SEC-03 — Cierre de cobro (Funcional · Alta)
 **Pasos**: elegir un turno de la cola, seleccionar medio de pago (Efectivo / Transferencia / Tarjeta) y confirmar "Cobrar y cerrar turno".
-**Resultado esperado**: se crea el registro de pago con el total = suma de precios de las prestaciones cargadas; el turno pasa a estado **`completed`** (badge muestra **"Finalizada"** — es el único estado traducido, el resto de los badges del sistema muestran el valor en inglés tal cual: pending/scheduled/cancelled); redirige al recibo en `/recepcion/recibo/[appointmentId]`.
+**Resultado esperado**: se crea el registro de pago con el total = suma de precios de las prestaciones cargadas; el turno pasa a estado **`completed`** (badge muestra **"Finalizada"**, junto con "Pendiente"/"Confirmada"/"Cancelada" para los otros tres estados desde `TASK-022` — el valor interno persistido en Mongo sigue siendo el enum en inglés, solo cambió la etiqueta mostrada); redirige al recibo en `/recepcion/recibo/[appointmentId]`.
 
 #### SEC-04 — Cálculo del total (Funcional · Alta)
 **Pasos**: cobrar un turno con 2 prestaciones cargadas por el doctor (ej. Consulta $5.000 + Obturación $15.000).
@@ -318,5 +318,5 @@ Estos casos existen porque ya fallaron una vez en desarrollo. Priorizarlos en ca
 1. **SEG-01 / SEG-02**: el portal del paciente y la descarga de archivos no tienen autenticación real. Aceptable para una demo/MVP cerrado, pero **no debería ir a producción con pacientes reales sin revisar esto**.
 2. **SEC-02**: no hay forma de cobrar un turno si el doctor no cargó prestaciones — no hay cobro manual/walk-in.
 3. **ADM-01**: los turnos `completed` no se cuentan en ningún stat card del dashboard de admin.
-4. **Idioma**: el portal del paciente quedó en inglés; el resto del sistema en español.
+4. **Idioma**: resuelto en `TASK-022` — todo el sistema, incluido el portal del paciente, está en español.
 5. No existe today una gestión de Obras Sociales/Planes con coberturas diferenciadas — todo se cobra al 100% como "Particular", por decisión explícita tomada durante el desarrollo (ver `docs/obra-social.md` para el diseño completo si se retoma a futuro).

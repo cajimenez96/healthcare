@@ -24,7 +24,7 @@ const AdminPage = async () => {
           />
         </Link>
 
-        <p className="text-16-semibold">Admin Dashboard</p>
+        <p className="text-16-semibold">Panel de Administración</p>
 
         <Link href="/admin/doctors" className="text-green-500">
           Doctores
@@ -36,9 +36,9 @@ const AdminPage = async () => {
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Welcome 👋</h1>
+          <h1 className="header">Bienvenido 👋</h1>
           <p className="text-dark-700">
-            Start the day with managing new appointments
+            Empezá el día gestionando los turnos nuevos
           </p>
         </section>
 
@@ -46,19 +46,19 @@ const AdminPage = async () => {
           <StatCard
             type="appointments"
             count={appointments.scheduledCount}
-            label="Scheduled appointments"
+            label="Turnos confirmados"
             icon={"/assets/icons/appointments.svg"}
           />
           <StatCard
             type="pending"
             count={appointments.pendingCount}
-            label="Pending appointments"
+            label="Turnos pendientes"
             icon={"/assets/icons/pending.svg"}
           />
           <StatCard
             type="cancelled"
             count={appointments.cancelledCount}
-            label="Cancelled appointments"
+            label="Turnos cancelados"
             icon={"/assets/icons/cancelled.svg"}
           />
         </section>

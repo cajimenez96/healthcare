@@ -180,13 +180,13 @@ export const AppointmentForm = ({
   let buttonLabel;
   switch (type) {
     case "cancel":
-      buttonLabel = "Cancel Appointment";
+      buttonLabel = "Cancelar turno";
       break;
     case "schedule":
-      buttonLabel = "Schedule Appointment";
+      buttonLabel = "Confirmar turno";
       break;
     default:
-      buttonLabel = "Submit Apppointment";
+      buttonLabel = "Solicitar turno";
   }
 
   return (
@@ -194,9 +194,9 @@ export const AppointmentForm = ({
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 space-y-6">
         {type === "create" && (
           <section className="mb-12 space-y-4">
-            <h1 className="header">New Appointment</h1>
+            <h1 className="header">Nuevo turno</h1>
             <p className="text-dark-700">
-              Request a new appointment in 10 seconds.
+              Solicitá un turno nuevo en 10 segundos.
             </p>
           </section>
         )}
@@ -208,7 +208,7 @@ export const AppointmentForm = ({
               control={form.control}
               name="primaryPhysician"
               label="Doctor"
-              placeholder="Select a doctor"
+              placeholder="Seleccioná un doctor"
             >
               {doctors.map((doctor, i) => (
                 <SelectItem key={doctor.name + i} value={doctor.name}>
@@ -230,7 +230,7 @@ export const AppointmentForm = ({
               fieldType={FormFieldType.DATE_PICKER}
               control={form.control}
               name="schedule"
-              label="Expected appointment date"
+              label="Fecha estimada del turno"
               showTimeSelect
               dateFormat="MM/dd/yyyy  -  h:mm aa"
               includeTimes={availableTimes ?? undefined}
@@ -251,8 +251,8 @@ export const AppointmentForm = ({
                 fieldType={FormFieldType.TEXTAREA}
                 control={form.control}
                 name="reason"
-                label="Appointment reason"
-                placeholder="Annual montly check-up"
+                label="Motivo del turno"
+                placeholder="Control anual"
                 disabled={type === "schedule"}
               />
 
@@ -260,8 +260,8 @@ export const AppointmentForm = ({
                 fieldType={FormFieldType.TEXTAREA}
                 control={form.control}
                 name="note"
-                label="Comments/notes"
-                placeholder="Prefer afternoon appointments, if possible"
+                label="Comentarios/notas"
+                placeholder="Preferentemente por la tarde, si es posible"
                 disabled={type === "schedule"}
               />
             </div>
@@ -273,8 +273,8 @@ export const AppointmentForm = ({
             fieldType={FormFieldType.TEXTAREA}
             control={form.control}
             name="cancellationReason"
-            label="Reason for cancellation"
-            placeholder="Urgent meeting came up"
+            label="Motivo de la cancelación"
+            placeholder="Surgió un compromiso urgente"
           />
         )}
 

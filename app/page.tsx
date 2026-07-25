@@ -23,7 +23,7 @@ const Home = () => {
               © 2024 CarePluse
             </p>
             <Link href="/login" className="text-green-500">
-              Admin
+              Personal
             </Link>
           </div>
         </div>

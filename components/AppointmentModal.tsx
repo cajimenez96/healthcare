@@ -17,11 +17,18 @@ import { AppointmentForm } from "./forms/AppointmentForm";
 
 import "react-datepicker/dist/react-datepicker.css";
 
+const TRIGGER_LABELS = {
+  schedule: "Confirmar",
+  cancel: "Cancelar",
+};
+
 export const AppointmentModal = ({
   patientId,
   userId,
   appointment,
   type,
+  title,
+  description,
   doctors,
 }: {
   patientId: string;
@@ -43,17 +50,15 @@ export const AppointmentModal = ({
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          className={`capitalize ${type === "schedule" && "text-green-500"}`}
+          className={type === "schedule" ? "text-green-500" : undefined}
         >
-          {type}
+          {TRIGGER_LABELS[type]}
         </Button>
       </DialogTrigger>
       <DialogContent className="shad-dialog sm:max-w-md">
         <DialogHeader className="mb-4 space-y-3">
-          <DialogTitle className="capitalize">{type} Appointment</DialogTitle>
-          <DialogDescription>
-            Please fill in the following details to {type} appointment
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <AppointmentForm

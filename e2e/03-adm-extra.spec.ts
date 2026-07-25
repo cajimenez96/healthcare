@@ -80,13 +80,13 @@ test.describe("ADM-09 - choque de horario", () => {
     });
 
     // A submits first and wins the slot.
-    await pageA.getByRole("button", { name: "Submit Apppointment" }).click();
+    await pageA.getByRole("button", { name: "Solicitar turno" }).click();
     await expect(pageA).toHaveURL(/\/new-appointment\/success\?appointmentId=/);
 
     // B submits second, against the same (now-taken) slot it still has
     // selected in memory.
     await pageB.bringToFront();
-    await pageB.getByRole("button", { name: "Submit Apppointment" }).click();
+    await pageB.getByRole("button", { name: "Solicitar turno" }).click();
 
     await expect(pageB).toHaveURL(/\/new-appointment$/); // no redirect to success
     await expect(

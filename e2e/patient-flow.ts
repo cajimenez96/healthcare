@@ -11,12 +11,12 @@ export async function createPatientUser(
   input: { name: string; email: string; phone: string },
 ) {
   await page.goto("/");
-  await page.getByLabel("Full name", { exact: true }).fill(input.name);
-  await page.getByLabel("Email", { exact: true }).fill(input.email);
+  await page.getByLabel("Nombre completo", { exact: true }).fill(input.name);
+  await page.getByLabel("Correo electrónico", { exact: true }).fill(input.email);
   const phoneInput = page.locator(".input-phone input");
   await phoneInput.click();
   await phoneInput.fill(input.phone);
-  await page.getByRole("button", { name: "Get Started" }).click();
+  await page.getByRole("button", { name: "Comenzar" }).click();
 
   await expect(page).toHaveURL(/\/patients\/[a-f0-9]{24}\/register$/);
   const match = page.url().match(/\/patients\/([a-f0-9]{24})\/register/);
@@ -41,12 +41,12 @@ export async function registerFullPatient(
   await birthDateInput.fill("01/15/1990");
   await birthDateInput.press("Enter");
 
-  await page.getByLabel("Male", { exact: true }).click();
+  await page.getByLabel("Masculino", { exact: true }).click();
 
-  await page.getByLabel("Address", { exact: true }).fill("Av. Siempre Viva 742");
-  await page.getByLabel("Occupation", { exact: true }).fill("QA Automation");
+  await page.getByLabel("Dirección", { exact: true }).fill("Av. Siempre Viva 742");
+  await page.getByLabel("Ocupación", { exact: true }).fill("QA Automation");
 
-  await page.getByLabel("Emergency contact name", { exact: true }).fill("Contacto Emergencia QA");
+  await page.getByLabel("Nombre de contacto de emergencia", { exact: true }).fill("Contacto Emergencia QA");
   const emergencyPhone = page.locator(".input-phone input").nth(1);
   await emergencyPhone.click();
   await emergencyPhone.fill("+5491155556666");
@@ -55,19 +55,19 @@ export async function registerFullPatient(
   // name (via aria-labelledby), regardless of whether they're still showing
   // the placeholder or a pre-filled default value - so target by label, not
   // by the placeholder text which may or may not be visible.
-  await page.getByRole("combobox", { name: "Primary care physician" }).click();
+  await page.getByRole("combobox", { name: "Médico de cabecera" }).click();
   await page.getByRole("option", { name: opts.doctorName }).click();
 
   if (opts.insuranceProviderName) {
-    await page.getByRole("combobox", { name: "Insurance provider" }).click();
+    await page.getByRole("combobox", { name: "Obra social" }).click();
     await page.getByRole("option", { name: opts.insuranceProviderName }).click();
   }
 
-  await page.getByLabel("Insurance policy number", { exact: true }).fill("POL-QA-0001");
+  await page.getByLabel("N° de afiliado", { exact: true }).fill("POL-QA-0001");
 
-  await page.getByRole("combobox", { name: "Identification Type" }).click();
-  await page.getByRole("option", { name: "National Identity Card" }).click();
-  await page.getByLabel("Identification Number", { exact: true }).fill("30111222");
+  await page.getByRole("combobox", { name: "Tipo de identificación" }).click();
+  await page.getByRole("option", { name: "Documento Nacional de Identidad (DNI)" }).click();
+  await page.getByLabel("Número de identificación", { exact: true }).fill("30111222");
 
   if (opts.uploadIdentification) {
     await page.locator("input[type=file]").setInputFiles(ID_DOCUMENT_PATH);
@@ -77,7 +77,7 @@ export async function registerFullPatient(
   await page.locator("#disclosureConsent").click();
   await page.locator("#privacyConsent").click();
 
-  await page.getByRole("button", { name: "Submit and Continue" }).click();
+  await page.getByRole("button", { name: "Enviar y continuar" }).click();
   await expect(page).toHaveURL(new RegExp(`/patients/${opts.userId}/new-appointment$`));
 
   // Read back from Mongo directly rather than sniffing the Server Action's
@@ -114,10 +114,10 @@ export async function requestAppointment(
 
   await pickAppointmentDateTime(page, opts.dayOfMonth, opts.timeLabel);
 
-  await page.getByLabel("Appointment reason", { exact: true }).fill(opts.reason);
+  await page.getByLabel("Motivo del turno", { exact: true }).fill(opts.reason);
 
   if (opts.submit !== false) {
-    await page.getByRole("button", { name: "Submit Apppointment" }).click();
+    await page.getByRole("button", { name: "Solicitar turno" }).click();
   }
 
   return page;

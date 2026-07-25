@@ -107,7 +107,7 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
 
     const row = page.locator("tr", { hasText: PATIENT_NAME });
     await expect(row).toBeVisible();
-    await expect(row.getByText("pending", { exact: true })).toBeVisible();
+    await expect(row.getByText("Pendiente", { exact: true })).toBeVisible();
   });
 });
 
@@ -117,16 +117,16 @@ test.describe("FLU-02 - confirmacion y atencion clinica", () => {
     await page.goto("/admin");
 
     const row = page.locator("tr", { hasText: PATIENT_NAME });
-    await row.getByRole("button", { name: "schedule", exact: true }).click();
+    await row.getByRole("button", { name: "Confirmar", exact: true }).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Schedule Appointment" }).click();
+    await dialog.getByRole("button", { name: "Confirmar turno" }).click();
 
     await expect(dialog).toBeHidden();
     await page.reload();
     const refreshedRow = page.locator("tr", { hasText: PATIENT_NAME });
-    await expect(refreshedRow.getByText("scheduled", { exact: true })).toBeVisible();
+    await expect(refreshedRow.getByText("Confirmada", { exact: true })).toBeVisible();
   });
 
   test("DOC-03 - Doctor entra a la ficha del paciente desde su agenda", async ({ page }) => {

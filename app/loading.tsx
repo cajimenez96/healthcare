@@ -10,7 +10,7 @@ export default function Loading() {
         height={3240}
         className="animate-spin"
       />
-      Loading...
+      Cargando...
     </div>
   );
 }

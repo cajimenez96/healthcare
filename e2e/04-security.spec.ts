@@ -28,7 +28,7 @@ test.describe("SEG-01 - acceso al perfil de un paciente sin autenticacion (IDOR)
     const response = await anonPage.goto(`/patients/${userId}/register`);
     expect(response?.status()).toBe(200);
 
-    await expect(anonPage.getByLabel("Email address")).toHaveValue(email);
+    await expect(anonPage.getByLabel("Correo electrónico")).toHaveValue(email);
     const phoneInputValue = await anonPage.locator(".input-phone input").first().inputValue();
     expect(phoneInputValue.replace(/\s/g, "")).toContain(phone.slice(-8));
 

@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import Image from "next/image";
 
-import { StatusIcon } from "@/constants";
+import { StatusIcon, StatusLabels } from "@/constants";
 
 export const StatusBadge = ({ status }: { status: Status }) => {
   return (
@@ -26,7 +26,7 @@ export const StatusBadge = ({ status }: { status: Status }) => {
           "text-red-500": status === "cancelled",
         })}
       >
-        {status === "completed" ? "Finalizada" : status}
+        {StatusLabels[status] ?? status}
       </p>
     </div>
   );
