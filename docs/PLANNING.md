@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (1 Ticket)           |  (0 Tickets)          |  (12 Tickets)         |
+|  (0 Tickets)          |  (0 Tickets)          |  (13 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -17,15 +17,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## 📋 BACKLOG (Por Hacer)
 
-### EPIC 6: Seguridad y Mantenimiento
-
-#### `[TASK-013]` Actualizar Next.js por vulnerabilidad de seguridad conocida
-* **Descripción**: Next.js 14.2.3 tiene una vulnerabilidad de seguridad confirmada por el equipo de Next.js (ver aviso oficial: https://nextjs.org/blog/security-update-2025-12-11, detectado vía warning de pnpm al instalar dependencias). Actualizar a una versión parcheada.
-* **Criterios de Aceptación**:
-  - [ ] Investigar el aviso oficial y determinar la versión mínima parcheada.
-  - [ ] Actualizar `next` y validar breaking changes de App Router (rutas, `instrumentation.ts`, Sentry).
-  - [ ] `pnpm build` y `pnpm dev` funcionando sin regresiones tras la actualización.
-* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) | **Dependencias**: Ninguna
+*(No quedan tareas en el backlog)*
 
 ---
 
@@ -246,3 +238,19 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
   - `Payment` guarda snapshots (`patientName`, `doctorName`, ítems con nombre/precio) en vez de solo referencias, mismo patrón ya usado en `ClinicalNote.doctorName` — evita que un recibo ya emitido cambie si se edita el paciente o el precio de una prestación después.
   - El dashboard de `/admin` no fue tocado: los contadores de `getRecentAppointmentList` (scheduled/pending/cancelled) no suman turnos `completed`, quedan simplemente sin contar en ningún stat card. No estaba en el alcance de este ticket agregar un "Finalizadas" al dashboard de admin.
   - Verificado con script real (`scripts/tmp-verify-billing.ts`, borrado tras usarlo): creación de nota clínica con dos prestaciones, agregación correcta del total ($23.000), creación del pago, transición del turno a `completed`, recuperación del recibo por `appointmentId`, y bloqueo real (no solo a nivel de tipos) del doble cobro vía el índice único de Mongo.
+
+#### `[TASK-013]` Actualizar Next.js por vulnerabilidad de seguridad conocida
+* **Descripción**: Next.js 14.2.3 tiene una vulnerabilidad de seguridad confirmada por el equipo de Next.js (ver aviso oficial: https://nextjs.org/blog/security-update-2025-12-11, detectado vía warning de pnpm al instalar dependencias). Actualizar a una versión parcheada.
+* **Criterios de Aceptación**:
+  - [x] Investigar el aviso oficial y determinar la versión mínima parcheada.
+  - [x] Actualizar `next` y validar breaking changes de App Router (rutas, `instrumentation.ts`, Sentry).
+  - [x] `pnpm build` y `pnpm dev` funcionando sin regresiones tras la actualización.
+* **Prioridad**: Alta | **Esfuerzo**: Medio (3 ptos) → terminó siendo Alto en la práctica | **Dependencias**: Ninguna
+* **Resultado**: El alcance real terminó siendo mucho mayor al estimado. El aviso citado en el ticket (diciembre 2025) solo pedía `next@14.2.35`, pero al investigar apareció un aviso posterior (mayo 2026, 13 CVEs) donde **la rama 14.x se quedó sin parche** — la única remediación real es una versión mayor. Se investigó con el usuario el trade-off (parche menor insuficiente vs. upgrade mayor con breaking changes) y se optó por el upgrade completo a **Next.js 15.5.21** (última Maintenance LTS de la línea 15.x al momento del aviso de julio 2026) + **React 19.2.8** + `@sentry/nextjs@10.68.0` (la 8.9.2 no declaraba soporte real para Next 15) + `eslint-config-next@15.5.21`. Antes de ejecutar el upgrade se verificó específicamente el riesgo más crítico para esta app — compatibilidad de NextAuth v4 (que sostiene todo el RBAC vía `middleware.ts`) con Next 15 — porque reportes de foros sugerían incompatibilidad; se comprobó que `next-auth@4.24.15` ya declara soporte oficial (`next: "^15 || ^16"`, `react: "^19"`) en su `package.json` publicado, así que no fue necesario migrar a Auth.js v5 (que sigue en beta). Se corrió el codemod oficial `next-async-request-api` para convertir `params`/`searchParams` a `Promise` en las 6 rutas dinámicas afectadas, y se actualizó el tipo ambiental `SearchParamProps` en `types/index.d.ts` para reflejar eso. Al correr `pnpm build` por primera vez en toda la sesión (antes solo se había corrido `tsc --noEmit`), se descubrió que el build de producción nunca había pasado: un bug preexistente y ya documentado desde TASK-007 (`AppointmentForm.tsx` no mandaba `timeZone` a `updateAppointment`) bloqueaba el build entero, y `eslint-config-next@15.5.21` resultó más estricto con `import/order` que la versión 14.x, rompiendo el build en ~20 archivos preexistentes. Se corrigieron ambos de raíz (no se documentó más como "deuda preexistente a ignorar"). Verificación de RBAC/auth bajo Next 15 hecha con usuarios y credenciales descartables creados por script (nunca se leyó ni mostró ningún secreto de `.env.local`, que además el sistema de permisos bloquea leer directamente): login real por HTTP como Administrador/Doctor/Secretaria, confirmando que `middleware.ts` deniega correctamente las rutas de otros roles (307 a `/unauthorized`) y que las Server Actions gateadas por `requireXSession()` funcionan (ej. `/recepcion` como Secretaria devuelve 200 con contenido real).
+  - **Archivos modificados**: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` (aprobación del build script de `sharp`, necesario para la optimización de imágenes en producción), `types/index.d.ts` (`SearchParamProps` async), `app/api/files/[fileId]/route.ts`, `app/api/files/[fileId]/route.test.ts`, `app/doctor/patient/[id]/page.tsx`, `app/patients/[userId]/new-appointment/page.tsx`, `app/patients/[userId]/new-appointment/success/page.tsx`, `app/patients/[userId]/register/page.tsx`, `app/recepcion/recibo/[appointmentId]/page.tsx`, `components/forms/AppointmentForm.tsx` (fix real del bug de `timeZone`), `lib/db/mongodb.ts`, `lib/db/mongoClientPromise.ts`, `types/next-auth.d.ts` (falsos positivos de `no-unused-vars` en declaraciones ambientales, silenciados puntualmente), y reordenamiento de imports vía `eslint --fix` en ~20 archivos de `lib/db/**`.
+* **Observaciones**:
+  - Los bypass de middleware más graves del aviso de mayo 2026 (`GHSA-267c-6grr-h53f`, `GHSA-26hh-7cqf-hhc6`, `GHSA-492v-c6pp-mqqv`) requieren Next.js ≥15.2.0/≥15.4.0 — no nos alcanzaban en 14.2.3 —, pero sí nos alcanzaban un DoS de severidad Alta en Server Components (≥13.0.0) y un cache poisoning en respuestas RSC (≥14.2.0, justo nuestra versión). Ambos quedan cerrados con este upgrade.
+  - `pnpm build` nunca se había corrido en esta sesión antes de este ticket — toda la verificación previa fue `tsc --noEmit` + `vitest` + servidor de desarrollo. Quedó demostrado que eso no es equivalente: el build de producción llevaba rota toda la sesión por el bug de `timeZone`. **Recomendación para el resto del proyecto**: agregar `pnpm build` a la rutina de verificación de cada ticket, no solo al final.
+  - No se migró a Auth.js v5 — sigue en beta (`5.0.0-beta.32`, publicada el 20 de julio de 2026) sin fecha de estabilización confirmada, y no hizo falta porque next-auth v4 ya soporta Next 15/16 oficialmente.
+  - Quedan warnings no bloqueantes tras el upgrade: peer dependencies desactualizadas en `react-datepicker`, `react-onclickoutside`, `next-themes` y `lucide-react` (declaran soporte hasta React 18, pero funcionan correctamente en la práctica — se verificó `pnpm build` y el flujo de auth end-to-end sin errores), y un warning preexistente de `react-hooks/exhaustive-deps` en `FileUploader.tsx` no relacionado a este ticket.
+  - Verificado con usuarios descartables creados y borrados por script (`scripts/tmp-verify-next15-auth.ts` + `scripts/tmp-cleanup-next15-auth.ts`, ambos borrados tras usarlos): login real vía `/api/auth/callback/credentials` para los tres roles, confirmando altas (200) y denegaciones (307 a `/unauthorized`) correctas de `middleware.ts`, y que `/recepcion` como Secretaria renderiza contenido real (la Server Action `getBillableAppointments`, gateada por `requireSecretariaSession`, funciona en Next 15).
