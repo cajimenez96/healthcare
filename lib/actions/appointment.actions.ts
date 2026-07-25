@@ -11,6 +11,7 @@ import { buildAppointmentSmsMessage } from "../notifications/buildAppointmentSms
 import { TwilioNotificationService } from "../notifications/TwilioNotificationService";
 import { getAvailableSlots } from "../scheduling/getAvailableSlots";
 import { parseStringify } from "../utils";
+
 import { toAppointment, toAppointmentWithPatient } from "./serializers";
 
 const appointmentRepository = new MongoAppointmentRepository();

@@ -59,10 +59,10 @@ const BillingForm = ({ appointment }: { appointment: BillableAppointment }) => {
   };
 
   return (
-    <div className="rounded-md border border-dark-500 p-4 space-y-4">
+    <div className="space-y-4 rounded-md border border-dark-500 p-4">
       <div>
         <p className="text-14-medium">{appointment.patientName}</p>
-        <p className="text-dark-700 text-12-regular">
+        <p className="text-12-regular text-dark-700">
           {appointment.doctorName} · {formatDateTime(appointment.schedule).dateTime}
         </p>
       </div>

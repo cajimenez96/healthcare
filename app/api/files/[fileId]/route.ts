@@ -1,11 +1,10 @@
 import mongoose from "mongoose";
+
 import { connectToDatabase } from "../../../../lib/db/mongodb";
 import { GRIDFS_BUCKET_NAME } from "../../../../lib/storage/GridFsFileStorage";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: { fileId: string } },
-) {
+export async function GET(_request: Request, props: { params: Promise<{ fileId: string }> }) {
+  const params = await props.params;
   if (!mongoose.isValidObjectId(params.fileId)) {
     return new Response(null, { status: 404 });
   }

@@ -1,10 +1,11 @@
 import type { HydratedDocument } from "mongoose";
-import type { IInsuranceProvider } from "../models/InsuranceProvider";
-import { InsuranceProvider } from "../models/InsuranceProvider";
+
 import type {
   IInsuranceProviderRepository,
   InsuranceProviderRecord,
 } from "../../repositories/IInsuranceProviderRepository";
+import type { IInsuranceProvider } from "../models/InsuranceProvider";
+import { InsuranceProvider } from "../models/InsuranceProvider";
 
 const MONGO_DUPLICATE_KEY_ERROR_CODE = 11000;
 

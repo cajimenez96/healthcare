@@ -1,11 +1,12 @@
 import type { HydratedDocument } from "mongoose";
-import type { IClinicalNote } from "../models/ClinicalNote";
-import { ClinicalNote } from "../models/ClinicalNote";
+
 import type {
   ClinicalNoteRecord,
   CreateClinicalNoteInput,
   IClinicalNoteRepository,
 } from "../../repositories/IClinicalNoteRepository";
+import type { IClinicalNote } from "../models/ClinicalNote";
+import { ClinicalNote } from "../models/ClinicalNote";
 
 function toClinicalNoteRecord(
   doc: HydratedDocument<IClinicalNote>,

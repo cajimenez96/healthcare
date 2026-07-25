@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../db/mongodb";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { User } from "../db/models/User";
+import { connectToDatabase } from "../db/mongodb";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
+
 import { authenticateCredentials } from "./authenticateCredentials";
 
 describe("authenticateCredentials", () => {

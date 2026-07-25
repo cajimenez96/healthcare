@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../mongodb";
-import { Patient } from "../models/Patient";
-import { MongoPatientRepository } from "./MongoPatientRepository";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import type { CreatePatientInput } from "../../repositories/IPatientRepository";
+import { Patient } from "../models/Patient";
+import { connectToDatabase } from "../mongodb";
+
+import { MongoPatientRepository } from "./MongoPatientRepository";
+
 
 const basePatient: CreatePatientInput = {
   userId: new mongoose.Types.ObjectId().toString(),

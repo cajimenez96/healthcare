@@ -1,9 +1,11 @@
 import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
 import type { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { connectToDatabase } from "../db/mongodb";
+
 import { getMongoClientPromise } from "../db/mongoClientPromise";
+import { connectToDatabase } from "../db/mongodb";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
+
 import { authenticateCredentials } from "./authenticateCredentials";
 
 const userRepository = new MongoUserRepository();

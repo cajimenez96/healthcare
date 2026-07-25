@@ -1,11 +1,12 @@
 import mongoose, { type HydratedDocument } from "mongoose";
-import type { IPatient } from "../models/Patient";
-import { Patient } from "../models/Patient";
+
 import type {
   CreatePatientInput,
   IPatientRepository,
   PatientRecord,
 } from "../../repositories/IPatientRepository";
+import type { IPatient } from "../models/Patient";
+import { Patient } from "../models/Patient";
 
 function toPatientRecord(doc: HydratedDocument<IPatient>): PatientRecord {
   return {

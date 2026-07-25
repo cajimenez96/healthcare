@@ -1,10 +1,10 @@
-import { config } from "dotenv";
-config({ path: ".env.local" });
-
 import bcrypt from "bcryptjs";
+import { config } from "dotenv";
 import mongoose from "mongoose";
+
 import { connectToDatabase } from "../lib/db/mongodb";
 import { MongoUserRepository } from "../lib/db/repositories/MongoUserRepository";
+config({ path: ".env.local" });
 
 async function main() {
   const email = process.env.SEED_ADMIN_EMAIL;

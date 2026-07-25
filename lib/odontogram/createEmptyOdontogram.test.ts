@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { createEmptyOdontogram, FDI_PERMANENT_TOOTH_NUMBERS } from "./createEmptyOdontogram";
 
 describe("FDI_PERMANENT_TOOTH_NUMBERS", () => {

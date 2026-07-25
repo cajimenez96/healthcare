@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoClinicalNoteRepository } from "../db/repositories/MongoClinicalNoteRepository";
-import { parseStringify } from "../utils";
 import type { ClinicalNoteTreatment } from "../repositories/IClinicalNoteRepository";
+import { parseStringify } from "../utils";
 
 const clinicalNoteRepository = new MongoClinicalNoteRepository();
 

@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { requireAdminSession } from "../auth/requireAdminSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoTreatmentRepository } from "../db/repositories/MongoTreatmentRepository";
-import { parseStringify } from "../utils";
 import type { CreateTreatmentInput, UpdateTreatmentInput } from "../repositories/ITreatmentRepository";
+import { parseStringify } from "../utils";
 
 const treatmentRepository = new MongoTreatmentRepository();
 

@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { connectToDatabase } from "../mongodb";
-import { getValidationError } from "./testHelpers";
+
 import { InsuranceProvider } from "./InsuranceProvider";
+import { getValidationError } from "./testHelpers";
 
 describe("InsuranceProvider model", () => {
   beforeAll(async () => {

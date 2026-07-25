@@ -6,10 +6,14 @@ import { getAppointment } from "@/lib/actions/appointment.actions";
 import { getAllDoctors } from "@/lib/actions/doctor.actions";
 import { formatDateTime } from "@/lib/utils";
 
-const RequestSuccess = async ({
-  searchParams,
-  params: { userId },
-}: SearchParamProps) => {
+const RequestSuccess = async (props: SearchParamProps) => {
+  const params = await props.params;
+
+  const {
+    userId
+  } = params;
+
+  const searchParams = await props.searchParams;
   const appointmentId = (searchParams?.appointmentId as string) || "";
   const appointment = await getAppointment(appointmentId);
   const doctors = await getAllDoctors();

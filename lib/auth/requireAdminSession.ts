@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth/next";
+
 import { authOptions } from "./authOptions";
 
 // Defense in depth: middleware.ts already restricts /admin/* pages to the

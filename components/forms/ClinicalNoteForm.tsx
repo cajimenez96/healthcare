@@ -86,7 +86,7 @@ const ClinicalNoteForm = ({ patientId, appointmentId, treatments }: ClinicalNote
               {treatments.map((treatment) => (
                 <label
                   key={treatment.id}
-                  className="flex cursor-pointer items-center gap-2 text-14-regular"
+                  className="text-14-regular flex cursor-pointer items-center gap-2"
                 >
                   <input
                     type="checkbox"

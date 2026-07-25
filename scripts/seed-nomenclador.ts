@@ -1,11 +1,11 @@
 import { config } from "dotenv";
-config({ path: ".env.local" });
-
 import mongoose from "mongoose";
+
 import { DEFAULT_INSURANCE_PROVIDER } from "../constants";
 import { connectToDatabase } from "../lib/db/mongodb";
 import { MongoInsuranceProviderRepository } from "../lib/db/repositories/MongoInsuranceProviderRepository";
 import { MongoTreatmentRepository } from "../lib/db/repositories/MongoTreatmentRepository";
+config({ path: ".env.local" });
 
 const BASE_TREATMENTS = [
   {

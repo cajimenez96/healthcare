@@ -43,7 +43,7 @@ const DoctorPage = async () => {
               >
                 <div className="flex-1">
                   <p className="text-14-medium">{appointment.patient.name}</p>
-                  <p className="text-dark-700 text-12-regular">
+                  <p className="text-12-regular text-dark-700">
                     {formatDateTime(appointment.schedule).dateTime} ·{" "}
                     {appointment.reason}
                   </p>

@@ -2,8 +2,8 @@
 
 import { Appointment } from "@/types/appwrite.types";
 
-import { DataTable } from "./DataTable";
 import { getColumns } from "./columns";
+import { DataTable } from "./DataTable";
 
 type DoctorOption = { name: string; image: string };
 

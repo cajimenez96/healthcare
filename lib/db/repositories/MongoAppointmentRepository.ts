@@ -1,7 +1,5 @@
 import mongoose, { type HydratedDocument } from "mongoose";
-import type { IAppointment } from "../models/Appointment";
-import { Appointment } from "../models/Appointment";
-import type { IPatient } from "../models/Patient";
+
 import type {
   AppointmentRecord,
   AppointmentWithPatient,
@@ -10,6 +8,9 @@ import type {
   UpdateAppointmentInput,
 } from "../../repositories/IAppointmentRepository";
 import type { PatientRecord } from "../../repositories/IPatientRepository";
+import type { IAppointment } from "../models/Appointment";
+import { Appointment } from "../models/Appointment";
+import type { IPatient } from "../models/Patient";
 
 function toAppointmentRecord(
   doc: HydratedDocument<IAppointment>,

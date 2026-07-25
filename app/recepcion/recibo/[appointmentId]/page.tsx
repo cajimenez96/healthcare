@@ -11,11 +11,17 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   card: "Tarjeta",
 };
 
-const ReciboPage = async ({
-  params: { appointmentId },
-}: {
-  params: { appointmentId: string };
-}) => {
+const ReciboPage = async (
+  props: {
+    params: Promise<{ appointmentId: string }>;
+  }
+) => {
+  const params = await props.params;
+
+  const {
+    appointmentId
+  } = params;
+
   const payment = await getPaymentByAppointment(appointmentId);
 
   if (!payment) {
@@ -38,12 +44,12 @@ const ReciboPage = async ({
       <section className="space-y-6 rounded-md border border-dark-500 p-8">
         <div>
           <h1 className="header">Comprobante de Cobro</h1>
-          <p className="text-dark-700 text-14-regular">
+          <p className="text-14-regular text-dark-700">
             {formatDateTime(payment.paidAt).dateTime}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-14-regular">
+        <div className="text-14-regular grid grid-cols-2 gap-4">
           <p>
             <span className="text-dark-700">Paciente: </span>
             {payment.patientName}
@@ -62,7 +68,7 @@ const ReciboPage = async ({
           </p>
         </div>
 
-        <table className="w-full text-14-regular">
+        <table className="text-14-regular w-full">
           <thead>
             <tr className="border-b border-dark-500 text-left text-dark-700">
               <th className="py-2">Prestación</th>

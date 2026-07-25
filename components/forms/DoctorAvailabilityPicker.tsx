@@ -1,9 +1,10 @@
 "use client";
 
 import type { z } from "zod";
-import type { DoctorAvailabilityValidation } from "@/lib/validation";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import type { DoctorAvailabilityValidation } from "@/lib/validation";
 
 type Availability = z.infer<typeof DoctorAvailabilityValidation>;
 

@@ -2,13 +2,14 @@
 
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+
 import { requireAdminSession } from "../auth/requireAdminSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoDoctorRepository } from "../db/repositories/MongoDoctorRepository";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
+import type { CreateDoctorInput } from "../repositories/IDoctorRepository";
 import { GridFsFileStorage } from "../storage/GridFsFileStorage";
 import { parseStringify } from "../utils";
-import type { CreateDoctorInput } from "../repositories/IDoctorRepository";
 
 const doctorRepository = new MongoDoctorRepository();
 const userRepository = new MongoUserRepository();

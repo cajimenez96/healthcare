@@ -1,12 +1,13 @@
 import mongoose, { type HydratedDocument } from "mongoose";
-import type { IUser } from "../models/User";
-import { User } from "../models/User";
+
 import type {
   CreateUserInput,
   IUserRepository,
   UserCredentials,
   UserRecord,
 } from "../../repositories/IUserRepository";
+import type { IUser } from "../models/User";
+import { User } from "../models/User";
 
 const MONGO_DUPLICATE_KEY_ERROR_CODE = 11000;
 

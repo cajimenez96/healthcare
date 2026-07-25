@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../mongodb";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { Payment } from "../models/Payment";
+import { connectToDatabase } from "../mongodb";
+
 import { MongoPaymentRepository } from "./MongoPaymentRepository";
 
 function paymentInput(appointmentId: string) {

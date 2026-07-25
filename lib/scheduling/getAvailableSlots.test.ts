@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { getAvailableSlots } from "./getAvailableSlots";
 
 // 2026-08-03 is a Monday (dayOfWeek = 1)

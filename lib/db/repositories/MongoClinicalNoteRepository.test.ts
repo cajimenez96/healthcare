@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../mongodb";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { ClinicalNote } from "../models/ClinicalNote";
+import { connectToDatabase } from "../mongodb";
+
 import { MongoClinicalNoteRepository } from "./MongoClinicalNoteRepository";
 
 function noteInput(patientId: string, appointmentId?: string) {

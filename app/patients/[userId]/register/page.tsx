@@ -6,7 +6,13 @@ import { getActiveDoctors } from "@/lib/actions/doctor.actions";
 import { getActiveInsuranceProviders } from "@/lib/actions/insuranceProvider.actions";
 import { getPatient, getUser } from "@/lib/actions/patient.actions";
 
-const Register = async ({ params: { userId } }: SearchParamProps) => {
+const Register = async (props: SearchParamProps) => {
+  const params = await props.params;
+
+  const {
+    userId
+  } = params;
+
   const user = await getUser(userId);
   const patient = await getPatient(userId);
   const doctors = await getActiveDoctors();

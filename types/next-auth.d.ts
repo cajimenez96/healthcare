@@ -1,4 +1,6 @@
+/* eslint-disable no-unused-vars -- module augmentation interfaces, not unused bindings */
 import type { DefaultSession } from "next-auth";
+
 import type { UserRole } from "@/lib/repositories/IUserRepository";
 
 declare module "next-auth" {

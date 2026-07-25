@@ -67,7 +67,7 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
             <span className="text-dark-700"> (inactivo)</span>
           )}
         </p>
-        <p className="text-dark-700 text-12-regular">
+        <p className="text-12-regular text-dark-700">
           {doctor.specialty} · {doctor.licenseNumber}
         </p>
       </div>

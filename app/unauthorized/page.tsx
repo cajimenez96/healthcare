@@ -13,7 +13,7 @@ const UnauthorizedPage = () => {
           className="mx-auto mb-12 h-10 w-fit"
         />
         <h1 className="header mb-4">Acceso no autorizado</h1>
-        <p className="text-dark-700 mb-8">
+        <p className="mb-8 text-dark-700">
           Tu usuario no tiene permiso para acceder a esta página.
         </p>
         <Link href="/login" className="text-green-500">

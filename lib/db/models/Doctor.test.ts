@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { connectToDatabase } from "../mongodb";
-import { getValidationError } from "./testHelpers";
+
 import { Doctor } from "./Doctor";
+import { getValidationError } from "./testHelpers";
 
 const validDoctor = {
   name: "Dr. Cameron",

@@ -1,4 +1,5 @@
 import { Schema, model, models, Types } from "mongoose";
+
 import type { ToothCondition } from "../../odontogram/createEmptyOdontogram";
 
 const TOOTH_CONDITIONS = ["Caries", "Obturado", "Ausente", "Endodoncia", "Corona"];

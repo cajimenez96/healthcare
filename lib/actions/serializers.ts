@@ -5,12 +5,12 @@
 // Mongoose schemas and repository ports stay Mongo-shaped and framework
 // agnostic, while callers need no changes.
 
-import type { UserRecord } from "../repositories/IUserRepository";
-import type { PatientRecord } from "../repositories/IPatientRepository";
 import type {
   AppointmentRecord,
   AppointmentWithPatient,
 } from "../repositories/IAppointmentRepository";
+import type { PatientRecord } from "../repositories/IPatientRepository";
+import type { UserRecord } from "../repositories/IUserRepository";
 
 export function toUser(record: UserRecord) {
   const { id, ...rest } = record;

@@ -1,4 +1,5 @@
 import twilio from "twilio";
+
 import type { INotificationService } from "../repositories/INotificationService";
 
 export class TwilioNotificationService implements INotificationService {

@@ -1,7 +1,9 @@
-import { describe, it, expect, afterEach, afterAll } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../db/mongodb";
+import { describe, it, expect, afterEach, afterAll } from "vitest";
+
 import { User } from "../db/models/User";
+import { connectToDatabase } from "../db/mongodb";
+
 import { createUser } from "./patient.actions";
 
 describe("patient actions - connection handling", () => {

@@ -4,7 +4,13 @@ import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import { getActiveDoctors } from "@/lib/actions/doctor.actions";
 import { getPatient } from "@/lib/actions/patient.actions";
 
-const Appointment = async ({ params: { userId } }: SearchParamProps) => {
+const Appointment = async (props: SearchParamProps) => {
+  const params = await props.params;
+
+  const {
+    userId
+  } = params;
+
   const patient = await getPatient(userId);
   const doctors = await getActiveDoctors();
 

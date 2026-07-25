@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../mongodb";
-import { getValidationError } from "./testHelpers";
-import { Odontogram } from "./Odontogram";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { createEmptyOdontogram } from "../../odontogram/createEmptyOdontogram";
+import { connectToDatabase } from "../mongodb";
+
+import { Odontogram } from "./Odontogram";
+import { getValidationError } from "./testHelpers";
 
 describe("Odontogram model", () => {
   beforeAll(async () => {

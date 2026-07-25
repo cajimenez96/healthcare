@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
+import { describe, it, expect, beforeEach, afterAll, afterEach } from "vitest";
+
 import { connectToDatabase } from "./mongodb";
 
 describe("connectToDatabase", () => {

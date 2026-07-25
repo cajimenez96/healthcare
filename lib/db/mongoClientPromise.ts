@@ -6,6 +6,7 @@ interface MongoClientCache {
 }
 
 declare global {
+  // eslint-disable-next-line no-var, no-unused-vars -- ambient global declaration, not a real unused binding
   var _mongoClientCache: MongoClientCache | undefined;
 }
 

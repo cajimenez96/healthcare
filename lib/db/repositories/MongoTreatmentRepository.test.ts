@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../mongodb";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { Treatment } from "../models/Treatment";
+import { connectToDatabase } from "../mongodb";
+
 import { MongoTreatmentRepository } from "./MongoTreatmentRepository";
 
 const validTreatment = {

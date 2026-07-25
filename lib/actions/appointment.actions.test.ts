@@ -1,7 +1,9 @@
-import { describe, it, expect, afterEach, afterAll } from "vitest";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../db/mongodb";
+import { describe, it, expect, afterEach, afterAll } from "vitest";
+
 import { Appointment } from "../db/models/Appointment";
+import { connectToDatabase } from "../db/mongodb";
+
 import { getRecentAppointmentList } from "./appointment.actions";
 
 describe("appointment actions - connection handling", () => {

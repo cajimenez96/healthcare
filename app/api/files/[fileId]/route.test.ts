@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import mongoose from "mongoose";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
 import { connectToDatabase } from "../../../../lib/db/mongodb";
 import { GridFsFileStorage } from "../../../../lib/storage/GridFsFileStorage";
+
 import { GET } from "./route";
 
 const BUCKET_NAME = "patientDocuments";
@@ -31,7 +33,7 @@ describe("GET /api/files/[fileId]", () => {
     uploadedIds.push(uploaded.id);
 
     const response = await GET(new Request(`http://localhost/api/files/${uploaded.id}`), {
-      params: { fileId: uploaded.id },
+      params: Promise.resolve({ fileId: uploaded.id }),
     });
 
     expect(response.status).toBe(200);
@@ -42,7 +44,7 @@ describe("GET /api/files/[fileId]", () => {
 
   it("returns 404 when the file does not exist", async () => {
     const response = await GET(new Request("http://localhost/api/files/missing"), {
-      params: { fileId: new mongoose.Types.ObjectId().toString() },
+      params: Promise.resolve({ fileId: new mongoose.Types.ObjectId().toString() }),
     });
 
     expect(response.status).toBe(404);
@@ -50,7 +52,7 @@ describe("GET /api/files/[fileId]", () => {
 
   it("returns 404 for a malformed file id instead of throwing", async () => {
     const response = await GET(new Request("http://localhost/api/files/bad-id"), {
-      params: { fileId: "not-an-object-id" },
+      params: Promise.resolve({ fileId: "not-an-object-id" }),
     });
 
     expect(response.status).toBe(404);

@@ -13,6 +13,7 @@ import { DoctorFormValidation } from "@/lib/validation";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import { FileUploader } from "../FileUploader";
 import SubmitButton from "../SubmitButton";
+
 import { DoctorAvailabilityPicker } from "./DoctorAvailabilityPicker";
 
 const DoctorForm = () => {

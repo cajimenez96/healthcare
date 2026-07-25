@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+
 import { connectToDatabase } from "../mongodb";
-import { getValidationError } from "./testHelpers";
+
 import { ClinicalNote } from "./ClinicalNote";
+import { getValidationError } from "./testHelpers";
 
 const validNote = {
   patientId: new mongoose.Types.ObjectId(),

@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+
 import type { IUserRepository, UserRole } from "../repositories/IUserRepository";
 
 export interface AuthenticatedUser {

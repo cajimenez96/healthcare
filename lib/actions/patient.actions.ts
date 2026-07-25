@@ -2,10 +2,11 @@
 
 import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
-import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { MongoPatientRepository } from "../db/repositories/MongoPatientRepository";
+import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 import { GridFsFileStorage } from "../storage/GridFsFileStorage";
 import { parseStringify } from "../utils";
+
 import { toPatient, toUser } from "./serializers";
 
 const userRepository = new MongoUserRepository();

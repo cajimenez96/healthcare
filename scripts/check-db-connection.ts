@@ -1,8 +1,8 @@
 import { config } from "dotenv";
-config({ path: ".env.local" });
-
 import mongoose from "mongoose";
+
 import { connectToDatabase } from "../lib/db/mongodb";
+config({ path: ".env.local" });
 
 async function main() {
   console.log(`Connecting to ${process.env.MONGODB_URI}...`);

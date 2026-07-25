@@ -1,12 +1,13 @@
 import mongoose, { type HydratedDocument } from "mongoose";
-import type { ITreatment } from "../models/Treatment";
-import { Treatment } from "../models/Treatment";
+
 import type {
   CreateTreatmentInput,
   ITreatmentRepository,
   TreatmentRecord,
   UpdateTreatmentInput,
 } from "../../repositories/ITreatmentRepository";
+import type { ITreatment } from "../models/Treatment";
+import { Treatment } from "../models/Treatment";
 
 function toTreatmentRecord(doc: HydratedDocument<ITreatment>): TreatmentRecord {
   return {

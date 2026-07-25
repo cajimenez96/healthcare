@@ -114,10 +114,10 @@ export const Odontogram = ({ patientId, initialTeeth }: OdontogramProps) => {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-4 text-12-regular">
+      <div className="text-12-regular flex flex-wrap gap-4">
         {(Object.keys(CONDITION_COLOR) as ToothCondition[]).map((condition) => (
           <div key={condition} className="flex items-center gap-1">
-            <span className={`size-3 inline-block ${CONDITION_COLOR[condition]}`} />
+            <span className={`inline-block size-3 ${CONDITION_COLOR[condition]}`} />
             {condition}
           </div>
         ))}

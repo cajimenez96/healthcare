@@ -1,11 +1,12 @@
 import type { HydratedDocument } from "mongoose";
-import type { IOdontogram } from "../models/Odontogram";
-import { Odontogram } from "../models/Odontogram";
+
 import type { Tooth } from "../../odontogram/createEmptyOdontogram";
 import type {
   IOdontogramRepository,
   OdontogramRecord,
 } from "../../repositories/IOdontogramRepository";
+import type { IOdontogram } from "../models/Odontogram";
+import { Odontogram } from "../models/Odontogram";
 
 function toOdontogramRecord(
   doc: HydratedDocument<IOdontogram>,

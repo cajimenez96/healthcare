@@ -1,5 +1,4 @@
-import type { Document } from "mongoose";
-import type { Error as MongooseError } from "mongoose";
+import type { Document , Error as MongooseError } from "mongoose";
 
 export async function getValidationError(
   doc: Document,

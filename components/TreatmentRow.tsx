@@ -41,7 +41,7 @@ export const TreatmentRow = ({ treatment }: TreatmentRowProps) => {
           {treatment.name}
           {!treatment.isActive && <span className="text-dark-700"> (inactivo)</span>}
         </p>
-        <p className="text-dark-700 text-12-regular">
+        <p className="text-12-regular text-dark-700">
           ${treatment.price.toLocaleString("es-AR")}
           {treatment.description ? ` · ${treatment.description}` : ""}
         </p>

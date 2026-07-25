@@ -10,10 +10,14 @@ import { getPatientById } from "@/lib/actions/patient.actions";
 import { getActiveTreatments } from "@/lib/actions/treatment.actions";
 import { formatDateTime } from "@/lib/utils";
 
-const DoctorPatientPage = async ({
-  params: { id },
-  searchParams,
-}: SearchParamProps) => {
+const DoctorPatientPage = async (props: SearchParamProps) => {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    id
+  } = params;
+
   const appointmentId = (searchParams?.appointmentId as string) || "";
   const patient = await getPatientById(id);
 
@@ -44,7 +48,7 @@ const DoctorPatientPage = async ({
       <main className="admin-main">
         <section className="w-full space-y-4">
           <h1 className="header">Antecedentes médicos</h1>
-          <div className="grid grid-cols-2 gap-4 text-14-regular">
+          <div className="text-14-regular grid grid-cols-2 gap-4">
             <p>
               <span className="text-dark-700">Alergias: </span>
               {patient.allergies || "Sin registrar"}
@@ -94,12 +98,12 @@ const DoctorPatientPage = async ({
                 createdAt: string;
               }) => (
                 <li key={note.id} className="border-b border-dark-500 pb-4">
-                  <p className="text-dark-700 text-12-regular">
+                  <p className="text-12-regular text-dark-700">
                     {formatDateTime(note.createdAt).dateTime} · {note.doctorName}
                   </p>
                   <p className="text-14-regular">{note.note}</p>
                   {note.treatments.length > 0 && (
-                    <p className="text-dark-700 text-12-regular">
+                    <p className="text-12-regular text-dark-700">
                       Prestaciones: {note.treatments.map((t) => t.name).join(", ")}
                     </p>
                   )}

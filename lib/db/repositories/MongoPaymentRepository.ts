@@ -1,11 +1,12 @@
 import type { HydratedDocument } from "mongoose";
-import type { IPayment } from "../models/Payment";
-import { Payment } from "../models/Payment";
+
 import type {
   CreatePaymentInput,
   IPaymentRepository,
   PaymentRecord,
 } from "../../repositories/IPaymentRepository";
+import type { IPayment } from "../models/Payment";
+import { Payment } from "../models/Payment";
 
 function toPaymentRecord(doc: HydratedDocument<IPayment>): PaymentRecord {
   return {
