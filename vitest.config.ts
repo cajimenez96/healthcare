@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -10,5 +10,8 @@ export default defineConfig({
     // file's cleanup to race another file's assertions. Run files
     // sequentially to keep the shared-database integration tests reliable.
     fileParallelism: false,
+    // e2e/** are Playwright specs (test.describe from @playwright/test),
+    // not Vitest tests — exclude them so `pnpm test` doesn't try to run them.
+    exclude: [...configDefaults.exclude, "e2e/**"],
   },
 });

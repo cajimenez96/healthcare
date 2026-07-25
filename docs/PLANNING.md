@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (0 Tickets)          |  (0 Tickets)          |  (13 Tickets)         |
+|  (8 Tickets)          |  (0 Tickets)          |  (13 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -17,7 +17,74 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## 📋 BACKLOG (Por Hacer)
 
-*(No quedan tareas en el backlog)*
+### EPIC 6: Hallazgos de la ronda de QA post-TASK-013
+
+Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prioridad Alta automatizados con Playwright, ver sesión de QA). No son regresiones de lo ya construido — todo lo automatizado pasó — sino gaps y decisiones de alcance detectadas al correr el sistema de punta a punta.
+
+#### `[TASK-014]` Aislar el entorno de datos de pruebas E2E de la base de desarrollo
+* **Descripción**: la suite de Playwright agregada en esta ronda de QA corre contra el `MONGODB_URI` de `.env.local`, la misma base que usa `pnpm dev` — no existe una base `-test`/`-e2e` separada como sí la hay para Vitest desde TASK-005 (que resolvió exactamente este mismo problema para los tests unitarios). Cada corrida deja datos reales mezclados con datos de clínica (doctores/pacientes con prefijo `qa.*`).
+* **Criterios de Aceptación**:
+  - [ ] `playwright.config.ts` apunta a una base Mongo separada de desarrollo (mismo patrón que `vitest.setup.ts`, TASK-005).
+  - [ ] Seed/cleanup automático de esa base antes/después de la suite (`globalSetup`/`globalTeardown` de Playwright).
+  - [ ] Documentado en `docs/TESTING.md` cómo correr `pnpm test:e2e` sin tocar datos reales.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: Ninguna
+* **Contexto**: detectado en esta misma ronda — la corrida dejó datos de prueba pendientes de limpieza manual en la base real.
+
+#### `[TASK-015]` Decisión de Producto: autenticación real para el portal de pacientes y descarga de archivos
+* **Descripción**: confirmado en esta ronda de QA (casos SEG-01 y SEG-02 de `docs/TESTING.md`) que `/patients/[userId]/**` y `/api/files/[fileId]` siguen sin ningún control de sesión — dependen únicamente de que el `userId`/`fileId` (ObjectId de Mongo) sea difícil de adivinar. Sin autenticar, con el `userId` de otro paciente se accede a su ficha completa (PII); con el `fileId` de un documento de identificación, se descarga directo.
+* **Criterios de Aceptación**:
+  - [ ] Producto decide si es aceptable para el MVP actual o si bloquea la salida a producción con pacientes reales.
+  - [ ] Si se decide corregir: definir mecanismo de autenticación de pacientes (quedó fuera de alcance en TASK-004) o, como mitigación mínima, exigir sesión de staff en `/api/files/[fileId]`.
+* **Prioridad**: Alta | **Esfuerzo**: sin estimar (depende de la decisión) | **Dependencias**: Ninguna
+* **Contexto**: hallazgo de seguridad reproducido y confirmado vigente en esta ronda de QA.
+
+#### `[TASK-016]` Contabilizar turnos `completed` en el dashboard de Admin
+* **Descripción**: `getRecentAppointmentList` (`lib/actions/appointment.actions.ts`) solo acumula `scheduledCount`/`pendingCount`/`cancelledCount` — los turnos `completed` (ya cobrados por Recepción desde TASK-012) no suman en ningún stat card de `/admin`.
+* **Criterios de Aceptación**:
+  - [ ] Agregar `completedCount` al agregado y un stat card "Finalizadas" en `/admin`.
+  - [ ] No romper los 3 contadores existentes.
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-012
+* **Contexto**: caso ADM-01 de `docs/TESTING.md`, gap conocido desde TASK-012 y nunca ticketeado hasta ahora.
+
+#### `[TASK-017]` Decisión de Producto: cobro manual/walk-in en Recepción
+* **Descripción**: hoy `/recepcion` solo lista turnos `scheduled` con al menos una prestación cargada por el doctor en `ClinicalNote.treatments`. Si el doctor no cargó ninguna evolución con prestaciones, el turno nunca aparece para cobrar y no hay pantalla alternativa de carga manual.
+* **Criterios de Aceptación**:
+  - [ ] Producto confirma si es un límite aceptable del MVP o si Recepción necesita poder cargar un cobro sin depender del doctor.
+  - [ ] Si se aprueba: UI en `/recepcion` para seleccionar prestaciones manualmente sobre un turno `scheduled` sin evolución.
+* **Prioridad**: Media | **Esfuerzo**: sin estimar (depende de la decisión) | **Dependencias**: TASK-012
+* **Contexto**: caso SEC-02 de `docs/TESTING.md`, confirmado vigente en esta ronda de QA.
+
+#### `[TASK-018]` Alta de turno directo desde `/admin`
+* **Descripción**: `docs/TESTING.md` (ADM-08) documenta "crear un turno directo para un paciente" como parte del flujo esperado de Administrador, pero `AppointmentModal.tsx` solo soporta `type: "schedule" | "cancel"` sobre turnos ya creados por el paciente — verificado en código que no existe ninguna acción de alta de turno nuevo invocable desde `/admin`.
+* **Criterios de Aceptación**:
+  - [ ] Definir con Producto si el gap es del documento (ADM-08 mal descripto) o del producto (falta la función).
+  - [ ] Si falta la función: formulario de alta de turno en `/admin` reutilizando `AppointmentForm.tsx`/`createAppointment` ya existentes, sin pasar por el flujo público del paciente.
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-007
+* **Contexto**: discrepancia detectada al automatizar ADM-08 en esta ronda de QA.
+
+#### `[TASK-019]` Mensaje de error visible cuando un Doctor no tiene perfil vinculado
+* **Descripción**: `requireDoctorSession()` (`lib/auth/requireDoctorSession.ts:18`) lanza `"Forbidden: Doctor role with a linked doctor profile required"` cuando un `User` con `role: Doctor` no tiene `doctorId`. Hoy ese error solo queda en el log de servidor — en la UI se traduce en listas vacías o formularios que no guardan, sin ningún mensaje explícito.
+* **Criterios de Aceptación**:
+  - [ ] Las Server Actions afectadas devuelven un estado de error legible (no solo `undefined`/lista vacía).
+  - [ ] `/doctor` muestra un mensaje claro ("Tu usuario no tiene un perfil de doctor vinculado, contactá al Administrador") en vez de fallar en silencio.
+* **Prioridad**: Baja | **Esfuerzo**: Bajo (1-2 ptos) | **Dependencias**: TASK-008
+* **Contexto**: caso DOC-02 de `docs/TESTING.md`, mejora ya sugerida en el propio documento de pruebas.
+
+#### `[TASK-020]` Alta de usuario Secretaria desde la UI de Administrador
+* **Descripción**: a diferencia de Doctor (TASK-008, "Crear acceso" en `/admin/doctors`), no existe ningún flujo de alta para usuarios `role: Secretaria` — hoy se crea manualmente en Mongo (bcrypt + insert directo), documentado como prerrequisito operativo en `docs/TESTING.md` §3.4. Esto bloqueó el arranque de la ronda de pruebas de Recepción hasta escribir un script ad-hoc (`scripts/qa-seed-secretaria.ts`).
+* **Criterios de Aceptación**:
+  - [ ] Panel en `/admin` (ej. junto a `/admin/doctors`) para crear usuarios `role: Secretaria` con email + contraseña, mismo patrón defensivo (`requireAdminSession`) que el resto de las mutaciones admin.
+  - [ ] No requiere vínculo a ninguna otra entidad (a diferencia de Doctor).
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-004
+* **Contexto**: gap operativo confirmado al preparar el entorno de esta ronda de QA.
+
+#### `[TASK-021]` Evitar accesos de login duplicados para un mismo Doctor
+* **Descripción**: `createDoctorAccess` (TASK-008) no valida si el `Doctor` ya tiene un `User` vinculado — se puede crear un segundo login con otro email apuntando al mismo `doctorId`, dejando dos cuentas activas para el mismo profesional. Documentado como límite conocido desde TASK-008 (línea 175 de este archivo), nunca ticketeado.
+* **Criterios de Aceptación**:
+  - [ ] `createDoctorAccess` rechaza (o advierte) si el `doctorId` ya tiene un `User` con acceso creado.
+  - [ ] Mensaje de error claro en `/admin/doctors` en ese caso.
+* **Prioridad**: Baja | **Esfuerzo**: Bajo (1-2 ptos) | **Dependencias**: TASK-008
+* **Contexto**: observación registrada en TASK-008, formalizada como ticket en esta revisión.
 
 ---
 
