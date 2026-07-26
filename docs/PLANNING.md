@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (8 Tickets)          |  (0 Tickets)          |  (14 Tickets)         |
+|  (7 Tickets)          |  (0 Tickets)          |  (15 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -20,15 +20,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ### EPIC 6: Hallazgos de la ronda de QA post-TASK-013
 
 Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prioridad Alta automatizados con Playwright, ver sesión de QA). No son regresiones de lo ya construido — todo lo automatizado pasó — sino gaps y decisiones de alcance detectadas al correr el sistema de punta a punta.
-
-#### `[TASK-014]` Aislar el entorno de datos de pruebas E2E de la base de desarrollo
-* **Descripción**: la suite de Playwright agregada en esta ronda de QA corre contra el `MONGODB_URI` de `.env.local`, la misma base que usa `pnpm dev` — no existe una base `-test`/`-e2e` separada como sí la hay para Vitest desde TASK-005 (que resolvió exactamente este mismo problema para los tests unitarios). Cada corrida deja datos reales mezclados con datos de clínica (doctores/pacientes con prefijo `qa.*`).
-* **Criterios de Aceptación**:
-  - [ ] `playwright.config.ts` apunta a una base Mongo separada de desarrollo (mismo patrón que `vitest.setup.ts`, TASK-005).
-  - [ ] Seed/cleanup automático de esa base antes/después de la suite (`globalSetup`/`globalTeardown` de Playwright).
-  - [ ] Documentado en `docs/TESTING.md` cómo correr `pnpm test:e2e` sin tocar datos reales.
-* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: Ninguna
-* **Contexto**: detectado en esta misma ronda — la corrida dejó datos de prueba pendientes de limpieza manual en la base real.
 
 #### `[TASK-015]` Decisión de Producto: autenticación real para el portal de pacientes y descarga de archivos
 * **Descripción**: confirmado en esta ronda de QA (casos SEG-01 y SEG-02 de `docs/TESTING.md`) que `/patients/[userId]/**` y `/api/files/[fileId]` siguen sin ningún control de sesión — dependen únicamente de que el `userId`/`fileId` (ObjectId de Mongo) sea difícil de adivinar. Sin autenticar, con el `userId` de otro paciente se accede a su ficha completa (PII); con el `fileId` de un documento de identificación, se descarga directo.
@@ -337,3 +328,19 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
 * **Observaciones**:
   - El nombre de marca "CarePluse" (typo del template original de "CarePulse") y el prefijo "Dr." se dejaron sin tocar a propósito — no son un problema de idioma, son una decisión de branding fuera del alcance de este ticket.
   - Verificado de punta a punta: `tsc --noEmit` limpio, 148/148 tests de Vitest, y **35/35 tests de Playwright pasando contra el servidor real** (incluye los 4 flujos de negocio completos de punta a punta, RBAC, y los dos hallazgos de seguridad SEG-01/SEG-02) — la corrida completa confirmó que ningún selector de la suite quedó desalineado con el nuevo texto en español.
+
+### EPIC 6: Hallazgos de la ronda de QA post-TASK-013 (resueltos)
+
+#### `[TASK-014]` Aislar el entorno de datos de pruebas E2E de la base de desarrollo
+* **Descripción**: la suite de Playwright agregada en la ronda de QA corría contra el `MONGODB_URI` de `.env.local`, la misma base que usa `pnpm dev` — no existía una base `-test`/`-e2e` separada como sí la hay para Vitest desde TASK-005. Cada corrida dejaba datos reales mezclados con datos de clínica (doctores/pacientes con prefijo `qa.*`).
+* **Criterios de Aceptación**:
+  - [x] `playwright.config.ts` apunta a una base Mongo separada de desarrollo (mismo patrón que `vitest.setup.ts`, TASK-005).
+  - [x] Seed/cleanup automático de esa base antes/después de la suite (`globalSetup`/`globalTeardown` de Playwright).
+  - [x] Documentado en `docs/TESTING.md` cómo correr `pnpm test:e2e` sin tocar datos reales.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: Ninguna
+* **Resultado**: `playwright.config.ts` ahora levanta su **propio `next dev` en el puerto 3100** (no en el 3000 de `pnpm dev`, así ambos pueden correr en simultáneo) vía `webServer`, con `MONGODB_URI` sobreescrito a una base hermana `-e2e` (`e2e/testDb.ts`, mismo patrón de sufijo que `vitest.setup.ts`). Un `globalSetup` (`e2e/global-setup.ts`) siembra ahí, antes de cada corrida, el Administrador (mismas credenciales de `.env.local`), la Secretaria de QA, la obra social por defecto y el nomenclador base — todo idempotente. Un `globalTeardown` (`e2e/global-teardown.ts`) borra la base `-e2e` entera al terminar. El nomenclador (`BASE_TREATMENTS`) se extrajo a `lib/seedData/baseTreatments.ts` (antes vivía inline en `scripts/seed-nomenclador.ts`) para que tanto el script CLI como el `globalSetup` lo compartan sin duplicar precios/nombres.
+  - **Archivos creados**: `lib/seedData/baseTreatments.ts`, `e2e/testDb.ts`, `e2e/global-setup.ts`, `e2e/global-teardown.ts`
+  - **Archivos modificados**: `playwright.config.ts` (`webServer`, `globalSetup`, `globalTeardown`, puerto 3100), `scripts/seed-nomenclador.ts` (importa `BASE_TREATMENTS` en vez de definirlo inline), `docs/TESTING.md` (§3.1 nueva)
+* **Observaciones**:
+  - **Bug real encontrado en la primera corrida de verificación**: `global-teardown.ts` fallaba con `MongooseError: Connection operation buffering timed out after 10000ms` al hacer `dropDatabase()`. Causa: `globalSetup` y `globalTeardown` corren en el mismo proceso raíz de Playwright (a diferencia de los tests, que corren en workers separados) y comparten el caché de conexión de `connectToDatabase()` — `globalSetup` llamaba a `mongoose.disconnect()` al final, dejando ese caché con una conexión muerta que `globalTeardown` recibía tal cual (su chequeo de caché no sabe que se cerró), sin reconectar. Corregido quitando el `disconnect()` de `globalSetup` — la conexión queda viva para que `globalTeardown` la reutilice y la cierre recién al final, después de dropear la base.
+  - Verificado con dos corridas completas de punta a punta tras el fix: 35/35 tests de Playwright pasando, `globalTeardown` sin error, y confirmado que Playwright cierra su propio servidor del puerto 3100 solo al terminar (sin procesos huérfanos).
