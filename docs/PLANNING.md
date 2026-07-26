@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (6 Tickets)          |  (0 Tickets)          |  (16 Tickets)         |
+|  (5 Tickets)          |  (0 Tickets)          |  (17 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -44,14 +44,6 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - [ ] Si falta la función: formulario de alta de turno en `/admin` reutilizando `AppointmentForm.tsx`/`createAppointment` ya existentes, sin pasar por el flujo público del paciente.
 * **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-007
 * **Contexto**: discrepancia detectada al automatizar ADM-08 en esta ronda de QA.
-
-#### `[TASK-019]` Mensaje de error visible cuando un Doctor no tiene perfil vinculado
-* **Descripción**: `requireDoctorSession()` (`lib/auth/requireDoctorSession.ts:18`) lanza `"Forbidden: Doctor role with a linked doctor profile required"` cuando un `User` con `role: Doctor` no tiene `doctorId`. Hoy ese error solo queda en el log de servidor — en la UI se traduce en listas vacías o formularios que no guardan, sin ningún mensaje explícito.
-* **Criterios de Aceptación**:
-  - [ ] Las Server Actions afectadas devuelven un estado de error legible (no solo `undefined`/lista vacía).
-  - [ ] `/doctor` muestra un mensaje claro ("Tu usuario no tiene un perfil de doctor vinculado, contactá al Administrador") en vez de fallar en silencio.
-* **Prioridad**: Baja | **Esfuerzo**: Bajo (1-2 ptos) | **Dependencias**: TASK-008
-* **Contexto**: caso DOC-02 de `docs/TESTING.md`, mejora ya sugerida en el propio documento de pruebas.
 
 #### `[TASK-020]` Alta de usuario Secretaria desde la UI de Administrador
 * **Descripción**: a diferencia de Doctor (TASK-008, "Crear acceso" en `/admin/doctors`), no existe ningún flujo de alta para usuarios `role: Secretaria` — hoy se crea manualmente en Mongo (bcrypt + insert directo), documentado como prerrequisito operativo en `docs/TESTING.md` §3.4. Esto bloqueó el arranque de la ronda de pruebas de Recepción hasta escribir un script ad-hoc (`scripts/qa-seed-secretaria.ts`).
@@ -348,3 +340,15 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
 * **Observaciones**:
   - `StatCard` no tiene un asset de fondo dedicado para "completed" (los otros 3 usan imágenes PNG vía `tailwind.config.ts`, no colores planos) — se reutilizó `bg-appointments` en vez de generar un asset nuevo, ya que ambos representan un resultado positivo (mismo verde que `StatusBadge` ya usa para `scheduled` y `completed`). Documentado en el código, no es un descuido.
   - Al escribir el test de conteo se encontró (y quedó documentado como comentario en el código) el mismo patrón de caché de conexión corrupta que TASK-014: el describe anterior del mismo archivo (`connection handling`) desconecta Mongoose en su `afterAll`, y como Vitest corre los describes del mismo archivo en el mismo proceso, el test nuevo heredaba una conexión muerta. Se resolvió limpiando `global._mongooseCache` al inicio del test nuevo, mismo fix conceptual que en `global-setup.ts`.
+
+#### `[TASK-019]` Mensaje de error visible cuando un Doctor no tiene perfil vinculado
+* **Descripción**: `requireDoctorSession()` (`lib/auth/requireDoctorSession.ts:18`) lanza `"Forbidden: Doctor role with a linked doctor profile required"` cuando un `User` con `role: Doctor` no tiene `doctorId`. Ese error solo quedaba en el log de servidor — en la UI se traducía en listas vacías, sin ningún mensaje explícito.
+* **Criterios de Aceptación**:
+  - [x] Las Server Actions afectadas devuelven un estado de error legible (no solo `undefined`/lista vacía).
+  - [x] `/doctor` muestra un mensaje claro ("Tu usuario no tiene un perfil de doctor vinculado, contactá al Administrador") en vez de fallar en silencio.
+* **Prioridad**: Baja | **Esfuerzo**: Bajo (1-2 ptos) | **Dependencias**: TASK-008
+* **Resultado**: `getMyAppointments` (única consumidora en todo el proyecto, verificado por búsqueda) ahora devuelve `{ appointments, hasLinkedProfile }` en vez de un array pelado — `hasLinkedProfile: false` cuando `requireDoctorSession()` rechaza específicamente por falta de `doctorId` (o cualquier otro motivo de sesión inválida), `true` en cualquier otro caso, incluida una agenda legítimamente vacía. `/doctor` usa ese flag para mostrar el mensaje específico en vez del genérico "No tenés turnos asignados." (que ahora se oculta en ese caso, para no mostrar los dos mensajes a la vez).
+  - **Archivos modificados**: `lib/actions/appointment.actions.ts`, `app/doctor/page.tsx`
+* **Observaciones**:
+  - No se agregó test unitario nuevo para esta acción — sigue la convención ya establecida en el proyecto de no testear a nivel de Server Action las que dependen de `getServerSession` (requiere mockear next-auth, patrón no usado en ningún otro lado del código). Verificado en cambio con un usuario Doctor real sin `doctorId`, creado y borrado por script, logueado por HTTP contra el servidor real: `/doctor` muestra el mensaje nuevo y **no** muestra el genérico.
+  - El resto de las Server Actions del Doctor (`getPatientById`, `getClinicalNotesForPatient`, `createClinicalNote`, odontograma) no se tocaron — hoy solo son alcanzables navegando desde `/doctor`, que ya corta el flujo antes de llegar ahí con el mensaje nuevo. Si en el futuro se linkean directo (sin pasar por `/doctor`), van a necesitar el mismo tratamiento.
