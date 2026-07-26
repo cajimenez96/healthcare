@@ -61,6 +61,12 @@ const AdminPage = async () => {
             label="Turnos cancelados"
             icon={"/assets/icons/cancelled.svg"}
           />
+          <StatCard
+            type="completed"
+            count={appointments.completedCount}
+            label="Turnos finalizados"
+            icon={"/assets/icons/check.svg"}
+          />
         </section>
 
         <AppointmentsTable

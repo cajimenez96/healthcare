@@ -2,7 +2,7 @@ import clsx from "clsx";
 import Image from "next/image";
 
 type StatCardProps = {
-  type: "appointments" | "pending" | "cancelled";
+  type: "appointments" | "pending" | "cancelled" | "completed";
   count: number;
   label: string;
   icon: string;
@@ -12,7 +12,10 @@ export const StatCard = ({ count = 0, label, icon, type }: StatCardProps) => {
   return (
     <div
       className={clsx("stat-card", {
-        "bg-appointments": type === "appointments",
+        // "completed" reuses the "appointments" background image — there's
+        // no dedicated asset for it, and both represent a positive outcome
+        // (same green treatment StatusBadge already gives both statuses).
+        "bg-appointments": type === "appointments" || type === "completed",
         "bg-pending": type === "pending",
         "bg-cancelled": type === "cancelled",
       })}
