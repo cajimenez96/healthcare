@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (2 Tickets)          |  (0 Tickets)          |  (20 Tickets)         |
+|  (1 Ticket)           |  (0 Tickets)          |  (21 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -28,14 +28,6 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - [ ] Si se decide corregir: definir mecanismo de autenticación de pacientes (quedó fuera de alcance en TASK-004) o, como mitigación mínima, exigir sesión de staff en `/api/files/[fileId]`.
 * **Prioridad**: Alta | **Esfuerzo**: sin estimar (depende de la decisión) | **Dependencias**: Ninguna
 * **Contexto**: hallazgo de seguridad reproducido y confirmado vigente en esta ronda de QA.
-
-#### `[TASK-017]` Decisión de Producto: cobro manual/walk-in en Recepción
-* **Descripción**: hoy `/recepcion` solo lista turnos `scheduled` con al menos una prestación cargada por el doctor en `ClinicalNote.treatments`. Si el doctor no cargó ninguna evolución con prestaciones, el turno nunca aparece para cobrar y no hay pantalla alternativa de carga manual.
-* **Criterios de Aceptación**:
-  - [ ] Producto confirma si es un límite aceptable del MVP o si Recepción necesita poder cargar un cobro sin depender del doctor.
-  - [ ] Si se aprueba: UI en `/recepcion` para seleccionar prestaciones manualmente sobre un turno `scheduled` sin evolución.
-* **Prioridad**: Media | **Esfuerzo**: sin estimar (depende de la decisión) | **Dependencias**: TASK-012
-* **Contexto**: caso SEC-02 de `docs/TESTING.md`, confirmado vigente en esta ronda de QA.
 
 ---
 
@@ -367,3 +359,16 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - `AppointmentForm` en modo `create` redirige al enviar a la página de éxito **pública** del paciente (`/patients/[userId]/new-appointment/success`), pensada originalmente para que el paciente vea el turno que acaba de pedir — no para el Administrador. Se dejó así a propósito (no se tocó `AppointmentForm`, componente compartido con el flujo público) en vez de bifurcar su comportamiento de éxito; el administrador ve el turno creado igual, solo que en una pantalla con el copy pensado para el paciente. Anotado como mejora posible, no bloqueante.
   - **Bug real encontrado en la verificación manual, no en ningún test automatizado**: el selector de fecha/hora de `AppointmentForm` presiona `Escape` para cerrar su propio popup (`pickAppointmentDateTime` en `e2e/helpers.ts`) — al envolver el formulario en un `Dialog` (algo que el flujo público nunca hacía), ese mismo `Escape` burbujeaba y cerraba **el modal entero**, descartando la búsqueda del paciente y todo el progreso del formulario en silencio. Corregido con `onEscapeKeyDown={(e) => e.preventDefault()}` en el `DialogContent` de `AdminNewAppointmentModal` (el botón "X" y el click afuera del modal lo siguen cerrando normalmente) — cambio acotado a este modal nuevo, no se tocó el `Dialog` compartido ni `AppointmentModal.tsx`.
   - Verificado de punta a punta con un spec descartable de Playwright: alta de doctor → registro público completo de un paciente (los dos pasos — el `Patient` recién se crea en el segundo) → como Administrador, "Nuevo turno" → buscar por email → elegir doctor, fecha y hora → enviar → el turno aparece `Pendiente` en `/admin`. Corrida completa de los 35 tests de Playwright después del fix, sin regresiones.
+
+#### `[TASK-017]` Decisión de Producto: cobro manual/walk-in en Recepción
+* **Descripción**: `/recepcion` solo listaba turnos `scheduled` con al menos una prestación cargada por el doctor en `ClinicalNote.treatments`. Si el doctor no cargaba ninguna evolución con prestaciones, el turno nunca aparecía para cobrar y no había pantalla alternativa de carga manual. Decidido con el usuario: agregar cobro manual simple, reutilizando el nomenclador existente (no montos libres, para no perder trazabilidad de qué prestación se cobró).
+* **Criterios de Aceptación**:
+  - [x] Producto confirma si es un límite aceptable del MVP o si Recepción necesita poder cargar un cobro sin depender del doctor. → Necesita poder hacerlo.
+  - [x] UI en `/recepcion` para seleccionar prestaciones manualmente sobre un turno `scheduled` sin evolución.
+* **Prioridad**: Media | **Esfuerzo**: sin estimar (dependía de la decisión) → terminó siendo Bajo-Medio, como se estimaba en la opción elegida | **Dependencias**: TASK-012
+* **Resultado**: `getBillableAppointments` ahora lista **todos** los turnos `scheduled` sin pagar (antes filtraba los que no tenían prestaciones cargadas), con un flag nuevo `hasChartedTreatments`. `BillingForm.tsx` bifurca según ese flag: si el doctor cargó prestaciones, se ve el detalle de solo lectura de siempre; si no, la Secretaria tilda prestaciones del nomenclador (mismo patrón de checkboxes que ya usa el doctor en `ClinicalNoteForm`) y ve el total actualizarse en vivo. `closeAppointmentBilling` ahora acepta `manualTreatmentIds` opcional — cuando no hay evolución cargada, resuelve nombre y precio de cada prestación **del lado del servidor** contra el nomenclador vigente (nunca confía en un precio mandado por el cliente), mismo criterio de integridad que ya usa el "fotografiado" de precios en `ClinicalNote`.
+  - **Archivos modificados**: `lib/actions/payment.actions.ts` (`getBillableAppointments`, `closeAppointmentBilling`), `components/forms/BillingForm.tsx`, `components/SubmitButton.tsx` (nuevo prop `disabled`, ver Observaciones), `app/recepcion/page.tsx`
+* **Observaciones**:
+  - Al armar el botón de "Cobrar" para el caso manual (debe quedar deshabilitado hasta tildar al menos una prestación) se encontró que `SubmitButton` solo exponía `isLoading` — reutilizarlo para "deshabilitado por selección vacía" hubiera mostrado el texto "Cargando..." de forma engañosa sin estar cargando nada. Se agregó un prop `disabled?: boolean` genuino en vez de forzar `isLoading`, sin romper ningún llamador existente (prop opcional).
+  - El precio se resuelve contra `findActive()` en el momento del cobro — si una prestación se desactiva entre que la Secretaria abre el formulario y confirma el cobro, simplemente no aparece entre las opciones resueltas y ese ítem se cae en silencio del total. Es el mismo comportamiento ya aceptado en otros lados del sistema (ninguna otra prestación in-flight se revalida contra cambios concurrentes); no se agregó un chequeo adicional por ser un caso de carrera de probabilidad mínima para una única Secretaria operando a la vez.
+  - Verificado de punta a punta con un spec descartable de Playwright: turno confirmado sin ninguna evolución cargada → `/recepcion` muestra el aviso "El doctor no cargó prestaciones..." → Secretaria tilda 2 prestaciones ($5.000 + $8.000) → total en vivo $13.000 → cobra → recibo muestra ambos ítems y el total correcto. Corrida completa de los 35 tests de Playwright después del cambio, sin regresiones (la ampliación de `getBillableAppointments` no rompió ningún caso existente de turnos con evolución cargada).
