@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (5 Tickets)          |  (0 Tickets)          |  (17 Tickets)         |
+|  (4 Tickets)          |  (0 Tickets)          |  (18 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -44,14 +44,6 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - [ ] Si falta la función: formulario de alta de turno en `/admin` reutilizando `AppointmentForm.tsx`/`createAppointment` ya existentes, sin pasar por el flujo público del paciente.
 * **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-007
 * **Contexto**: discrepancia detectada al automatizar ADM-08 en esta ronda de QA.
-
-#### `[TASK-020]` Alta de usuario Secretaria desde la UI de Administrador
-* **Descripción**: a diferencia de Doctor (TASK-008, "Crear acceso" en `/admin/doctors`), no existe ningún flujo de alta para usuarios `role: Secretaria` — hoy se crea manualmente en Mongo (bcrypt + insert directo), documentado como prerrequisito operativo en `docs/TESTING.md` §3.4. Esto bloqueó el arranque de la ronda de pruebas de Recepción hasta escribir un script ad-hoc (`scripts/qa-seed-secretaria.ts`).
-* **Criterios de Aceptación**:
-  - [ ] Panel en `/admin` (ej. junto a `/admin/doctors`) para crear usuarios `role: Secretaria` con email + contraseña, mismo patrón defensivo (`requireAdminSession`) que el resto de las mutaciones admin.
-  - [ ] No requiere vínculo a ninguna otra entidad (a diferencia de Doctor).
-* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-004
-* **Contexto**: gap operativo confirmado al preparar el entorno de esta ronda de QA.
 
 #### `[TASK-021]` Evitar accesos de login duplicados para un mismo Doctor
 * **Descripción**: `createDoctorAccess` (TASK-008) no valida si el `Doctor` ya tiene un `User` vinculado — se puede crear un segundo login con otro email apuntando al mismo `doctorId`, dejando dos cuentas activas para el mismo profesional. Documentado como límite conocido desde TASK-008 (línea 175 de este archivo), nunca ticketeado.
@@ -352,3 +344,16 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
 * **Observaciones**:
   - No se agregó test unitario nuevo para esta acción — sigue la convención ya establecida en el proyecto de no testear a nivel de Server Action las que dependen de `getServerSession` (requiere mockear next-auth, patrón no usado en ningún otro lado del código). Verificado en cambio con un usuario Doctor real sin `doctorId`, creado y borrado por script, logueado por HTTP contra el servidor real: `/doctor` muestra el mensaje nuevo y **no** muestra el genérico.
   - El resto de las Server Actions del Doctor (`getPatientById`, `getClinicalNotesForPatient`, `createClinicalNote`, odontograma) no se tocaron — hoy solo son alcanzables navegando desde `/doctor`, que ya corta el flujo antes de llegar ahí con el mensaje nuevo. Si en el futuro se linkean directo (sin pasar por `/doctor`), van a necesitar el mismo tratamiento.
+
+#### `[TASK-020]` Alta de usuario Secretaria desde la UI de Administrador
+* **Descripción**: a diferencia de Doctor (TASK-008, "Crear acceso" en `/admin/doctors`), no existía ningún flujo de alta para usuarios `role: Secretaria` — se creaba manualmente en Mongo (bcrypt + insert directo), documentado como prerrequisito operativo en `docs/TESTING.md` §3.4. Esto había bloqueado el arranque de la ronda de pruebas de Recepción hasta escribir un script ad-hoc (`scripts/qa-seed-secretaria.ts`).
+* **Criterios de Aceptación**:
+  - [x] Panel en `/admin` (`/admin/secretarias`, con link nuevo en el header de `/admin`) para crear usuarios `role: Secretaria` con email + contraseña, mismo patrón defensivo (`requireAdminSession`) que el resto de las mutaciones admin.
+  - [x] No requiere vínculo a ninguna otra entidad (a diferencia de Doctor).
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-004
+* **Resultado**: Nueva página `/admin/secretarias` (listado + alta), siguiendo el mismo patrón visual y de protección que `/admin/doctors`. `lib/actions/secretaria.actions.ts` nuevo: `createSecretariaAccess` (crea el `User` directamente, sin entidad intermedia — a diferencia de Doctor no hay un perfil clínico al que vincular) y `getSecretarias`. Se agregó `findByRole(role)` al repositorio de usuarios (TDD: test rojo primero, confirmando que el método no existía, luego implementado), reutilizado por `getSecretarias`.
+  - **Archivos creados**: `lib/actions/secretaria.actions.ts`, `components/forms/CreateSecretariaForm.tsx`, `app/admin/secretarias/page.tsx`
+  - **Archivos modificados**: `lib/repositories/IUserRepository.ts` + `MongoUserRepository.ts` (+test, `findByRole`), `lib/validation.ts` (`SecretariaFormValidation`), `app/admin/page.tsx` (link "Secretarías" en el header)
+* **Observaciones**:
+  - `createSecretariaAccess` reutiliza `MongoUserRepository.create()`, que ya tiene fallback de "devolver el usuario existente" ante email duplicado (mismo comportamiento que `createDoctorAccess` desde TASK-008) — si el email ya pertenece a un usuario de otro rol, hoy devuelve ese usuario tal cual sin cambiarle el rol. Es una inconsistencia preexistente, no introducida por este ticket; se mantuvo el mismo comportamiento por consistencia en vez de arreglarlo solo acá.
+  - Verificado de punta a punta con un spec descartable de Playwright (reutilizando la infraestructura aislada de TASK-014 — base `-e2e`, puerto 3100 — borrado después de usarlo): login como Administrador → `/admin/secretarias` → alta de una secretaria → aparece en el listado → login con esas credenciales → redirige a `/recepcion`.
