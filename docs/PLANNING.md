@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (7 Tickets)          |  (0 Tickets)          |  (15 Tickets)         |
+|  (6 Tickets)          |  (0 Tickets)          |  (16 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -28,14 +28,6 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - [ ] Si se decide corregir: definir mecanismo de autenticación de pacientes (quedó fuera de alcance en TASK-004) o, como mitigación mínima, exigir sesión de staff en `/api/files/[fileId]`.
 * **Prioridad**: Alta | **Esfuerzo**: sin estimar (depende de la decisión) | **Dependencias**: Ninguna
 * **Contexto**: hallazgo de seguridad reproducido y confirmado vigente en esta ronda de QA.
-
-#### `[TASK-016]` Contabilizar turnos `completed` en el dashboard de Admin
-* **Descripción**: `getRecentAppointmentList` (`lib/actions/appointment.actions.ts`) solo acumula `scheduledCount`/`pendingCount`/`cancelledCount` — los turnos `completed` (ya cobrados por Recepción desde TASK-012) no suman en ningún stat card de `/admin`.
-* **Criterios de Aceptación**:
-  - [ ] Agregar `completedCount` al agregado y un stat card "Finalizadas" en `/admin`.
-  - [ ] No romper los 3 contadores existentes.
-* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-012
-* **Contexto**: caso ADM-01 de `docs/TESTING.md`, gap conocido desde TASK-012 y nunca ticketeado hasta ahora.
 
 #### `[TASK-017]` Decisión de Producto: cobro manual/walk-in en Recepción
 * **Descripción**: hoy `/recepcion` solo lista turnos `scheduled` con al menos una prestación cargada por el doctor en `ClinicalNote.treatments`. Si el doctor no cargó ninguna evolución con prestaciones, el turno nunca aparece para cobrar y no hay pantalla alternativa de carga manual.
@@ -344,3 +336,15 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
 * **Observaciones**:
   - **Bug real encontrado en la primera corrida de verificación**: `global-teardown.ts` fallaba con `MongooseError: Connection operation buffering timed out after 10000ms` al hacer `dropDatabase()`. Causa: `globalSetup` y `globalTeardown` corren en el mismo proceso raíz de Playwright (a diferencia de los tests, que corren en workers separados) y comparten el caché de conexión de `connectToDatabase()` — `globalSetup` llamaba a `mongoose.disconnect()` al final, dejando ese caché con una conexión muerta que `globalTeardown` recibía tal cual (su chequeo de caché no sabe que se cerró), sin reconectar. Corregido quitando el `disconnect()` de `globalSetup` — la conexión queda viva para que `globalTeardown` la reutilice y la cierre recién al final, después de dropear la base.
   - Verificado con dos corridas completas de punta a punta tras el fix: 35/35 tests de Playwright pasando, `globalTeardown` sin error, y confirmado que Playwright cierra su propio servidor del puerto 3100 solo al terminar (sin procesos huérfanos).
+
+#### `[TASK-016]` Contabilizar turnos `completed` en el dashboard de Admin
+* **Descripción**: `getRecentAppointmentList` (`lib/actions/appointment.actions.ts`) solo acumulaba `scheduledCount`/`pendingCount`/`cancelledCount` — los turnos `completed` (ya cobrados por Recepción desde TASK-012) no sumaban en ningún stat card de `/admin`.
+* **Criterios de Aceptación**:
+  - [x] Agregar `completedCount` al agregado y un stat card "Finalizadas" en `/admin`.
+  - [x] No romper los 3 contadores existentes.
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-012
+* **Resultado**: Agregado `completedCount` al `reduce` de `getRecentAppointmentList` y un cuarto `StatCard` ("Turnos finalizados") en `/admin`. Escrito test-first: se agregó un `describe` nuevo en `appointment.actions.test.ts` que crea 7 turnos con los 4 estados y verifica los 4 contadores + el total, confirmado en rojo (`completedCount` no existía) antes de implementar.
+  - **Archivos modificados**: `lib/actions/appointment.actions.ts`, `lib/actions/appointment.actions.test.ts`, `components/StatCard.tsx` (nuevo `type: "completed"`), `app/admin/page.tsx`
+* **Observaciones**:
+  - `StatCard` no tiene un asset de fondo dedicado para "completed" (los otros 3 usan imágenes PNG vía `tailwind.config.ts`, no colores planos) — se reutilizó `bg-appointments` en vez de generar un asset nuevo, ya que ambos representan un resultado positivo (mismo verde que `StatusBadge` ya usa para `scheduled` y `completed`). Documentado en el código, no es un descuido.
+  - Al escribir el test de conteo se encontró (y quedó documentado como comentario en el código) el mismo patrón de caché de conexión corrupta que TASK-014: el describe anterior del mismo archivo (`connection handling`) desconecta Mongoose en su `afterAll`, y como Vitest corre los describes del mismo archivo en el mismo proceso, el test nuevo heredaba una conexión muerta. Se resolvió limpiando `global._mongooseCache` al inicio del test nuevo, mismo fix conceptual que en `global-setup.ts`.
