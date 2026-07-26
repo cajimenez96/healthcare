@@ -5,25 +5,8 @@ import { DEFAULT_INSURANCE_PROVIDER } from "../constants";
 import { connectToDatabase } from "../lib/db/mongodb";
 import { MongoInsuranceProviderRepository } from "../lib/db/repositories/MongoInsuranceProviderRepository";
 import { MongoTreatmentRepository } from "../lib/db/repositories/MongoTreatmentRepository";
+import { BASE_TREATMENTS } from "../lib/seedData/baseTreatments";
 config({ path: ".env.local" });
-
-const BASE_TREATMENTS = [
-  {
-    name: "Consulta Odontológica",
-    price: 5000,
-    description: "Consulta y diagnóstico inicial",
-  },
-  {
-    name: "Obturación de Resina",
-    price: 15000,
-    description: "Obturación (tapado de caries) con resina compuesta",
-  },
-  {
-    name: "Limpieza Dental",
-    price: 8000,
-    description: "Profilaxis y limpieza dental",
-  },
-];
 
 async function main() {
   await connectToDatabase();

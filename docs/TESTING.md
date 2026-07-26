@@ -22,9 +22,21 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 1. **Variables de entorno** (`.env.local`): `MONGODB_URI`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, credenciales de Twilio (SMS), Sentry, y `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` para el seeder de administrador.
 2. **Seed de Administrador**: `pnpm db:seed-admin` (usa `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`; es idempotente, si el usuario ya existe lo informa y no duplica).
 3. **Seed de Nomenclador**: `pnpm db:seed-nomenclador` — crea la obra social `Particular / Sin Convenio` y 3 prestaciones base (Consulta Odontológica $5000, Obturación de Resina $15000, Limpieza Dental $8000). También idempotente.
-4. **Usuario Secretaria**: no existe flujo de alta en UI. Debe crearse manualmente en la colección `users` con `role: "Secretaria"` y `hashedPassword` (bcrypt, 10 rounds) — pedir a Desarrollo un script o acceso a Mongo Compass/Atlas para esto antes de arrancar las pruebas de Recepción.
+4. **Usuario Secretaria**: no existe flujo de alta en UI. Para pruebas **manuales**, crearlo con `npx tsx scripts/qa-seed-secretaria.ts` (crea `qa.secretaria@test.local` / `QaSecretaria123!` contra la base de `.env.local`) o pedir a Desarrollo acceso directo a Mongo. Para la suite automatizada (ver §3.1) esto no hace falta — se hace solo.
 5. **Usuario Doctor**: se crea en dos pasos — (a) alta del `Doctor` desde `/admin/doctors` (Administrador), (b) "Crear acceso" sobre esa fila para generar el `User` con `role: Doctor` vinculado.
 6. **Health check de conexión a Mongo**: `pnpm db:ping`.
+
+### 3.1 Suite automatizada (Playwright)
+
+Desde `TASK-014`, `pnpm test:e2e` es **completamente autocontenido y aislado** — no toca la base de `pnpm dev` ni requiere ninguna preparación manual de los puntos 2-4 de arriba:
+
+- Levanta su propio `next dev` en el puerto **3100** (no en el 3000 — podés correr tu `pnpm dev` normal en paralelo sin conflicto).
+- Ese servidor apunta a una base Mongo aislada, `<nombre-de-tu-base>-e2e` (mismo patrón que `vitest.setup.ts` usa con `-test` desde `TASK-005`, ver `e2e/testDb.ts`).
+- Un `globalSetup` (`e2e/global-setup.ts`) siembra ahí, antes de correr los tests, el Administrador (con las credenciales de `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` de tu `.env.local`), la Secretaria de QA, la obra social por defecto y el nomenclador base — todo idempotente.
+- Un `globalTeardown` (`e2e/global-teardown.ts`) **borra la base `-e2e` entera** al terminar, así cada corrida arranca de cero.
+- El Doctor y los pacientes/turnos de cada corrida los crea la suite misma (`e2e/00-setup.spec.ts` en adelante) — no están precargados.
+
+Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD` estén en `.env.local` — nada más.
 
 ## 4. Convenciones de este documento
 
