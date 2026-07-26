@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (4 Tickets)          |  (0 Tickets)          |  (18 Tickets)         |
+|  (3 Tickets)          |  (0 Tickets)          |  (19 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -44,14 +44,6 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - [ ] Si falta la función: formulario de alta de turno en `/admin` reutilizando `AppointmentForm.tsx`/`createAppointment` ya existentes, sin pasar por el flujo público del paciente.
 * **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-007
 * **Contexto**: discrepancia detectada al automatizar ADM-08 en esta ronda de QA.
-
-#### `[TASK-021]` Evitar accesos de login duplicados para un mismo Doctor
-* **Descripción**: `createDoctorAccess` (TASK-008) no valida si el `Doctor` ya tiene un `User` vinculado — se puede crear un segundo login con otro email apuntando al mismo `doctorId`, dejando dos cuentas activas para el mismo profesional. Documentado como límite conocido desde TASK-008 (línea 175 de este archivo), nunca ticketeado.
-* **Criterios de Aceptación**:
-  - [ ] `createDoctorAccess` rechaza (o advierte) si el `doctorId` ya tiene un `User` con acceso creado.
-  - [ ] Mensaje de error claro en `/admin/doctors` en ese caso.
-* **Prioridad**: Baja | **Esfuerzo**: Bajo (1-2 ptos) | **Dependencias**: TASK-008
-* **Contexto**: observación registrada en TASK-008, formalizada como ticket en esta revisión.
 
 ---
 
@@ -357,3 +349,15 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
 * **Observaciones**:
   - `createSecretariaAccess` reutiliza `MongoUserRepository.create()`, que ya tiene fallback de "devolver el usuario existente" ante email duplicado (mismo comportamiento que `createDoctorAccess` desde TASK-008) — si el email ya pertenece a un usuario de otro rol, hoy devuelve ese usuario tal cual sin cambiarle el rol. Es una inconsistencia preexistente, no introducida por este ticket; se mantuvo el mismo comportamiento por consistencia en vez de arreglarlo solo acá.
   - Verificado de punta a punta con un spec descartable de Playwright (reutilizando la infraestructura aislada de TASK-014 — base `-e2e`, puerto 3100 — borrado después de usarlo): login como Administrador → `/admin/secretarias` → alta de una secretaria → aparece en el listado → login con esas credenciales → redirige a `/recepcion`.
+
+#### `[TASK-021]` Evitar accesos de login duplicados para un mismo Doctor
+* **Descripción**: `createDoctorAccess` (TASK-008) no validaba si el `Doctor` ya tenía un `User` vinculado — se podía crear un segundo login con otro email apuntando al mismo `doctorId`, dejando dos cuentas activas para el mismo profesional. Documentado como límite conocido desde TASK-008, nunca ticketeado hasta esta revisión.
+* **Criterios de Aceptación**:
+  - [x] `createDoctorAccess` rechaza (o advierte) si el `doctorId` ya tiene un `User` con acceso creado.
+  - [x] Mensaje de error claro en `/admin/doctors` en ese caso.
+* **Prioridad**: Baja | **Esfuerzo**: Bajo (1-2 ptos) | **Dependencias**: TASK-008
+* **Resultado**: Agregado `findByDoctorId(doctorId)` al repositorio de usuarios (TDD: rojo primero). `createDoctorAccess` lo consulta antes de crear el `User` y devuelve `{ error: "ALREADY_HAS_ACCESS" }` en vez de crear un segundo login. `CreateDoctorAccessForm.tsx` distingue ese caso del error genérico y muestra "Este doctor ya tiene un acceso creado. No se puede crear un segundo login." — importante: el chequeo original `if (user)` para decidir éxito trataba `{ error: ... }` como un resultado truthy (¡falso positivo de éxito!), así que el chequeo del formulario se reescribió para inspeccionar explícitamente la forma del resultado, no solo su truthiness.
+  - **Archivos modificados**: `lib/repositories/IUserRepository.ts` + `MongoUserRepository.ts` (+test, `findByDoctorId`), `lib/actions/doctor.actions.ts`, `components/forms/CreateDoctorAccessForm.tsx`
+* **Observaciones**:
+  - Es un chequeo a nivel de aplicación (consulta antes de insertar), no una constraint única a nivel de base — hay una ventana de carrera teórica (dos "Crear acceso" simultáneos para el mismo doctor) aceptada dado que es una acción de administrador único, no concurrente en la práctica. No se agregó un índice único a `User.doctorId` para no abrir una migración de datos fuera del alcance de este ticket.
+  - Verificado con un spec descartable de Playwright: alta de doctor → primer acceso exitoso → segundo acceso para el mismo doctor rechazado con el mensaje específico, formulario sigue abierto (no se trata como éxito). En la primera vuelta del script el test falló por una carrera de sincronización del script mismo (no esperaba a que el doctor apareciera en la lista antes de buscar la fila) — corregido agregando el mismo `await expect(...).toBeVisible()` que ya usa `e2e/00-setup.spec.ts` para el mismo propósito; no era un bug del código bajo prueba.
