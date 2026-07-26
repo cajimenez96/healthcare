@@ -162,4 +162,39 @@ describe("MongoUserRepository", () => {
       expect(result?.hashedPassword).toBe("$2a$10$abcdefghijklmnopqrstuv");
     });
   });
+
+  describe("findByRole", () => {
+    it("returns only users with the given role", async () => {
+      await repository.create({
+        name: "Secretaria Uno",
+        email: "sec1@example.com",
+        phone: "+1",
+        role: "Secretaria",
+      });
+      await repository.create({
+        name: "Secretaria Dos",
+        email: "sec2@example.com",
+        phone: "+1",
+        role: "Secretaria",
+      });
+      await repository.create({
+        name: "Doctor Uno",
+        email: "doc1@example.com",
+        phone: "+1",
+        role: "Doctor",
+      });
+
+      const result = await repository.findByRole("Secretaria");
+
+      expect(result.map((u) => u.email).sort()).toEqual([
+        "sec1@example.com",
+        "sec2@example.com",
+      ]);
+    });
+
+    it("returns an empty array when no user has that role", async () => {
+      const result = await repository.findByRole("Secretaria");
+      expect(result).toEqual([]);
+    });
+  });
 });

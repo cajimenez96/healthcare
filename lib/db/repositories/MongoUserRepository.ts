@@ -5,6 +5,7 @@ import type {
   IUserRepository,
   UserCredentials,
   UserRecord,
+  UserRole,
 } from "../../repositories/IUserRepository";
 import type { IUser } from "../models/User";
 import { User } from "../models/User";
@@ -56,5 +57,10 @@ export class MongoUserRepository implements IUserRepository {
   ): Promise<UserCredentials | null> {
     const doc = await User.findOne({ email }).select("+hashedPassword");
     return doc ? { ...toUserRecord(doc), hashedPassword: doc.hashedPassword } : null;
+  }
+
+  async findByRole(role: UserRole): Promise<UserRecord[]> {
+    const docs = await User.find({ role });
+    return docs.map(toUserRecord);
   }
 }

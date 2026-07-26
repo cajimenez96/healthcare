@@ -111,6 +111,15 @@ export const LoginFormValidation = z.object({
   password: z.string().min(1, "La contraseña es obligatoria"),
 });
 
+export const SecretariaFormValidation = z.object({
+  name: z
+    .string()
+    .min(2, "El nombre debe tener al menos 2 caracteres")
+    .max(50, "El nombre debe tener como máximo 50 caracteres"),
+  email: z.string().email("Correo electrónico inválido"),
+  password: z.string().min(1, "La contraseña es obligatoria"),
+});
+
 export const DoctorAvailabilityValidation = z.object({
   dayOfWeek: z.coerce.number().min(0).max(6),
   startTime: z.string().min(1, "La hora de inicio es obligatoria"),

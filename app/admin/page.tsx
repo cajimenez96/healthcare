@@ -29,6 +29,9 @@ const AdminPage = async () => {
         <Link href="/admin/doctors" className="text-green-500">
           Doctores
         </Link>
+        <Link href="/admin/secretarias" className="text-green-500">
+          Secretarías
+        </Link>
         <Link href="/admin/treatments" className="text-green-500">
           Nomenclador
         </Link>

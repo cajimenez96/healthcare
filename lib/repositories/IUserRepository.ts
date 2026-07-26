@@ -39,4 +39,5 @@ export interface IUserRepository {
    * authentication flow — never expose this result outside it.
    */
   findByEmailWithPassword(email: string): Promise<UserCredentials | null>;
+  findByRole(role: UserRole): Promise<UserRecord[]>;
 }
