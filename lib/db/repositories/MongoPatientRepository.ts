@@ -57,4 +57,9 @@ export class MongoPatientRepository implements IPatientRepository {
     const doc = await Patient.findById(id);
     return doc ? toPatientRecord(doc) : null;
   }
+
+  async findByEmailOrPhone(query: string): Promise<PatientRecord | null> {
+    const doc = await Patient.findOne({ $or: [{ email: query }, { phone: query }] });
+    return doc ? toPatientRecord(doc) : null;
+  }
 }

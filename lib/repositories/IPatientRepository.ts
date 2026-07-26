@@ -33,4 +33,6 @@ export interface IPatientRepository {
   create(input: CreatePatientInput): Promise<PatientRecord>;
   findByUserId(userId: string): Promise<PatientRecord | null>;
   findById(id: string): Promise<PatientRecord | null>;
+  /** Exact match on email or phone — used by Admin to find one patient to book a direct appointment for. */
+  findByEmailOrPhone(query: string): Promise<PatientRecord | null>;
 }

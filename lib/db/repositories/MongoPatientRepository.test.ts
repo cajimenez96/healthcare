@@ -105,4 +105,25 @@ describe("MongoPatientRepository", () => {
       await expect(repository.findById("not-an-object-id")).resolves.toBeNull();
     });
   });
+
+  describe("findByEmailOrPhone", () => {
+    it("returns the patient matching by exact email", async () => {
+      await repository.create(basePatient);
+
+      const result = await repository.findByEmailOrPhone("john@example.com");
+      expect(result?.email).toBe("john@example.com");
+    });
+
+    it("returns the patient matching by exact phone", async () => {
+      await repository.create(basePatient);
+
+      const result = await repository.findByEmailOrPhone("+123456");
+      expect(result?.phone).toBe("+123456");
+    });
+
+    it("returns null when nothing matches", async () => {
+      const result = await repository.findByEmailOrPhone("nobody@example.com");
+      expect(result).toBeNull();
+    });
+  });
 });

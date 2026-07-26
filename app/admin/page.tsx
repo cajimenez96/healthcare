@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { AdminNewAppointmentModal } from "@/components/AdminNewAppointmentModal";
 import { StatCard } from "@/components/StatCard";
 import { AppointmentsTable } from "@/components/table/AppointmentsTable";
 import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
@@ -38,11 +39,14 @@ const AdminPage = async () => {
       </header>
 
       <main className="admin-main">
-        <section className="w-full space-y-4">
-          <h1 className="header">Bienvenido 👋</h1>
-          <p className="text-dark-700">
-            Empezá el día gestionando los turnos nuevos
-          </p>
+        <section className="flex w-full items-start justify-between gap-4">
+          <div className="space-y-4">
+            <h1 className="header">Bienvenido 👋</h1>
+            <p className="text-dark-700">
+              Empezá el día gestionando los turnos nuevos
+            </p>
+          </div>
+          <AdminNewAppointmentModal doctors={activeDoctors} />
         </section>
 
         <section className="admin-stat">

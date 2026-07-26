@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdminSession } from "../auth/requireAdminSession";
 import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoPatientRepository } from "../db/repositories/MongoPatientRepository";
@@ -98,6 +99,22 @@ export const getPatient = async (userId: string) => {
   } catch (error) {
     console.error(
       "An error occurred while retrieving the patient details:",
+      error
+    );
+  }
+};
+
+// FIND PATIENT BY EMAIL OR PHONE (Admin — direct appointment booking, TASK-018)
+export const findPatientByContact = async (query: string) => {
+  try {
+    await requireAdminSession();
+    await connectToDatabase();
+    const patient = await patientRepository.findByEmailOrPhone(query.trim());
+
+    return patient ? parseStringify(toPatient(patient)) : undefined;
+  } catch (error) {
+    console.error(
+      "An error occurred while searching for the patient:",
       error
     );
   }
