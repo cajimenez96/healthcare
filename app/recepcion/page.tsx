@@ -2,9 +2,11 @@ import Image from "next/image";
 
 import BillingForm from "@/components/forms/BillingForm";
 import { getBillableAppointments } from "@/lib/actions/payment.actions";
+import { getActiveTreatments } from "@/lib/actions/treatment.actions";
 
 const RecepcionPage = async () => {
   const billableAppointments = await getBillableAppointments();
+  const activeTreatments = await getActiveTreatments();
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col space-y-14">
@@ -32,14 +34,17 @@ const RecepcionPage = async () => {
                 schedule: string;
                 items: { name: string; price: number }[];
                 totalAmount: number;
+                hasChartedTreatments: boolean;
               }) => (
-                <BillingForm key={appointment.appointmentId} appointment={appointment} />
+                <BillingForm
+                  key={appointment.appointmentId}
+                  appointment={appointment}
+                  activeTreatments={activeTreatments}
+                />
               ),
             )}
             {billableAppointments.length === 0 && (
-              <p className="text-dark-700">
-                No hay turnos con prestaciones cargadas pendientes de cobro.
-              </p>
+              <p className="text-dark-700">No hay turnos pendientes de cobro.</p>
             )}
           </div>
         </section>

@@ -28,17 +28,36 @@ interface BillableAppointment {
   schedule: string;
   items: { name: string; price: number }[];
   totalAmount: number;
+  hasChartedTreatments: boolean;
 }
 
-const BillingForm = ({ appointment }: { appointment: BillableAppointment }) => {
+interface BillingFormProps {
+  appointment: BillableAppointment;
+  activeTreatments: { id: string; name: string; price: number }[];
+}
+
+const BillingForm = ({ appointment, activeTreatments }: BillingFormProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof PaymentFormValidation>>({
     resolver: zodResolver(PaymentFormValidation),
     defaultValues: { paymentMethod: "cash" },
   });
+
+  const toggleTreatment = (treatmentId: string) => {
+    setSelectedTreatmentIds((current) =>
+      current.includes(treatmentId)
+        ? current.filter((id) => id !== treatmentId)
+        : [...current, treatmentId],
+    );
+  };
+
+  const manualTotal = activeTreatments
+    .filter((t) => selectedTreatmentIds.includes(t.id))
+    .reduce((sum, t) => sum + t.price, 0);
 
   const onSubmit = async (values: z.infer<typeof PaymentFormValidation>) => {
     setIsLoading(true);
@@ -47,6 +66,7 @@ const BillingForm = ({ appointment }: { appointment: BillableAppointment }) => {
     const payment = await closeAppointmentBilling(
       appointment.appointmentId,
       values.paymentMethod,
+      appointment.hasChartedTreatments ? undefined : selectedTreatmentIds,
     );
 
     setIsLoading(false);
@@ -67,19 +87,48 @@ const BillingForm = ({ appointment }: { appointment: BillableAppointment }) => {
         </p>
       </div>
 
-      <ul className="text-14-regular space-y-1">
-        {appointment.items.map((item, i) => (
-          <li key={i} className="flex justify-between">
-            <span>{item.name}</span>
-            <span>${item.price.toLocaleString("es-AR")}</span>
-          </li>
-        ))}
-      </ul>
+      {appointment.hasChartedTreatments ? (
+        <>
+          <ul className="text-14-regular space-y-1">
+            {appointment.items.map((item, i) => (
+              <li key={i} className="flex justify-between">
+                <span>{item.name}</span>
+                <span>${item.price.toLocaleString("es-AR")}</span>
+              </li>
+            ))}
+          </ul>
 
-      <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
-        <span>Total</span>
-        <span>${appointment.totalAmount.toLocaleString("es-AR")}</span>
-      </p>
+          <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
+            <span>Total</span>
+            <span>${appointment.totalAmount.toLocaleString("es-AR")}</span>
+          </p>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-14-regular text-dark-700">
+            El doctor no cargó prestaciones para este turno — seleccioná las que corresponda cobrar:
+          </p>
+          <div className="space-y-2">
+            {activeTreatments.map((treatment) => (
+              <label
+                key={treatment.id}
+                className="flex cursor-pointer items-center gap-2 text-14-regular"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTreatmentIds.includes(treatment.id)}
+                  onChange={() => toggleTreatment(treatment.id)}
+                />
+                {treatment.name} — ${treatment.price.toLocaleString("es-AR")}
+              </label>
+            ))}
+          </div>
+          <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
+            <span>Total</span>
+            <span>${manualTotal.toLocaleString("es-AR")}</span>
+          </p>
+        </div>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -99,7 +148,12 @@ const BillingForm = ({ appointment }: { appointment: BillableAppointment }) => {
 
           {error && <p className="shad-error text-14-regular">{error}</p>}
 
-          <SubmitButton isLoading={isLoading}>Cobrar y cerrar turno</SubmitButton>
+          <SubmitButton
+            isLoading={isLoading}
+            disabled={!appointment.hasChartedTreatments && selectedTreatmentIds.length === 0}
+          >
+            Cobrar y cerrar turno
+          </SubmitButton>
         </form>
       </Form>
     </div>

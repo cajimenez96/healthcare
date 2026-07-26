@@ -8,6 +8,7 @@ import { MongoAppointmentRepository } from "../db/repositories/MongoAppointmentR
 import { MongoClinicalNoteRepository } from "../db/repositories/MongoClinicalNoteRepository";
 import { MongoPatientRepository } from "../db/repositories/MongoPatientRepository";
 import { MongoPaymentRepository } from "../db/repositories/MongoPaymentRepository";
+import { MongoTreatmentRepository } from "../db/repositories/MongoTreatmentRepository";
 import type { PaymentMethod } from "../repositories/IPaymentRepository";
 import { parseStringify } from "../utils";
 
@@ -15,8 +16,11 @@ const appointmentRepository = new MongoAppointmentRepository();
 const clinicalNoteRepository = new MongoClinicalNoteRepository();
 const patientRepository = new MongoPatientRepository();
 const paymentRepository = new MongoPaymentRepository();
+const treatmentRepository = new MongoTreatmentRepository();
 
-// GET BILLABLE APPOINTMENTS (scheduled appointments with treatments charted, not yet paid)
+// GET BILLABLE APPOINTMENTS (scheduled appointments not yet paid — includes
+// ones without treatments charted by the doctor, so Recepcion can bill them
+// manually, see TASK-017)
 export const getBillableAppointments = async () => {
   try {
     await requireSecretariaSession();
@@ -27,19 +31,15 @@ export const getBillableAppointments = async () => {
 
     const billable = await Promise.all(
       scheduled.map(async (appointment) => {
-        const notes = await clinicalNoteRepository.findByAppointmentId(appointment.id);
-        const items = notes.flatMap((note) =>
-          note.treatments.map((t) => ({ name: t.name, price: t.price })),
-        );
-
-        if (items.length === 0) {
-          return null;
-        }
-
         const alreadyPaid = await paymentRepository.findByAppointmentId(appointment.id);
         if (alreadyPaid) {
           return null;
         }
+
+        const notes = await clinicalNoteRepository.findByAppointmentId(appointment.id);
+        const items = notes.flatMap((note) =>
+          note.treatments.map((t) => ({ name: t.name, price: t.price })),
+        );
 
         return {
           appointmentId: appointment.id,
@@ -48,6 +48,7 @@ export const getBillableAppointments = async () => {
           schedule: appointment.schedule,
           items,
           totalAmount: items.reduce((sum, item) => sum + item.price, 0),
+          hasChartedTreatments: items.length > 0,
         };
       }),
     );
@@ -63,6 +64,7 @@ export const getBillableAppointments = async () => {
 export const closeAppointmentBilling = async (
   appointmentId: string,
   paymentMethod: PaymentMethod,
+  manualTreatmentIds: string[] = [],
 ) => {
   try {
     const secretariaSession = await requireSecretariaSession();
@@ -74,9 +76,20 @@ export const closeAppointmentBilling = async (
     }
 
     const notes = await clinicalNoteRepository.findByAppointmentId(appointmentId);
-    const items = notes.flatMap((note) =>
+    let items = notes.flatMap((note) =>
       note.treatments.map((t) => ({ name: t.name, price: t.price })),
     );
+
+    // No treatments charted by the doctor — Recepcion picks them manually
+    // (TASK-017). Prices/names are resolved server-side from the current
+    // nomenclador, never trusted from the client.
+    if (items.length === 0 && manualTreatmentIds.length > 0) {
+      const activeTreatments = await treatmentRepository.findActive();
+      items = activeTreatments
+        .filter((t) => manualTreatmentIds.includes(t.id))
+        .map((t) => ({ name: t.name, price: t.price }));
+    }
+
     if (items.length === 0) {
       throw new Error("No treatments charted for this appointment");
     }
