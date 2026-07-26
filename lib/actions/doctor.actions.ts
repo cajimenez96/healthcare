@@ -114,6 +114,11 @@ export const createDoctorAccess = async (
       throw new Error(`Doctor ${doctorId} not found`);
     }
 
+    const existingAccess = await userRepository.findByDoctorId(doctorId);
+    if (existingAccess) {
+      return { error: "ALREADY_HAS_ACCESS" as const };
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await userRepository.create({
       name: doctor.name,

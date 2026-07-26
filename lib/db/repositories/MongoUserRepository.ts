@@ -63,4 +63,12 @@ export class MongoUserRepository implements IUserRepository {
     const docs = await User.find({ role });
     return docs.map(toUserRecord);
   }
+
+  async findByDoctorId(doctorId: string): Promise<UserRecord | null> {
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return null;
+    }
+    const doc = await User.findOne({ doctorId });
+    return doc ? toUserRecord(doc) : null;
+  }
 }

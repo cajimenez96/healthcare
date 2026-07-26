@@ -40,4 +40,5 @@ export interface IUserRepository {
    */
   findByEmailWithPassword(email: string): Promise<UserCredentials | null>;
   findByRole(role: UserRole): Promise<UserRecord[]>;
+  findByDoctorId(doctorId: string): Promise<UserRecord | null>;
 }

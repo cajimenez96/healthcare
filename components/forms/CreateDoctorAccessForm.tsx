@@ -30,11 +30,13 @@ const CreateDoctorAccessForm = ({ doctorId, onDone }: CreateDoctorAccessFormProp
     setIsLoading(true);
     setError(null);
 
-    const user = await createDoctorAccess(doctorId, values.email, values.password);
+    const result = await createDoctorAccess(doctorId, values.email, values.password);
 
     setIsLoading(false);
 
-    if (user) {
+    if (result && "error" in result && result.error === "ALREADY_HAS_ACCESS") {
+      setError("Este doctor ya tiene un acceso creado. No se puede crear un segundo login.");
+    } else if (result) {
       onDone();
     } else {
       setError("No se pudo crear el acceso. Verificá el email e intentá de nuevo.");

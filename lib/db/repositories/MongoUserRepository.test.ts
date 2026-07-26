@@ -197,4 +197,27 @@ describe("MongoUserRepository", () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe("findByDoctorId", () => {
+    it("returns the user linked to that doctorId", async () => {
+      const doctorId = new mongoose.Types.ObjectId().toString();
+      const created = await repository.create({
+        name: "Dr. Cameron",
+        email: "cameron@example.com",
+        phone: "+1",
+        role: "Doctor",
+        doctorId,
+      });
+
+      const result = await repository.findByDoctorId(doctorId);
+
+      expect(result?.id).toBe(created.id);
+    });
+
+    it("returns null when no user is linked to that doctorId", async () => {
+      const doctorId = new mongoose.Types.ObjectId().toString();
+      const result = await repository.findByDoctorId(doctorId);
+      expect(result).toBeNull();
+    });
+  });
 });
