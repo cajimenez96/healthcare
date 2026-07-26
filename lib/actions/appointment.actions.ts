@@ -78,20 +78,30 @@ export const getAvailableSlotsForDoctor = async (
 
 // GET MY APPOINTMENTS (the logged-in Doctor's own agenda)
 export const getMyAppointments = async () => {
+  let doctorSession;
   try {
-    const doctorSession = await requireDoctorSession();
+    doctorSession = await requireDoctorSession();
+  } catch (error) {
+    console.error("An error occurred while retrieving your appointments:", error);
+    return { appointments: [], hasLinkedProfile: false };
+  }
+
+  try {
     await connectToDatabase();
 
     const doctor = await doctorRepository.findById(doctorSession.doctorId);
     if (!doctor) {
-      return [];
+      return { appointments: [], hasLinkedProfile: false };
     }
 
     const appointments = await appointmentRepository.findByDoctor(doctor.name);
-    return parseStringify(appointments.map(toAppointmentWithPatient));
+    return {
+      appointments: parseStringify(appointments.map(toAppointmentWithPatient)),
+      hasLinkedProfile: true,
+    };
   } catch (error) {
     console.error("An error occurred while retrieving your appointments:", error);
-    return [];
+    return { appointments: [], hasLinkedProfile: true };
   }
 };
 

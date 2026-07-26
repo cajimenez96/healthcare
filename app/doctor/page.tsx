@@ -14,7 +14,10 @@ interface DoctorAppointment {
 }
 
 const DoctorPage = async () => {
-  const appointments: DoctorAppointment[] = await getMyAppointments();
+  const { appointments, hasLinkedProfile } = (await getMyAppointments()) as {
+    appointments: DoctorAppointment[];
+    hasLinkedProfile: boolean;
+  };
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
@@ -35,6 +38,11 @@ const DoctorPage = async () => {
       <main className="admin-main">
         <section className="w-full space-y-4">
           <h1 className="header">Mis turnos</h1>
+          {!hasLinkedProfile && (
+            <p className="shad-error text-14-regular">
+              Tu usuario no tiene un perfil de doctor vinculado, contactá al Administrador.
+            </p>
+          )}
           <ul className="space-y-4">
             {appointments.map((appointment) => (
               <li
@@ -57,7 +65,7 @@ const DoctorPage = async () => {
                 </Link>
               </li>
             ))}
-            {appointments.length === 0 && (
+            {appointments.length === 0 && hasLinkedProfile && (
               <p className="text-dark-700">No tenés turnos asignados.</p>
             )}
           </ul>
