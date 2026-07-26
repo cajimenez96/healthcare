@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (3 Tickets)          |  (0 Tickets)          |  (19 Tickets)         |
+|  (2 Tickets)          |  (0 Tickets)          |  (20 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -36,14 +36,6 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
   - [ ] Si se aprueba: UI en `/recepcion` para seleccionar prestaciones manualmente sobre un turno `scheduled` sin evolución.
 * **Prioridad**: Media | **Esfuerzo**: sin estimar (depende de la decisión) | **Dependencias**: TASK-012
 * **Contexto**: caso SEC-02 de `docs/TESTING.md`, confirmado vigente en esta ronda de QA.
-
-#### `[TASK-018]` Alta de turno directo desde `/admin`
-* **Descripción**: `docs/TESTING.md` (ADM-08) documenta "crear un turno directo para un paciente" como parte del flujo esperado de Administrador, pero `AppointmentModal.tsx` solo soporta `type: "schedule" | "cancel"` sobre turnos ya creados por el paciente — verificado en código que no existe ninguna acción de alta de turno nuevo invocable desde `/admin`.
-* **Criterios de Aceptación**:
-  - [ ] Definir con Producto si el gap es del documento (ADM-08 mal descripto) o del producto (falta la función).
-  - [ ] Si falta la función: formulario de alta de turno en `/admin` reutilizando `AppointmentForm.tsx`/`createAppointment` ya existentes, sin pasar por el flujo público del paciente.
-* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-007
-* **Contexto**: discrepancia detectada al automatizar ADM-08 en esta ronda de QA.
 
 ---
 
@@ -361,3 +353,17 @@ Los tickets de este epic surgen de ejecutar `docs/TESTING.md` (33 casos de prior
 * **Observaciones**:
   - Es un chequeo a nivel de aplicación (consulta antes de insertar), no una constraint única a nivel de base — hay una ventana de carrera teórica (dos "Crear acceso" simultáneos para el mismo doctor) aceptada dado que es una acción de administrador único, no concurrente en la práctica. No se agregó un índice único a `User.doctorId` para no abrir una migración de datos fuera del alcance de este ticket.
   - Verificado con un spec descartable de Playwright: alta de doctor → primer acceso exitoso → segundo acceso para el mismo doctor rechazado con el mensaje específico, formulario sigue abierto (no se trata como éxito). En la primera vuelta del script el test falló por una carrera de sincronización del script mismo (no esperaba a que el doctor apareciera en la lista antes de buscar la fila) — corregido agregando el mismo `await expect(...).toBeVisible()` que ya usa `e2e/00-setup.spec.ts` para el mismo propósito; no era un bug del código bajo prueba.
+
+#### `[TASK-018]` Alta de turno directo desde `/admin`
+* **Descripción**: `docs/TESTING.md` (ADM-08) documentaba "crear un turno directo para un paciente" como parte del flujo esperado de Administrador, pero `AppointmentModal.tsx` solo soportaba `type: "schedule" | "cancel"` sobre turnos ya creados por el paciente — no existía ninguna acción de alta de turno nuevo invocable desde `/admin`. Decidido con el usuario: era un gap real de producto, no del documento — y en vez de armar un listado completo de pacientes (no existía ningún `findAll`), se resolvió con búsqueda puntual por email/teléfono exacto.
+* **Criterios de Aceptación**:
+  - [x] Definir con Producto si el gap es del documento (ADM-08 mal descripto) o del producto (falta la función). → Es del producto.
+  - [x] Formulario de alta de turno en `/admin` reutilizando `AppointmentForm.tsx`/`createAppointment` ya existentes, sin pasar por el flujo público del paciente.
+* **Prioridad**: Media | **Esfuerzo**: Bajo (2 ptos) | **Dependencias**: TASK-007
+* **Resultado**: Nuevo botón "Nuevo turno" en `/admin` que abre un modal (`AdminNewAppointmentModal.tsx`): primero busca al paciente por email o teléfono exacto (`findPatientByContact`, gateado por `requireAdminSession`, nuevo `findByEmailOrPhone` en el repositorio de pacientes — TDD, rojo primero) y, una vez encontrado, muestra el mismo `AppointmentForm` (`type="create"`) que ya usa el flujo público del paciente — sin duplicar lógica de creación de turno.
+  - **Archivos creados**: `components/AdminNewAppointmentModal.tsx`
+  - **Archivos modificados**: `lib/repositories/IPatientRepository.ts` + `MongoPatientRepository.ts` (+test, `findByEmailOrPhone`), `lib/actions/patient.actions.ts` (`findPatientByContact`), `app/admin/page.tsx`
+* **Observaciones**:
+  - `AppointmentForm` en modo `create` redirige al enviar a la página de éxito **pública** del paciente (`/patients/[userId]/new-appointment/success`), pensada originalmente para que el paciente vea el turno que acaba de pedir — no para el Administrador. Se dejó así a propósito (no se tocó `AppointmentForm`, componente compartido con el flujo público) en vez de bifurcar su comportamiento de éxito; el administrador ve el turno creado igual, solo que en una pantalla con el copy pensado para el paciente. Anotado como mejora posible, no bloqueante.
+  - **Bug real encontrado en la verificación manual, no en ningún test automatizado**: el selector de fecha/hora de `AppointmentForm` presiona `Escape` para cerrar su propio popup (`pickAppointmentDateTime` en `e2e/helpers.ts`) — al envolver el formulario en un `Dialog` (algo que el flujo público nunca hacía), ese mismo `Escape` burbujeaba y cerraba **el modal entero**, descartando la búsqueda del paciente y todo el progreso del formulario en silencio. Corregido con `onEscapeKeyDown={(e) => e.preventDefault()}` en el `DialogContent` de `AdminNewAppointmentModal` (el botón "X" y el click afuera del modal lo siguen cerrando normalmente) — cambio acotado a este modal nuevo, no se tocó el `Dialog` compartido ni `AppointmentModal.tsx`.
+  - Verificado de punta a punta con un spec descartable de Playwright: alta de doctor → registro público completo de un paciente (los dos pasos — el `Patient` recién se crea en el segundo) → como Administrador, "Nuevo turno" → buscar por email → elegir doctor, fecha y hora → enviar → el turno aparece `Pendiente` en `/admin`. Corrida completa de los 35 tests de Playwright después del fix, sin regresiones.
