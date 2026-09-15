@@ -1,5 +1,7 @@
 "use server";
 
+import bcrypt from "bcryptjs";
+
 import { requireAdminSession } from "../auth/requireAdminSession";
 import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { connectToDatabase } from "../db/mongodb";
@@ -14,11 +16,17 @@ const userRepository = new MongoUserRepository();
 const patientRepository = new MongoPatientRepository();
 const fileStorage = new GridFsFileStorage();
 
-// CREATE USER
-export const createUser = async (user: CreateUserParams) => {
+// CREATE USER (patient self-service onboarding — pin becomes their login
+// credential alongside identificationNumber, see TASK-015)
+export const createUser = async (user: CreateUserParams, pin: string) => {
   try {
     await connectToDatabase();
-    const newUser = await userRepository.create(user);
+    const hashedPassword = await bcrypt.hash(pin, 10);
+    const newUser = await userRepository.create({
+      ...user,
+      role: "Paciente",
+      hashedPassword,
+    });
 
     return parseStringify(toUser(newUser));
   } catch (error) {

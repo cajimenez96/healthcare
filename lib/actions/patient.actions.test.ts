@@ -24,11 +24,16 @@ describe("patient actions - connection handling", () => {
     global._mongooseCache = undefined;
     mongoose.set("bufferTimeoutMS", 2000);
 
-    const user = await createUser({
-      name: "Fresh Connection",
-      email: "freshconn@example.com",
-      phone: "+1",
-    });
+    const user = await createUser(
+      {
+        name: "Fresh Connection",
+        email: "freshconn@example.com",
+        phone: "+1",
+        identificationType: "National Identity Card",
+        identificationNumber: "30111222",
+      },
+      "1234",
+    );
 
     expect(user?.name).toBe("Fresh Connection");
   });

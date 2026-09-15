@@ -10,6 +10,10 @@ export interface IUser {
   role: UserRole;
   hashedPassword?: string;
   doctorId?: Types.ObjectId;
+  // Paciente-only — the DNI/document number doubles as the login username
+  // for the DNI+PIN credentials provider (hashedPassword holds the PIN).
+  identificationType?: string;
+  identificationNumber?: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -31,6 +35,8 @@ const userSchema = new Schema<IUser>(
     },
     hashedPassword: { type: String, select: false },
     doctorId: { type: Schema.Types.ObjectId, ref: "Doctor" },
+    identificationType: String,
+    identificationNumber: { type: String, index: true },
   },
   { timestamps: true },
 );

@@ -9,6 +9,14 @@ export const UserFormValidation = z.object({
   phone: z
     .string()
     .refine((phone) => /^\+\d{10,15}$/.test(phone), "Número de teléfono inválido"),
+  identificationType: z.string().min(1, "Seleccioná el tipo de identificación"),
+  identificationNumber: z
+    .string()
+    .min(2, "El número de identificación debe tener al menos 2 caracteres")
+    .max(50, "El número de identificación debe tener como máximo 50 caracteres"),
+  pin: z
+    .string()
+    .regex(/^\d{4,6}$/, "El PIN debe tener entre 4 y 6 dígitos"),
 });
 
 export const PatientFormValidation = z.object({
@@ -53,8 +61,8 @@ export const PatientFormValidation = z.object({
   currentMedication: z.string().optional(),
   familyMedicalHistory: z.string().optional(),
   pastMedicalHistory: z.string().optional(),
-  identificationType: z.string().optional(),
-  identificationNumber: z.string().optional(),
+  // identificationType/identificationNumber are collected in step 1
+  // (PatientForm, they double as the login credential) — not re-asked here.
   identificationDocument: z.custom<File[]>().optional(),
   treatmentConsent: z
     .boolean()
@@ -109,6 +117,11 @@ export const CancelAppointmentSchema = z.object({
 export const LoginFormValidation = z.object({
   email: z.string().email("Correo electrónico inválido"),
   password: z.string().min(1, "La contraseña es obligatoria"),
+});
+
+export const PatientLoginValidation = z.object({
+  identificationNumber: z.string().min(2, "Ingresá tu número de identificación"),
+  pin: z.string().regex(/^\d{4,6}$/, "El PIN debe tener entre 4 y 6 dígitos"),
 });
 
 export const SecretariaFormValidation = z.object({

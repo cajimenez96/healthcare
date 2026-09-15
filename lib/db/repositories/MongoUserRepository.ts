@@ -20,6 +20,8 @@ function toUserRecord(doc: HydratedDocument<IUser>): UserRecord {
     phone: doc.phone,
     role: doc.role,
     doctorId: doc.doctorId?.toString(),
+    identificationType: doc.identificationType,
+    identificationNumber: doc.identificationNumber,
   };
 }
 
@@ -56,6 +58,13 @@ export class MongoUserRepository implements IUserRepository {
     email: string,
   ): Promise<UserCredentials | null> {
     const doc = await User.findOne({ email }).select("+hashedPassword");
+    return doc ? { ...toUserRecord(doc), hashedPassword: doc.hashedPassword } : null;
+  }
+
+  async findByIdentificationNumberWithPassword(
+    identificationNumber: string,
+  ): Promise<UserCredentials | null> {
+    const doc = await User.findOne({ identificationNumber }).select("+hashedPassword");
     return doc ? { ...toUserRecord(doc), hashedPassword: doc.hashedPassword } : null;
   }
 

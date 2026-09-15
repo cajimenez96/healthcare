@@ -31,6 +31,8 @@ const RUN = uniqueSuffix();
 const PATIENT_NAME = `Paciente QA ${RUN}`;
 const PATIENT_EMAIL = `qa.patient.${RUN}@test.local`;
 const PATIENT_PHONE = "+5491133334444";
+const PATIENT_DNI = `30${RUN}`;
+const PATIENT_PIN = "1234";
 
 // Our doctor's availability covers every weekday 08:00-20:00 (see
 // 00-setup), so any future date/time works - but the doctor (and its
@@ -51,6 +53,8 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
       name: PATIENT_NAME,
       email: PATIENT_EMAIL,
       phone: PATIENT_PHONE,
+      identificationNumber: PATIENT_DNI,
+      pin: PATIENT_PIN,
     });
     patientUserId = userId;
     expect(patientUserId).toMatch(/^[a-f0-9]{24}$/);
@@ -59,6 +63,8 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
   test("PAC-03 - registro completo con obra social y documento de identificacion", async ({ page }) => {
     const { fileId } = await registerFullPatient(page, {
       userId: patientUserId,
+      identificationNumber: PATIENT_DNI,
+      pin: PATIENT_PIN,
       doctorName: DOCTOR_NAME,
       insuranceProviderName: "Particular / Sin Convenio",
       uploadIdentification: true,
@@ -80,6 +86,8 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
   test("PAC-07 - solicitud de turno queda pending", async ({ page }) => {
     await requestAppointment(page, {
       userId: patientUserId,
+      identificationNumber: PATIENT_DNI,
+      pin: PATIENT_PIN,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DAY_OF_MONTH,
       timeLabel: TIME_LABEL,
@@ -203,23 +211,32 @@ test.describe("FLU-02 - confirmacion y atencion clinica", () => {
     // status) purely to exercise cross-patient isolation.
     const run2 = uniqueSuffix();
     const patient2Name = `Paciente QA DOC06 ${run2}`;
+    const patient2Dni = `31${run2}`;
     const { userId: userId2 } = await createPatientUser(page, {
       name: patient2Name,
       email: `qa.patient.doc06.${run2}@test.local`,
       phone: "+5491144445555",
+      identificationNumber: patient2Dni,
     });
     await registerFullPatient(page, {
       userId: userId2,
+      identificationNumber: patient2Dni,
       doctorName: DOCTOR_NAME,
       insuranceProviderName: "Particular / Sin Convenio",
     });
     await requestAppointment(page, {
       userId: userId2,
+      identificationNumber: patient2Dni,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DOC06_DAY_OF_MONTH,
       timeLabel: "11:00 AM",
       reason: "Control de rutina",
     });
+    // Without this, the subsequent loginAs()'s page.goto("/login") can abort
+    // the still-in-flight createAppointment submission - requestAppointment
+    // clicks submit but doesn't wait for its own success redirect, matching
+    // PAC-07/ADM-09's convention of asserting at the call site.
+    await expect(page).toHaveURL(/\/new-appointment\/success\?appointmentId=/);
 
     await loginAs(page, DOCTOR_EMAIL, DOCTOR_PASSWORD);
     await page.goto("/doctor");

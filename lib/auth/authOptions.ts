@@ -7,6 +7,7 @@ import { connectToDatabase } from "../db/mongodb";
 import { MongoUserRepository } from "../db/repositories/MongoUserRepository";
 
 import { authenticateCredentials } from "./authenticateCredentials";
+import { authenticatePatientCredentials } from "./authenticatePatientCredentials";
 
 const userRepository = new MongoUserRepository();
 
@@ -26,6 +27,22 @@ export const authOptions: AuthOptions = {
         return authenticateCredentials(
           credentials?.email,
           credentials?.password,
+          userRepository,
+        );
+      },
+    }),
+    CredentialsProvider({
+      id: "patient-credentials",
+      name: "PatientCredentials",
+      credentials: {
+        identificationNumber: { label: "DNI", type: "text" },
+        pin: { label: "PIN", type: "password" },
+      },
+      async authorize(credentials) {
+        await connectToDatabase();
+        return authenticatePatientCredentials(
+          credentials?.identificationNumber,
+          credentials?.pin,
           userRepository,
         );
       },

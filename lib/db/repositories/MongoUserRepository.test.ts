@@ -220,4 +220,27 @@ describe("MongoUserRepository", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("findByIdentificationNumberWithPassword", () => {
+    it("returns the user matching that identificationNumber, including hashedPassword", async () => {
+      await repository.create({
+        name: "Paciente Uno",
+        email: "pac1@example.com",
+        phone: "+1",
+        role: "Paciente",
+        identificationNumber: "30111222",
+        hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+      });
+
+      const result = await repository.findByIdentificationNumberWithPassword("30111222");
+
+      expect(result?.role).toBe("Paciente");
+      expect(result?.hashedPassword).toBe("$2a$10$abcdefghijklmnopqrstuv");
+    });
+
+    it("returns null when no user matches that identificationNumber", async () => {
+      const result = await repository.findByIdentificationNumberWithPassword("nonexistent");
+      expect(result).toBeNull();
+    });
+  });
 });

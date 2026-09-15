@@ -18,7 +18,14 @@ const Home = () => {
 
           <PatientForm />
 
-          <div className="text-14-regular mt-20 flex justify-between">
+          <p className="text-14-regular mt-6">
+            ¿Ya tenés una cuenta?{" "}
+            <Link href="/patients/login" className="text-green-500">
+              Iniciar sesión
+            </Link>
+          </p>
+
+          <div className="text-14-regular mt-8 flex justify-between">
             <p className="justify-items-end text-dark-600 xl:text-left">
               © 2024 CarePluse
             </p>

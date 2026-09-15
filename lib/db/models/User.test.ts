@@ -126,4 +126,19 @@ describe("User model", () => {
 
     expect(user.doctorId?.toString()).toBe(doctorId.toString());
   });
+
+  it("stores identificationNumber for a Paciente-role user (used as login username)", async () => {
+    const user = await User.create({
+      name: "Paciente Uno",
+      email: "paciente1@example.com",
+      phone: "+1",
+      role: "Paciente",
+      hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+      identificationType: "National Identity Card",
+      identificationNumber: "30111222",
+    });
+
+    expect(user.identificationNumber).toBe("30111222");
+    expect(user.identificationType).toBe("National Identity Card");
+  });
 });

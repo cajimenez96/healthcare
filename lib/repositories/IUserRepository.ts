@@ -9,6 +9,8 @@ export interface CreateUserInput {
   role?: UserRole;
   hashedPassword?: string;
   doctorId?: string;
+  identificationType?: string;
+  identificationNumber?: string;
 }
 
 export interface UserRecord {
@@ -18,6 +20,8 @@ export interface UserRecord {
   phone: string;
   role: UserRole;
   doctorId?: string;
+  identificationType?: string;
+  identificationNumber?: string;
 }
 
 export interface UserCredentials extends UserRecord {
@@ -41,4 +45,8 @@ export interface IUserRepository {
   findByEmailWithPassword(email: string): Promise<UserCredentials | null>;
   findByRole(role: UserRole): Promise<UserRecord[]>;
   findByDoctorId(doctorId: string): Promise<UserRecord | null>;
+  /** Same lookup shape as findByEmailWithPassword, for the DNI+PIN patient login. */
+  findByIdentificationNumberWithPassword(
+    identificationNumber: string,
+  ): Promise<UserCredentials | null>;
 }

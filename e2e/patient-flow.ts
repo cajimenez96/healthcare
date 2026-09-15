@@ -2,37 +2,58 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { getPatientIdentificationFileId } from "./db";
-import { pickAppointmentDateTime } from "./helpers";
+import { loginAsPatient, pickAppointmentDateTime } from "./helpers";
 
 const ID_DOCUMENT_PATH = "public/assets/icons/user.svg";
+const DEFAULT_PIN = "1234";
 
 export async function createPatientUser(
   page: Page,
-  input: { name: string; email: string; phone: string },
+  input: {
+    name: string;
+    email: string;
+    phone: string;
+    identificationNumber: string;
+    pin?: string;
+  },
 ) {
+  const pin = input.pin ?? DEFAULT_PIN;
+
   await page.goto("/");
   await page.getByLabel("Nombre completo", { exact: true }).fill(input.name);
   await page.getByLabel("Correo electrónico", { exact: true }).fill(input.email);
   const phoneInput = page.locator(".input-phone input");
   await phoneInput.click();
   await phoneInput.fill(input.phone);
+
+  await page.getByRole("combobox", { name: "Tipo de identificación" }).click();
+  await page.getByRole("option", { name: "Documento Nacional de Identidad (DNI)" }).click();
+  await page.getByLabel("Número de identificación", { exact: true }).fill(input.identificationNumber);
+  await page.getByLabel("Elegí un PIN de acceso", { exact: false }).fill(pin);
+
   await page.getByRole("button", { name: "Comenzar" }).click();
 
   await expect(page).toHaveURL(/\/patients\/[a-f0-9]{24}\/register$/);
   const match = page.url().match(/\/patients\/([a-f0-9]{24})\/register/);
   const userId = match![1];
-  return { userId };
+  return { userId, identificationNumber: input.identificationNumber, pin };
 }
 
 export async function registerFullPatient(
   page: Page,
   opts: {
     userId: string;
+    identificationNumber: string;
+    pin?: string;
     doctorName: string;
     insuranceProviderName?: string;
     uploadIdentification?: boolean;
   },
 ) {
+  // A patient session established in an earlier test() block (e.g. by
+  // createPatientUser) doesn't carry over to this one's fresh page/context —
+  // re-authenticate unconditionally so this helper works either way.
+  await loginAsPatient(page, opts.identificationNumber, opts.pin ?? DEFAULT_PIN);
   await page.goto(`/patients/${opts.userId}/register`);
 
   // Birth date - plain date picker (no time), type + Enter commits it.
@@ -65,9 +86,9 @@ export async function registerFullPatient(
 
   await page.getByLabel("N° de afiliado", { exact: true }).fill("POL-QA-0001");
 
-  await page.getByRole("combobox", { name: "Tipo de identificación" }).click();
-  await page.getByRole("option", { name: "Documento Nacional de Identidad (DNI)" }).click();
-  await page.getByLabel("Número de identificación", { exact: true }).fill("30111222");
+  // Tipo/Número de identificación are no longer asked here — collected in
+  // step 1 (createPatientUser) since TASK-015, shown read-only above the
+  // file uploader instead.
 
   if (opts.uploadIdentification) {
     await page.locator("input[type=file]").setInputFiles(ID_DOCUMENT_PATH);
@@ -95,6 +116,8 @@ export async function requestAppointment(
   page: Page,
   opts: {
     userId: string;
+    identificationNumber: string;
+    pin?: string;
     doctorName: string;
     dayOfMonth: string;
     timeLabel: string;
@@ -107,6 +130,9 @@ export async function requestAppointment(
     submit?: boolean;
   },
 ) {
+  // Same rationale as registerFullPatient — re-authenticate unconditionally,
+  // this may be a fresh test() page with no session yet.
+  await loginAsPatient(page, opts.identificationNumber, opts.pin ?? DEFAULT_PIN);
   await page.goto(`/patients/${opts.userId}/new-appointment`);
 
   await page.getByRole("combobox", { name: "Doctor" }).click();

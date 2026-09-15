@@ -16,7 +16,6 @@ import {
   GenderLabels,
   GenderOptions,
   IdentificationTypeLabels,
-  IdentificationTypes,
   PatientFormDefaultValues,
 } from "@/constants";
 import { registerPatient } from "@/lib/actions/patient.actions";
@@ -88,8 +87,8 @@ const RegisterForm = ({
         currentMedication: values.currentMedication,
         familyMedicalHistory: values.familyMedicalHistory,
         pastMedicalHistory: values.pastMedicalHistory,
-        identificationType: values.identificationType,
-        identificationNumber: values.identificationNumber,
+        identificationType: user.identificationType,
+        identificationNumber: user.identificationNumber,
         identificationDocument: values.identificationDocument
           ? formData
           : undefined,
@@ -325,30 +324,12 @@ const RegisterForm = ({
 
         <section className="space-y-6">
           <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Identificación y Verificación</h2>
+            <h2 className="sub-header">Verificación</h2>
+            <p className="text-dark-700 text-14-regular">
+              {IdentificationTypeLabels[user.identificationType] ?? user.identificationType} ·{" "}
+              {user.identificationNumber}
+            </p>
           </div>
-
-          <CustomFormField
-            fieldType={FormFieldType.SELECT}
-            control={form.control}
-            name="identificationType"
-            label="Tipo de identificación"
-            placeholder="Seleccioná el tipo de identificación"
-          >
-            {IdentificationTypes.map((type, i) => (
-              <SelectItem key={type + i} value={type}>
-                {IdentificationTypeLabels[type] ?? type}
-              </SelectItem>
-            ))}
-          </CustomFormField>
-
-          <CustomFormField
-            fieldType={FormFieldType.INPUT}
-            control={form.control}
-            name="identificationNumber"
-            label="Número de identificación"
-            placeholder="123456789"
-          />
 
           <CustomFormField
             fieldType={FormFieldType.SKELETON}

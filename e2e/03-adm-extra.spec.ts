@@ -45,25 +45,30 @@ test.describe("ADM-09 - choque de horario", () => {
     const pageB = await context.newPage();
 
     const runA = uniqueSuffix();
+    const dniA = `32${runA}`;
     const { userId: userIdA } = await createPatientUser(pageA, {
       name: `Paciente ADM09 A ${runA}`,
       email: `qa.adm09.a.${runA}@test.local`,
       phone: "+5491166667777",
+      identificationNumber: dniA,
     });
-    await registerFullPatient(pageA, { userId: userIdA, doctorName: DOCTOR_NAME });
+    await registerFullPatient(pageA, { userId: userIdA, identificationNumber: dniA, doctorName: DOCTOR_NAME });
 
     const runB = uniqueSuffix();
+    const dniB = `33${runB}`;
     const { userId: userIdB } = await createPatientUser(pageB, {
       name: `Paciente ADM09 B ${runB}`,
       email: `qa.adm09.b.${runB}@test.local`,
       phone: "+5491177778888",
+      identificationNumber: dniB,
     });
-    await registerFullPatient(pageB, { userId: userIdB, doctorName: DOCTOR_NAME });
+    await registerFullPatient(pageB, { userId: userIdB, identificationNumber: dniB, doctorName: DOCTOR_NAME });
 
     // Both fill (but don't submit) the identical doctor+date+time - at this
     // point the slot is still free for both.
     await requestAppointment(pageA, {
       userId: userIdA,
+      identificationNumber: dniA,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DAY_OF_MONTH,
       timeLabel: TIME_LABEL,
@@ -72,6 +77,7 @@ test.describe("ADM-09 - choque de horario", () => {
     });
     await requestAppointment(pageB, {
       userId: userIdB,
+      identificationNumber: dniB,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DAY_OF_MONTH,
       timeLabel: TIME_LABEL,
@@ -120,6 +126,7 @@ test.describe("ADM-05 - desactivar / reactivar doctor", () => {
       name: `Paciente ADM05 ${run}`,
       email: `qa.adm05.${run}@test.local`,
       phone: "+5491188889999",
+      identificationNumber: `34${run}`,
     });
     await page.goto(`/patients/${userId}/new-appointment`);
     await page.getByRole("combobox", { name: "Doctor" }).click();
