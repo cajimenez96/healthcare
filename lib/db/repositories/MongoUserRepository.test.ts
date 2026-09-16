@@ -221,26 +221,135 @@ describe("MongoUserRepository", () => {
     });
   });
 
-  describe("findByIdentificationNumberWithPassword", () => {
-    it("returns the user matching that identificationNumber, including hashedPassword", async () => {
-      await repository.create({
-        name: "Paciente Uno",
-        email: "pac1@example.com",
+  describe("isActive", () => {
+    it("defaults a new user's isActive to true", async () => {
+      const user = await repository.create({
+        name: "Jane Doe",
+        email: "activebydefault@example.com",
         phone: "+1",
-        role: "Paciente",
-        identificationNumber: "30111222",
-        hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
       });
 
-      const result = await repository.findByIdentificationNumberWithPassword("30111222");
+      expect(user.isActive).toBe(true);
+    });
+  });
 
-      expect(result?.role).toBe("Paciente");
-      expect(result?.hashedPassword).toBe("$2a$10$abcdefghijklmnopqrstuv");
+  describe("setActiveByDoctorId", () => {
+    it("flips isActive on the User linked to that doctorId", async () => {
+      const doctorId = new mongoose.Types.ObjectId().toString();
+      const created = await repository.create({
+        name: "Dr. Cameron",
+        email: "setactivebydoctorid@example.com",
+        phone: "+1",
+        role: "Doctor",
+        doctorId,
+      });
+      expect(created.isActive).toBe(true);
+
+      const updated = await repository.setActiveByDoctorId(doctorId, false);
+
+      expect(updated?.isActive).toBe(false);
+      const found = await repository.findById(created.id);
+      expect(found?.isActive).toBe(false);
     });
 
-    it("returns null when no user matches that identificationNumber", async () => {
-      const result = await repository.findByIdentificationNumberWithPassword("nonexistent");
+    it("returns null when no user is linked to that doctorId", async () => {
+      const doctorId = new mongoose.Types.ObjectId().toString();
+      const result = await repository.setActiveByDoctorId(doctorId, false);
       expect(result).toBeNull();
     });
   });
+
+  describe("setActiveById", () => {
+    it("flips isActive on the User with that id", async () => {
+      const created = await repository.create({
+        name: "Secretaria Uno",
+        email: "setactivebyid@example.com",
+        phone: "+1",
+        role: "Secretaria",
+      });
+      expect(created.isActive).toBe(true);
+
+      const updated = await repository.setActiveById(created.id, false);
+
+      expect(updated?.isActive).toBe(false);
+      const found = await repository.findById(created.id);
+      expect(found?.isActive).toBe(false);
+    });
+
+    it("returns null when no user matches that id", async () => {
+      const result = await repository.setActiveById(
+        new mongoose.Types.ObjectId().toString(),
+        false,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(
+        repository.setActiveById("not-an-object-id", false),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe("update", () => {
+    it("updates the user's name and email", async () => {
+      const created = await repository.create({
+        name: "Old Name",
+        email: "oldemail@example.com",
+        phone: "+1",
+        role: "Secretaria",
+      });
+
+      const updated = await repository.update(created.id, {
+        name: "New Name",
+        email: "newemail@example.com",
+      });
+
+      expect(updated?.name).toBe("New Name");
+      expect(updated?.email).toBe("newemail@example.com");
+      const found = await repository.findById(created.id);
+      expect(found?.name).toBe("New Name");
+      expect(found?.email).toBe("newemail@example.com");
+    });
+
+    it("returns null when no user matches that id", async () => {
+      const result = await repository.update(
+        new mongoose.Types.ObjectId().toString(),
+        { name: "Whoever", email: "whoever@example.com" },
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(
+        repository.update("not-an-object-id", {
+          name: "Whoever",
+          email: "whoever@example.com",
+        }),
+      ).resolves.toBeNull();
+    });
+
+    it("rejects with EMAIL_TAKEN when the new email belongs to another user", async () => {
+      await repository.create({
+        name: "Someone Else",
+        email: "taken@example.com",
+        phone: "+1",
+        role: "Secretaria",
+      });
+      const created = await repository.create({
+        name: "Editable",
+        email: "editable@example.com",
+        phone: "+1",
+        role: "Secretaria",
+      });
+
+      await expect(
+        repository.update(created.id, {
+          name: "Editable",
+          email: "taken@example.com",
+        }),
+      ).rejects.toThrow("EMAIL_TAKEN");
+    });
+  });
+
 });

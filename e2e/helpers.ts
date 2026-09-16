@@ -29,35 +29,6 @@ export async function loginAs(page: Page, email: string, password: string) {
 }
 
 /**
- * Logs in as a Paciente through /patients/login (DNI+PIN, TASK-015). Each
- * Playwright test() gets its own fresh, cookie-less page/context by
- * default, so a patient session established in one test (e.g. by
- * createPatientUser's auto sign-in) does NOT carry over to a later test()
- * block even in the same spec file — call this at the start of any helper
- * that needs to act as that patient again, regardless of whether the page
- * already happens to hold a session.
- */
-export async function loginAsPatient(page: Page, identificationNumber: string, pin: string) {
-  await page.goto("/patients/login");
-  await page.getByLabel("Número de identificación").fill(identificationNumber);
-  await page.getByLabel("PIN").fill(pin);
-
-  const [response] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes("/api/auth/callback/patient-credentials")),
-    page.getByRole("button", { name: "Ingresar" }).click(),
-  ]);
-  void response;
-
-  await Promise.race([
-    page.waitForURL((url) => !url.pathname.startsWith("/patients/login"), { timeout: 10_000 }).catch(() => {}),
-    page
-      .getByText("Número de identificación o PIN incorrectos.")
-      .waitFor({ timeout: 10_000 })
-      .catch(() => {}),
-  ]);
-}
-
-/**
  * Selects a date + time on the AppointmentForm's react-datepicker
  * (showTimeSelect). Opens the popup, advances one month forward to be safely
  * in the future, clicks a fixed day, then clicks the matching time slot.

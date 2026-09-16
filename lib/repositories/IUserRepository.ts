@@ -11,6 +11,7 @@ export interface CreateUserInput {
   doctorId?: string;
   identificationType?: string;
   identificationNumber?: string;
+  isActive?: boolean;
 }
 
 export interface UserRecord {
@@ -22,10 +23,16 @@ export interface UserRecord {
   doctorId?: string;
   identificationType?: string;
   identificationNumber?: string;
+  isActive?: boolean;
 }
 
 export interface UserCredentials extends UserRecord {
   hashedPassword?: string;
+}
+
+export interface UpdateUserProfileInput {
+  name: string;
+  email: string;
 }
 
 export interface IUserRepository {
@@ -45,8 +52,28 @@ export interface IUserRepository {
   findByEmailWithPassword(email: string): Promise<UserCredentials | null>;
   findByRole(role: UserRole): Promise<UserRecord[]>;
   findByDoctorId(doctorId: string): Promise<UserRecord | null>;
-  /** Same lookup shape as findByEmailWithPassword, for the DNI+PIN patient login. */
-  findByIdentificationNumberWithPassword(
-    identificationNumber: string,
-  ): Promise<UserCredentials | null>;
+  /**
+   * Flips isActive on the User linked to the given doctorId. Returns null
+   * (no-op) when no User is linked to that doctorId — a Doctor may not have
+   * a login yet ("Crear acceso" is a separate, optional step).
+   */
+  setActiveByDoctorId(
+    doctorId: string,
+    isActive: boolean,
+  ): Promise<UserRecord | null>;
+  /**
+   * Updates a User's own editable profile fields (name, email) by its own
+   * _id — unlike setActiveByDoctorId, this is not routed through a linked
+   * Doctor profile. Does not touch hashedPassword or role.
+   * Rejects with an Error whose message is "EMAIL_TAKEN" when the new email
+   * already belongs to a different user (unique index violation).
+   */
+  update(id: string, input: UpdateUserProfileInput): Promise<UserRecord | null>;
+  /**
+   * Flips isActive on the User with the given id directly — the general-
+   * purpose counterpart to setActiveByDoctorId, for entities (like
+   * Secretaria) whose User document IS the managed entity, with no separate
+   * linked profile to route through.
+   */
+  setActiveById(id: string, isActive: boolean): Promise<UserRecord | null>;
 }

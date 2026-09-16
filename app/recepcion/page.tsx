@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import BillingForm from "@/components/forms/BillingForm";
 import { getBillableAppointments } from "@/lib/actions/payment.actions";
@@ -20,6 +21,10 @@ const RecepcionPage = async () => {
         />
 
         <p className="text-16-semibold">Recepción</p>
+
+        <Link href="/recepcion/pacientes/nuevo" className="text-green-500">
+          Nuevo paciente
+        </Link>
       </header>
 
       <main className="admin-main">

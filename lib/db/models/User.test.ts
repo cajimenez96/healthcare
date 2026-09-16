@@ -141,4 +141,27 @@ describe("User model", () => {
     expect(user.identificationNumber).toBe("30111222");
     expect(user.identificationType).toBe("National Identity Card");
   });
+
+  it("defaults isActive to true when omitted", async () => {
+    const user = await User.create({
+      name: "Jane Doe",
+      email: "jane@example.com",
+      phone: "+5491122334455",
+    });
+
+    expect(user.isActive).toBe(true);
+  });
+
+  it("persists isActive: false when explicitly deactivated", async () => {
+    const user = await User.create({
+      name: "Deactivated Staff",
+      email: "deactivated@example.com",
+      phone: "+1",
+      role: "Doctor",
+      hashedPassword: "$2a$10$abcdefghijklmnopqrstuv",
+      isActive: false,
+    });
+
+    expect(user.isActive).toBe(false);
+  });
 });

@@ -1,62 +1,39 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-import { getPatientIdentificationFileId } from "./db";
-import { loginAsPatient, pickAppointmentDateTime } from "./helpers";
+import { ADMIN_CREDENTIALS, SECRETARIA_CREDENTIALS } from "./credentials";
+import { getPatientIdentificationFileIdByEmail } from "./db";
+import { loginAs, pickAppointmentDateTime } from "./helpers";
 
 const ID_DOCUMENT_PATH = "public/assets/icons/user.svg";
-const DEFAULT_PIN = "1234";
 
-export async function createPatientUser(
+// TASK-023/024: patient onboarding is 100% staff-mediated now — there is no
+// more public self-registration/login flow to drive through Playwright.
+// This replaces the old createPatientUser + registerFullPatient two-step
+// dance with a single staff-side submission of CreatePatientForm, via
+// /recepcion/pacientes/nuevo (the primary flow — Secretaria).
+export async function createStaffPatient(
   page: Page,
   input: {
     name: string;
     email: string;
     phone: string;
-    identificationNumber: string;
-    pin?: string;
+    doctorName: string;
+    insuranceProviderName?: string;
+    identificationNumber?: string;
   },
 ) {
-  const pin = input.pin ?? DEFAULT_PIN;
+  await loginAs(page, SECRETARIA_CREDENTIALS.email, SECRETARIA_CREDENTIALS.password);
+  await page.goto("/recepcion/pacientes/nuevo");
 
-  await page.goto("/");
   await page.getByLabel("Nombre completo", { exact: true }).fill(input.name);
   await page.getByLabel("Correo electrónico", { exact: true }).fill(input.email);
-  const phoneInput = page.locator(".input-phone input");
+  const phoneInput = page.locator(".input-phone input").first();
   await phoneInput.click();
   await phoneInput.fill(input.phone);
 
-  await page.getByRole("combobox", { name: "Tipo de identificación" }).click();
-  await page.getByRole("option", { name: "Documento Nacional de Identidad (DNI)" }).click();
-  await page.getByLabel("Número de identificación", { exact: true }).fill(input.identificationNumber);
-  await page.getByLabel("Elegí un PIN de acceso", { exact: false }).fill(pin);
-
-  await page.getByRole("button", { name: "Comenzar" }).click();
-
-  await expect(page).toHaveURL(/\/patients\/[a-f0-9]{24}\/register$/);
-  const match = page.url().match(/\/patients\/([a-f0-9]{24})\/register/);
-  const userId = match![1];
-  return { userId, identificationNumber: input.identificationNumber, pin };
-}
-
-export async function registerFullPatient(
-  page: Page,
-  opts: {
-    userId: string;
-    identificationNumber: string;
-    pin?: string;
-    doctorName: string;
-    insuranceProviderName?: string;
-    uploadIdentification?: boolean;
-  },
-) {
-  // A patient session established in an earlier test() block (e.g. by
-  // createPatientUser) doesn't carry over to this one's fresh page/context —
-  // re-authenticate unconditionally so this helper works either way.
-  await loginAsPatient(page, opts.identificationNumber, opts.pin ?? DEFAULT_PIN);
-  await page.goto(`/patients/${opts.userId}/register`);
-
-  // Birth date - plain date picker (no time), type + Enter commits it.
+  // Plain date picker (no time), type + Enter commits it — same widget as
+  // the old RegisterForm used for birthDate.
   const birthDateInput = page.locator(".date-picker input").first();
   await birthDateInput.click();
   await birthDateInput.fill("01/15/1990");
@@ -67,84 +44,70 @@ export async function registerFullPatient(
   await page.getByLabel("Dirección", { exact: true }).fill("Av. Siempre Viva 742");
   await page.getByLabel("Ocupación", { exact: true }).fill("QA Automation");
 
-  await page.getByLabel("Nombre de contacto de emergencia", { exact: true }).fill("Contacto Emergencia QA");
-  const emergencyPhone = page.locator(".input-phone input").nth(1);
-  await emergencyPhone.click();
-  await emergencyPhone.fill("+5491155556666");
-
-  // Radix Select triggers expose the FormLabel text as their accessible
-  // name (via aria-labelledby), regardless of whether they're still showing
-  // the placeholder or a pre-filled default value - so target by label, not
-  // by the placeholder text which may or may not be visible.
   await page.getByRole("combobox", { name: "Médico de cabecera" }).click();
-  await page.getByRole("option", { name: opts.doctorName }).click();
+  await page.getByRole("option", { name: input.doctorName }).click();
 
-  if (opts.insuranceProviderName) {
+  if (input.insuranceProviderName) {
     await page.getByRole("combobox", { name: "Obra social" }).click();
-    await page.getByRole("option", { name: opts.insuranceProviderName }).click();
+    await page.getByRole("option", { name: input.insuranceProviderName }).click();
   }
 
-  await page.getByLabel("N° de afiliado", { exact: true }).fill("POL-QA-0001");
+  await page.getByRole("combobox", { name: "Tipo de identificación" }).click();
+  await page.getByRole("option", { name: "Documento Nacional de Identidad (DNI)" }).click();
+  await page
+    .getByLabel("Número de identificación", { exact: true })
+    .fill(input.identificationNumber ?? `30${Date.now()}${Math.floor(Math.random() * 1000)}`);
+  // Required on this form (unlike the old public flow) — there's no patient
+  // present later to come back and add it.
+  await page.locator("input[type=file]").setInputFiles(ID_DOCUMENT_PATH);
 
-  // Tipo/Número de identificación are no longer asked here — collected in
-  // step 1 (createPatientUser) since TASK-015, shown read-only above the
-  // file uploader instead.
+  await page.getByRole("button", { name: "Crear paciente" }).click();
 
-  if (opts.uploadIdentification) {
-    await page.locator("input[type=file]").setInputFiles(ID_DOCUMENT_PATH);
-  }
+  await expect(page.getByText(`Paciente ${input.name} creado con éxito.`)).toBeVisible();
 
-  await page.locator("#treatmentConsent").click();
-  await page.locator("#disclosureConsent").click();
-  await page.locator("#privacyConsent").click();
+  const fileId = await getPatientIdentificationFileIdByEmail(input.email);
 
-  await page.getByRole("button", { name: "Enviar y continuar" }).click();
-  await expect(page).toHaveURL(new RegExp(`/patients/${opts.userId}/new-appointment$`));
-
-  // Read back from Mongo directly rather than sniffing the Server Action's
-  // network response - the RSC response body isn't reliably readable via
-  // CDP once the client follows the redirect (see e2e/db.ts).
-  let fileId: string | undefined;
-  if (opts.uploadIdentification) {
-    fileId = await getPatientIdentificationFileId(opts.userId);
-  }
-
-  return { fileId };
+  return { email: input.email, fileId };
 }
 
-export async function requestAppointment(
+// TASK-023/024: appointment requests are staff-side too now (there's no
+// patient session to request one for themselves) — reuses the Admin's
+// "Nuevo turno" flow from TASK-018 (AdminNewAppointmentModal), searching
+// for the patient just created by exact email.
+export async function bookAppointmentAsAdmin(
   page: Page,
   opts: {
-    userId: string;
-    identificationNumber: string;
-    pin?: string;
+    patientEmail: string;
     doctorName: string;
     dayOfMonth: string;
     timeLabel: string;
     reason: string;
     // false lets a caller fill (and commit into react-hook-form state) a
     // doctor+date+time slot while it's still free, then submit later once
-    // it's no longer free client-side - reproducing ADM-09's slot-collision
-    // race without relying on the time-picker's own live availability list
-    // (which proactively hides already-booked slots once it's re-fetched).
+    // it's no longer free — reproducing ADM-09's slot-collision race.
     submit?: boolean;
   },
 ) {
-  // Same rationale as registerFullPatient — re-authenticate unconditionally,
-  // this may be a fresh test() page with no session yet.
-  await loginAsPatient(page, opts.identificationNumber, opts.pin ?? DEFAULT_PIN);
-  await page.goto(`/patients/${opts.userId}/new-appointment`);
+  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
+  await page.goto("/admin");
 
-  await page.getByRole("combobox", { name: "Doctor" }).click();
+  await page.getByRole("button", { name: "Nuevo turno" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByPlaceholder("Email o teléfono del paciente").fill(opts.patientEmail);
+  await dialog.getByRole("button", { name: "Buscar" }).click();
+
+  await dialog.getByRole("combobox", { name: "Doctor" }).click();
   await page.getByRole("option", { name: opts.doctorName }).click();
 
   await pickAppointmentDateTime(page, opts.dayOfMonth, opts.timeLabel);
 
-  await page.getByLabel("Motivo del turno", { exact: true }).fill(opts.reason);
+  await dialog.getByLabel("Motivo del turno", { exact: true }).fill(opts.reason);
 
   if (opts.submit !== false) {
-    await page.getByRole("button", { name: "Solicitar turno" }).click();
+    await dialog.getByRole("button", { name: "Solicitar turno" }).click();
   }
 
-  return page;
+  return dialog;
 }

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { ADMIN_CREDENTIALS } from "./credentials";
 import { loginAs, uniqueSuffix } from "./helpers";
-import { createPatientUser, registerFullPatient, requestAppointment } from "./patient-flow";
+import { bookAppointmentAsAdmin, createStaffPatient } from "./patient-flow";
 import { readState } from "./state";
 
 test.describe.configure({ mode: "serial" });
@@ -28,56 +28,52 @@ test.beforeAll(() => {
 const DAY_OF_MONTH = String(2 + (Math.floor(Date.now() / 1000) % 26));
 const TIME_LABEL = "9:00 AM";
 
+// TASK-023/024: both patient creation and appointment booking are
+// staff-mediated now (createStaffPatient / bookAppointmentAsAdmin instead
+// of the deleted public self-service flow). The slot-collision race this
+// test reproduces is still real-world reachable - two receptionists (or,
+// here, the same Administrador in two tabs) booking the same doctor+time at
+// once - it just no longer needs two different patient sessions to set up.
 test.describe("ADM-09 - choque de horario", () => {
   test("segundo turno para el mismo doctor y horario falla con el mensaje literal", async ({ browser }) => {
-    // The AppointmentForm's time picker proactively hides slots that are
-    // already booked (it re-fetches available slots per doctor+date), so a
-    // strictly sequential "book A, then try B at the same slot" never lets
-    // B even select the taken time in the UI - it's just disabled. This
-    // race is real-world reachable (two patients booking at the same
-    // moment), so reproduce it: both fill the SAME still-free slot
-    // (without submitting) before either one commits, then submit A first
-    // and B second - B's react-hook-form state still holds the now-stale
-    // slot, so its submit reaches the server and hits the same
-    // existsOverlapping check ADM-08's confirm flow would hit.
     const context = await browser.newContext();
     const pageA = await context.newPage();
     const pageB = await context.newPage();
 
     const runA = uniqueSuffix();
-    const dniA = `32${runA}`;
-    const { userId: userIdA } = await createPatientUser(pageA, {
+    const emailA = `qa.adm09.a.${runA}@test.local`;
+    await createStaffPatient(pageA, {
       name: `Paciente ADM09 A ${runA}`,
-      email: `qa.adm09.a.${runA}@test.local`,
+      email: emailA,
       phone: "+5491166667777",
-      identificationNumber: dniA,
+      doctorName: DOCTOR_NAME,
     });
-    await registerFullPatient(pageA, { userId: userIdA, identificationNumber: dniA, doctorName: DOCTOR_NAME });
 
     const runB = uniqueSuffix();
-    const dniB = `33${runB}`;
-    const { userId: userIdB } = await createPatientUser(pageB, {
+    const emailB = `qa.adm09.b.${runB}@test.local`;
+    await createStaffPatient(pageB, {
       name: `Paciente ADM09 B ${runB}`,
-      email: `qa.adm09.b.${runB}@test.local`,
+      email: emailB,
       phone: "+5491177778888",
-      identificationNumber: dniB,
+      doctorName: DOCTOR_NAME,
     });
-    await registerFullPatient(pageB, { userId: userIdB, identificationNumber: dniB, doctorName: DOCTOR_NAME });
 
-    // Both fill (but don't submit) the identical doctor+date+time - at this
-    // point the slot is still free for both.
-    await requestAppointment(pageA, {
-      userId: userIdA,
-      identificationNumber: dniA,
+    // Both fill (but don't submit) the identical doctor+date+time on the
+    // Admin's "Nuevo turno" dialog (AppointmentForm's time picker
+    // proactively hides slots that are already booked, so a strictly
+    // sequential "book A, then try B at the same slot" never lets B even
+    // select the taken time in the UI) - at this point the slot is still
+    // free for both.
+    const dialogA = await bookAppointmentAsAdmin(pageA, {
+      patientEmail: emailA,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DAY_OF_MONTH,
       timeLabel: TIME_LABEL,
       reason: "Primer turno de choque de horario",
       submit: false,
     });
-    await requestAppointment(pageB, {
-      userId: userIdB,
-      identificationNumber: dniB,
+    const dialogB = await bookAppointmentAsAdmin(pageB, {
+      patientEmail: emailB,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DAY_OF_MONTH,
       timeLabel: TIME_LABEL,
@@ -86,17 +82,17 @@ test.describe("ADM-09 - choque de horario", () => {
     });
 
     // A submits first and wins the slot.
-    await pageA.getByRole("button", { name: "Solicitar turno" }).click();
-    await expect(pageA).toHaveURL(/\/new-appointment\/success\?appointmentId=/);
+    await dialogA.getByRole("button", { name: "Solicitar turno" }).click();
+    await expect(dialogA).toBeHidden();
 
     // B submits second, against the same (now-taken) slot it still has
     // selected in memory.
     await pageB.bringToFront();
-    await pageB.getByRole("button", { name: "Solicitar turno" }).click();
+    await dialogB.getByRole("button", { name: "Solicitar turno" }).click();
 
-    await expect(pageB).toHaveURL(/\/new-appointment$/); // no redirect to success
+    await expect(dialogB).toBeVisible(); // didn't close - no success
     await expect(
-      pageB.getByText(
+      dialogB.getByText(
         "No se pudo guardar el turno. Es posible que el horario ya no esté disponible — elegí otro e intentá de nuevo.",
       ),
     ).toBeVisible();
@@ -107,6 +103,19 @@ test.describe("ADM-09 - choque de horario", () => {
 
 test.describe("ADM-05 - desactivar / reactivar doctor", () => {
   test("desactivar oculta al doctor de los formularios de turno pero lo mantiene en /admin/doctors", async ({ page }) => {
+    // Created up front, while the doctor is still active - CreatePatientForm
+    // requires a primaryPhysician, so there'd be nothing to pick from once
+    // this is the only doctor and it's deactivated. Reused below to reach
+    // the booking dropdown after deactivation.
+    const run = uniqueSuffix();
+    const patientEmail = `qa.adm05.${run}@test.local`;
+    await createStaffPatient(page, {
+      name: `Paciente ADM05 ${run}`,
+      email: patientEmail,
+      phone: "+5491188889999",
+      doctorName: DOCTOR_NAME,
+    });
+
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
     await page.goto("/admin/doctors");
 
@@ -120,16 +129,14 @@ test.describe("ADM-05 - desactivar / reactivar doctor", () => {
     await page.reload();
     await expect(page.locator("li", { hasText: DOCTOR_NAME })).toBeVisible();
 
-    // Disappears from the active-doctors dropdown used by new-appointment.
-    const run = uniqueSuffix();
-    const { userId } = await createPatientUser(page, {
-      name: `Paciente ADM05 ${run}`,
-      email: `qa.adm05.${run}@test.local`,
-      phone: "+5491188889999",
-      identificationNumber: `34${run}`,
-    });
-    await page.goto(`/patients/${userId}/new-appointment`);
-    await page.getByRole("combobox", { name: "Doctor" }).click();
+    // Disappears from the active-doctors dropdown used by "Nuevo turno"
+    // (Admin's direct booking flow, TASK-018).
+    await page.goto("/admin");
+    await page.getByRole("button", { name: "Nuevo turno" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByPlaceholder("Email o teléfono del paciente").fill(patientEmail);
+    await dialog.getByRole("button", { name: "Buscar" }).click();
+    await dialog.getByRole("combobox", { name: "Doctor" }).click();
     await expect(page.getByRole("option", { name: DOCTOR_NAME })).toHaveCount(0);
     await page.keyboard.press("Escape");
   });

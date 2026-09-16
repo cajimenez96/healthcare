@@ -32,7 +32,8 @@ export const AppointmentModal = ({
   doctors,
 }: {
   patientId: string;
-  userId: string;
+  // Optional since TASK-023/024: staff-created patients have no linked User.
+  userId?: string;
   appointment?: Appointment;
   type: "schedule" | "cancel";
   title: string;

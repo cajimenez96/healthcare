@@ -46,7 +46,9 @@ export const AppointmentForm = ({
   setOpen,
   doctors,
 }: {
-  userId: string;
+  // Optional since TASK-023/024: staff-created patients have no linked
+  // User — only used to resolve a phone number for the SMS confirmation.
+  userId?: string;
   patientId: string;
   type: "create" | "schedule" | "cancel";
   appointment?: Appointment;
@@ -138,9 +140,13 @@ export const AppointmentForm = ({
 
         if (newAppointment) {
           form.reset();
-          router.push(
-            `/patients/${userId}/new-appointment/success?appointmentId=${newAppointment.$id}`
-          );
+          // TASK-023/024: type="create" is only reached from staff flows now
+          // (AdminNewAppointmentModal) — there's no more public patient
+          // success page to redirect to. Close the dialog (same as the
+          // schedule/cancel path below) and refresh so the caller's list
+          // picks up the new appointment.
+          setOpen?.(false);
+          router.refresh();
         } else {
           setSubmitError(
             "No se pudo guardar el turno. Es posible que el horario ya no esté disponible — elegí otro e intentá de nuevo."

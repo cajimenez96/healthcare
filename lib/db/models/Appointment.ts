@@ -4,7 +4,12 @@ export type AppointmentStatus = "pending" | "scheduled" | "cancelled" | "complet
 
 export interface IAppointment {
   _id: Types.ObjectId;
-  userId: Types.ObjectId;
+  // Optional since TASK-023/024: appointments for staff-created patients
+  // have no Paciente User to point to (the patient has no login at all
+  // anymore). Only used today to resolve a phone number for SMS
+  // notifications — see sendSMSNotification in appointment.actions.ts,
+  // which now skips silently when this is absent.
+  userId?: Types.ObjectId;
   patientId: Types.ObjectId;
   primaryPhysician: string;
   schedule: Date;
@@ -19,7 +24,7 @@ const appointmentSchema = new Schema<IAppointment>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     patientId: {

@@ -31,10 +31,16 @@ describe("Appointment model", () => {
   it("requires core fields", async () => {
     const error = await getValidationError(new Appointment({}));
 
-    expect(error.errors.userId).toBeDefined();
     expect(error.errors.patientId).toBeDefined();
     expect(error.errors.schedule).toBeDefined();
     expect(error.errors.reason).toBeDefined();
+  });
+
+  it("does not require userId (TASK-023/024: staff-created patients have no linked User)", async () => {
+    const { userId, ...withoutUserId } = validAppointment;
+    const doc = new Appointment(withoutUserId);
+
+    await expect(doc.validate()).resolves.toBeUndefined();
   });
 
   it("rejects an invalid status value", async () => {

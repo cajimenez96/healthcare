@@ -19,7 +19,8 @@ import "react-datepicker/dist/react-datepicker.css";
 
 interface FoundPatient {
   $id: string;
-  userId: string;
+  // Optional since TASK-023/024: staff-created patients have no linked User.
+  userId?: string;
   name: string;
 }
 
@@ -120,6 +121,7 @@ export const AdminNewAppointmentModal = ({
               patientId={patient.$id}
               type="create"
               doctors={doctors}
+              setOpen={setOpen}
             />
           </div>
         )}

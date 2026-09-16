@@ -114,6 +114,51 @@ describe("authenticateCredentials", () => {
     });
   });
 
+  it("returns null when the user is explicitly deactivated (isActive: false)", async () => {
+    await userRepository.create({
+      name: "Deactivated Staff",
+      email: "deactivated@example.com",
+      phone: "+1",
+      role: "Doctor",
+      hashedPassword,
+      isActive: false,
+    });
+
+    const result = await authenticateCredentials(
+      "deactivated@example.com",
+      correctPassword,
+      userRepository,
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("allows login when isActive is undefined (pre-existing users created before this field existed must not be locked out)", async () => {
+    await User.create({
+      name: "Legacy Staff",
+      email: "legacy@example.com",
+      phone: "+1",
+      role: "Administrador",
+      hashedPassword,
+    });
+    // Simulate a document persisted before the isActive field existed: strip
+    // it out at the storage layer so it reads back as undefined, not the
+    // schema default (`true`) that only applies on document creation.
+    await User.collection.updateOne(
+      { email: "legacy@example.com" },
+      { $unset: { isActive: "" } },
+    );
+
+    const result = await authenticateCredentials(
+      "legacy@example.com",
+      correctPassword,
+      userRepository,
+    );
+
+    expect(result).not.toBeNull();
+    expect(result?.email).toBe("legacy@example.com");
+  });
+
   it("includes doctorId for a linked Doctor-role user", async () => {
     const doctorId = new mongoose.Types.ObjectId().toString();
     await userRepository.create({

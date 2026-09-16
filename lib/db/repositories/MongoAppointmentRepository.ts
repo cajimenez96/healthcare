@@ -17,7 +17,7 @@ function toAppointmentRecord(
 ): AppointmentRecord {
   return {
     id: doc._id.toString(),
-    userId: doc.userId.toString(),
+    userId: doc.userId?.toString(),
     patientId: doc.patientId.toString(),
     primaryPhysician: doc.primaryPhysician,
     schedule: doc.schedule,
@@ -31,7 +31,7 @@ function toAppointmentRecord(
 function toPatientRecord(patient: IPatient): PatientRecord {
   return {
     id: patient._id.toString(),
-    userId: patient.userId.toString(),
+    userId: patient.userId?.toString(),
     name: patient.name,
     email: patient.email,
     phone: patient.phone,

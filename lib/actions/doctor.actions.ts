@@ -88,6 +88,10 @@ export const setDoctorActive = async (id: string, isActive: boolean) => {
     await connectToDatabase();
 
     const updatedDoctor = await doctorRepository.setActive(id, isActive);
+    // Also revoke/restore login access for the linked User, if one exists —
+    // a Doctor may have no linked User at all ("Crear acceso" is a separate,
+    // optional step), in which case this is a no-op.
+    await userRepository.setActiveByDoctorId(id, isActive);
 
     revalidatePath("/admin/doctors");
     return updatedDoctor ? parseStringify(updatedDoctor) : undefined;

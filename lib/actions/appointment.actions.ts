@@ -196,16 +196,21 @@ export const updateAppointment = async ({
 
     if (!updatedAppointment) throw Error;
 
-    const smsMessage = buildAppointmentSmsMessage(
-      type,
-      {
-        schedule: appointment.schedule!,
-        primaryPhysician: appointment.primaryPhysician!,
-        cancellationReason: appointment.cancellationReason,
-      },
-      timeZone
-    );
-    await sendSMSNotification(userId, smsMessage);
+    // No userId means this patient was created staff-side (TASK-023/024)
+    // and has no linked User to resolve a phone number from — skip the SMS
+    // rather than let it fail internally on every confirm/cancel.
+    if (userId) {
+      const smsMessage = buildAppointmentSmsMessage(
+        type,
+        {
+          schedule: appointment.schedule!,
+          primaryPhysician: appointment.primaryPhysician!,
+          cancellationReason: appointment.cancellationReason,
+        },
+        timeZone
+      );
+      await sendSMSNotification(userId, smsMessage);
+    }
 
     revalidatePath("/admin");
     return parseStringify(toAppointment(updatedAppointment));

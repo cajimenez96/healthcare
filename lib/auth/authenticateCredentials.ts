@@ -24,6 +24,13 @@ export async function authenticateCredentials(
     return null;
   }
 
+  // Explicit `=== false` only: schema defaults don't backfill existing
+  // documents, so pre-existing users read back with isActive === undefined
+  // and must remain able to log in. Never use `!user.isActive` here.
+  if (user.isActive === false) {
+    return null;
+  }
+
   const isValid = await bcrypt.compare(password, user.hashedPassword);
   if (!isValid) {
     return null;

@@ -1,5 +1,5 @@
-import { encode } from "next-auth/jwt";
 import mongoose from "mongoose";
+import { encode } from "next-auth/jwt";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import { connectToDatabase } from "../../../../lib/db/mongodb";

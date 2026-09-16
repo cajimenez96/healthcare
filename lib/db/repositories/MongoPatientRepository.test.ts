@@ -51,6 +51,26 @@ describe("MongoPatientRepository", () => {
       expect(patient.privacyConsent).toBe(true);
     });
 
+    it("creates a patient without userId, emergency contact or insurance (TASK-023/024)", async () => {
+      const {
+        userId,
+        emergencyContactName,
+        emergencyContactNumber,
+        insuranceProvider,
+        insurancePolicyNumber,
+        ...minimal
+      } = basePatient;
+
+      const patient = await repository.create(minimal);
+
+      expect(typeof patient.id).toBe("string");
+      expect(patient.userId).toBeUndefined();
+      expect(patient.emergencyContactName).toBeUndefined();
+      expect(patient.emergencyContactNumber).toBeUndefined();
+      expect(patient.insuranceProvider).toBe("Particular / Sin Convenio");
+      expect(patient.insurancePolicyNumber).toBeUndefined();
+    });
+
     it("persists optional fields such as identification document info", async () => {
       const patient = await repository.create({
         ...basePatient,
@@ -60,29 +80,6 @@ describe("MongoPatientRepository", () => {
 
       expect(patient.identificationDocumentId).toBe("file-1");
       expect(patient.identificationDocumentUrl).toBe("/api/files/file-1");
-    });
-  });
-
-  describe("findByUserId", () => {
-    it("returns null when no patient matches", async () => {
-      const result = await repository.findByUserId(
-        new mongoose.Types.ObjectId().toString(),
-      );
-      expect(result).toBeNull();
-    });
-
-    it("returns null for a malformed userId instead of throwing", async () => {
-      await expect(
-        repository.findByUserId("not-an-object-id"),
-      ).resolves.toBeNull();
-    });
-
-    it("returns the patient registered for that user", async () => {
-      const created = await repository.create(basePatient);
-
-      const result = await repository.findByUserId(basePatient.userId);
-      expect(result?.id).toBe(created.id);
-      expect(result?.email).toBe("john@example.com");
     });
   });
 

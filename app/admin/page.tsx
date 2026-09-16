@@ -27,11 +27,17 @@ const AdminPage = async () => {
 
         <p className="text-16-semibold">Panel de Administración</p>
 
+        <Link href="/admin/pacientes/nuevo" className="text-green-500">
+          Nuevo paciente
+        </Link>
         <Link href="/admin/doctors" className="text-green-500">
           Doctores
         </Link>
         <Link href="/admin/secretarias" className="text-green-500">
           Secretarías
+        </Link>
+        <Link href="/admin/admins" className="text-green-500">
+          Administradores
         </Link>
         <Link href="/admin/treatments" className="text-green-500">
           Nomenclador

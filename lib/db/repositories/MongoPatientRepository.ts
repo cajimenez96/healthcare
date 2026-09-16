@@ -11,7 +11,7 @@ import { Patient } from "../models/Patient";
 function toPatientRecord(doc: HydratedDocument<IPatient>): PatientRecord {
   return {
     id: doc._id.toString(),
-    userId: doc.userId.toString(),
+    userId: doc.userId?.toString(),
     name: doc.name,
     email: doc.email,
     phone: doc.phone,
@@ -40,14 +40,6 @@ export class MongoPatientRepository implements IPatientRepository {
   async create(input: CreatePatientInput): Promise<PatientRecord> {
     const doc = await Patient.create(input);
     return toPatientRecord(doc);
-  }
-
-  async findByUserId(userId: string): Promise<PatientRecord | null> {
-    if (!mongoose.isValidObjectId(userId)) {
-      return null;
-    }
-    const doc = await Patient.findOne({ userId });
-    return doc ? toPatientRecord(doc) : null;
   }
 
   async findById(id: string): Promise<PatientRecord | null> {

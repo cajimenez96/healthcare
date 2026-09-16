@@ -5,7 +5,9 @@ import type { PatientRecord } from "./IPatientRepository";
 
 export interface AppointmentRecord {
   id: string;
-  userId: string;
+  // Optional since TASK-023/024 — see IAppointment.userId in
+  // lib/db/models/Appointment.ts for the rationale.
+  userId?: string;
   patientId: string;
   primaryPhysician: string;
   schedule: Date;

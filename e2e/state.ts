@@ -15,18 +15,13 @@ export interface QaState {
     email: string;
     password: string;
   };
+  // No userId/patientId since TASK-023/024 — staff-created patients are
+  // looked up by email (unique per QA run), not by an id captured at
+  // creation time (the create form never surfaces one).
   patient?: {
-    userId: string;
-    patientId?: string;
     name: string;
     email: string;
     phone: string;
-  };
-  appointment?: {
-    appointmentId: string;
-    scheduleIso: string;
-    dayOfMonth: string;
-    timeLabel: string;
   };
   identificationFileId?: string;
 }

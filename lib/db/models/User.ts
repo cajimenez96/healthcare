@@ -14,6 +14,12 @@ export interface IUser {
   // for the DNI+PIN credentials provider (hashedPassword holds the PIN).
   identificationType?: string;
   identificationNumber?: string;
+  // Login gate, independent of Doctor.isActive (public-directory visibility).
+  // Schema defaults only apply to newly-created documents — existing users
+  // persisted before this field existed will read back as `undefined`, not
+  // `true`. Callers must treat `undefined` as active (see
+  // authenticateCredentials, which checks `=== false`, never `!isActive`).
+  isActive?: boolean;
 }
 
 const userSchema = new Schema<IUser>(
@@ -37,6 +43,7 @@ const userSchema = new Schema<IUser>(
     doctorId: { type: Schema.Types.ObjectId, ref: "Doctor" },
     identificationType: String,
     identificationNumber: { type: String, index: true },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

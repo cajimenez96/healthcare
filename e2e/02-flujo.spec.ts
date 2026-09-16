@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { ADMIN_CREDENTIALS, SECRETARIA_CREDENTIALS } from "./credentials";
 import { loginAs, uniqueSuffix } from "./helpers";
-import { createPatientUser, registerFullPatient, requestAppointment } from "./patient-flow";
+import { bookAppointmentAsAdmin, createStaffPatient } from "./patient-flow";
 import { readState, writeState } from "./state";
 
 test.describe.configure({ mode: "serial" });
@@ -31,8 +31,6 @@ const RUN = uniqueSuffix();
 const PATIENT_NAME = `Paciente QA ${RUN}`;
 const PATIENT_EMAIL = `qa.patient.${RUN}@test.local`;
 const PATIENT_PHONE = "+5491133334444";
-const PATIENT_DNI = `30${RUN}`;
-const PATIENT_PIN = "1234";
 
 // Our doctor's availability covers every weekday 08:00-20:00 (see
 // 00-setup), so any future date/time works - but the doctor (and its
@@ -44,69 +42,40 @@ const DAY_OF_MONTH = String(2 + (Math.floor(Date.now() / 1000) % 20));
 const DOC06_DAY_OF_MONTH = String(2 + ((Math.floor(Date.now() / 1000) + 1) % 20));
 const TIME_LABEL = "10:00 AM";
 
-let patientUserId: string;
-let appointmentId: string;
-
+// TASK-023/024: onboarding + booking are 100% staff-mediated now. What used
+// to be PAC-01 (alta inicial) + PAC-03 (registro completo) - two separate
+// public self-service steps - collapses into one staff-side submission of
+// CreatePatientForm (createStaffPatient). PAC-07 (solicitud de turno) is
+// likewise staff-side now, via the Admin's "Nuevo turno" (TASK-018,
+// bookAppointmentAsAdmin) instead of a patient requesting it themselves.
 test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
-  test("PAC-01 - alta inicial de paciente", async ({ page }) => {
-    const { userId } = await createPatientUser(page, {
+  test("PAC-01/03 - alta de paciente con obra social y documento de identificacion", async ({ page }) => {
+    const { fileId } = await createStaffPatient(page, {
       name: PATIENT_NAME,
       email: PATIENT_EMAIL,
       phone: PATIENT_PHONE,
-      identificationNumber: PATIENT_DNI,
-      pin: PATIENT_PIN,
-    });
-    patientUserId = userId;
-    expect(patientUserId).toMatch(/^[a-f0-9]{24}$/);
-  });
-
-  test("PAC-03 - registro completo con obra social y documento de identificacion", async ({ page }) => {
-    const { fileId } = await registerFullPatient(page, {
-      userId: patientUserId,
-      identificationNumber: PATIENT_DNI,
-      pin: PATIENT_PIN,
       doctorName: DOCTOR_NAME,
       insuranceProviderName: "Particular / Sin Convenio",
-      uploadIdentification: true,
     });
 
     expect(fileId, "SEG-02 necesita un fileId de un documento subido").toBeTruthy();
 
     writeState({
-      patient: {
-        userId: patientUserId,
-        name: PATIENT_NAME,
-        email: PATIENT_EMAIL,
-        phone: PATIENT_PHONE,
-      },
+      patient: { name: PATIENT_NAME, email: PATIENT_EMAIL, phone: PATIENT_PHONE },
       identificationFileId: fileId,
     });
   });
 
   test("PAC-07 - solicitud de turno queda pending", async ({ page }) => {
-    await requestAppointment(page, {
-      userId: patientUserId,
-      identificationNumber: PATIENT_DNI,
-      pin: PATIENT_PIN,
+    const dialog = await bookAppointmentAsAdmin(page, {
+      patientEmail: PATIENT_EMAIL,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DAY_OF_MONTH,
       timeLabel: TIME_LABEL,
       reason: "Dolor de muela persistente",
     });
 
-    await expect(page).toHaveURL(/\/new-appointment\/success\?appointmentId=/);
-    const match = page.url().match(/appointmentId=([a-f0-9]{24})/);
-    appointmentId = match![1];
-    expect(appointmentId).toMatch(/^[a-f0-9]{24}$/);
-
-    writeState({
-      appointment: {
-        appointmentId,
-        scheduleIso: "",
-        dayOfMonth: DAY_OF_MONTH,
-        timeLabel: TIME_LABEL,
-      },
-    });
+    await expect(dialog).toBeHidden();
   });
 
   test("Criterio de aceptacion FLU-01 - el turno pending es visible para el Administrador", async ({ page }) => {
@@ -211,32 +180,24 @@ test.describe("FLU-02 - confirmacion y atencion clinica", () => {
     // status) purely to exercise cross-patient isolation.
     const run2 = uniqueSuffix();
     const patient2Name = `Paciente QA DOC06 ${run2}`;
-    const patient2Dni = `31${run2}`;
-    const { userId: userId2 } = await createPatientUser(page, {
+    const patient2Email = `qa.patient.doc06.${run2}@test.local`;
+    await createStaffPatient(page, {
       name: patient2Name,
-      email: `qa.patient.doc06.${run2}@test.local`,
+      email: patient2Email,
       phone: "+5491144445555",
-      identificationNumber: patient2Dni,
-    });
-    await registerFullPatient(page, {
-      userId: userId2,
-      identificationNumber: patient2Dni,
       doctorName: DOCTOR_NAME,
       insuranceProviderName: "Particular / Sin Convenio",
     });
-    await requestAppointment(page, {
-      userId: userId2,
-      identificationNumber: patient2Dni,
+    const dialog = await bookAppointmentAsAdmin(page, {
+      patientEmail: patient2Email,
       doctorName: DOCTOR_NAME,
       dayOfMonth: DOC06_DAY_OF_MONTH,
       timeLabel: "11:00 AM",
       reason: "Control de rutina",
     });
     // Without this, the subsequent loginAs()'s page.goto("/login") can abort
-    // the still-in-flight createAppointment submission - requestAppointment
-    // clicks submit but doesn't wait for its own success redirect, matching
-    // PAC-07/ADM-09's convention of asserting at the call site.
-    await expect(page).toHaveURL(/\/new-appointment\/success\?appointmentId=/);
+    // the still-in-flight createAppointment submission.
+    await expect(dialog).toBeHidden();
 
     await loginAs(page, DOCTOR_EMAIL, DOCTOR_PASSWORD);
     await page.goto("/doctor");

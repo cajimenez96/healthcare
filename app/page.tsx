@@ -1,8 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { PatientForm } from "@/components/forms/PatientForm";
+import { Button } from "@/components/ui/button";
 
+// TASK-023: patients have no self-service access at all anymore — onboarding
+// is 100% staff-mediated (see createPatient / CreatePatientForm, TASK-024).
+// This landing page is now staff-only, pointing straight at /login instead
+// of also offering the public self-registration form this page used to
+// render (PatientForm, removed along with the rest of the patient portal).
 const Home = () => {
   return (
     <div className="flex h-screen max-h-screen">
@@ -12,27 +17,25 @@ const Home = () => {
             src="/assets/icons/logo-full.svg"
             height={1000}
             width={1000}
-            alt="patient"
+            alt="clinic"
             className="mb-12 h-10 w-fit"
           />
 
-          <PatientForm />
-
-          <p className="text-14-regular mt-6">
-            ¿Ya tenés una cuenta?{" "}
-            <Link href="/patients/login" className="text-green-500">
-              Iniciar sesión
-            </Link>
-          </p>
-
-          <div className="text-14-regular mt-8 flex justify-between">
-            <p className="justify-items-end text-dark-600 xl:text-left">
-              © 2024 CarePluse
+          <section className="space-y-4">
+            <h1 className="header">Bienvenido 👋</h1>
+            <p className="text-dark-700">
+              Sistema de gestión clínica. El acceso es exclusivo para el
+              personal de la clínica.
             </p>
-            <Link href="/login" className="text-green-500">
-              Personal
-            </Link>
-          </div>
+          </section>
+
+          <Button asChild className="shad-primary-btn mt-8 w-full">
+            <Link href="/login">Ingresar</Link>
+          </Button>
+
+          <p className="text-14-regular mt-8 text-dark-600">
+            © 2024 CarePluse
+          </p>
         </div>
       </section>
 
@@ -40,7 +43,7 @@ const Home = () => {
         src="/assets/images/onboarding-img.png"
         height={1000}
         width={1000}
-        alt="patient"
+        alt="clinic"
         className="side-img max-w-[50%]"
       />
     </div>

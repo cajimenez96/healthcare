@@ -39,10 +39,15 @@ describe("Patient model", () => {
   it("requires core fields", async () => {
     const error = await getValidationError(new Patient({}));
 
-    expect(error.errors.userId).toBeDefined();
     expect(error.errors.name).toBeDefined();
     expect(error.errors.gender).toBeDefined();
     expect(error.errors.privacyConsent).toBeDefined();
+  });
+
+  it("does not require userId (TASK-023: patients created without a linked User)", async () => {
+    const doc = new Patient({ ...validPatient, userId: undefined });
+
+    await expect(doc.validate()).resolves.toBeUndefined();
   });
 
   it("rejects an invalid gender value", async () => {
@@ -66,5 +71,24 @@ describe("Patient model", () => {
 
     expect(patient.name).toBe("John Doe");
     expect(patient.gender).toBe("Male");
+  });
+
+  it("creates a patient without userId, emergency contact or insurance (TASK-023/024 staff-side creation)", async () => {
+    const {
+      userId,
+      emergencyContactName,
+      emergencyContactNumber,
+      insuranceProvider,
+      insurancePolicyNumber,
+      ...minimal
+    } = validPatient;
+
+    const patient = await Patient.create(minimal);
+
+    expect(patient.userId).toBeUndefined();
+    expect(patient.emergencyContactName).toBeUndefined();
+    expect(patient.emergencyContactNumber).toBeUndefined();
+    expect(patient.insuranceProvider).toBe("Particular / Sin Convenio");
+    expect(patient.insurancePolicyNumber).toBeUndefined();
   });
 });

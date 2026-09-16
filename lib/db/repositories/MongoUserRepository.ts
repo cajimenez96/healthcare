@@ -3,6 +3,7 @@ import mongoose, { type HydratedDocument } from "mongoose";
 import type {
   CreateUserInput,
   IUserRepository,
+  UpdateUserProfileInput,
   UserCredentials,
   UserRecord,
   UserRole,
@@ -22,6 +23,7 @@ function toUserRecord(doc: HydratedDocument<IUser>): UserRecord {
     doctorId: doc.doctorId?.toString(),
     identificationType: doc.identificationType,
     identificationNumber: doc.identificationNumber,
+    isActive: doc.isActive,
   };
 }
 
@@ -61,13 +63,6 @@ export class MongoUserRepository implements IUserRepository {
     return doc ? { ...toUserRecord(doc), hashedPassword: doc.hashedPassword } : null;
   }
 
-  async findByIdentificationNumberWithPassword(
-    identificationNumber: string,
-  ): Promise<UserCredentials | null> {
-    const doc = await User.findOne({ identificationNumber }).select("+hashedPassword");
-    return doc ? { ...toUserRecord(doc), hashedPassword: doc.hashedPassword } : null;
-  }
-
   async findByRole(role: UserRole): Promise<UserRecord[]> {
     const docs = await User.find({ role });
     return docs.map(toUserRecord);
@@ -78,6 +73,56 @@ export class MongoUserRepository implements IUserRepository {
       return null;
     }
     const doc = await User.findOne({ doctorId });
+    return doc ? toUserRecord(doc) : null;
+  }
+
+  async setActiveByDoctorId(
+    doctorId: string,
+    isActive: boolean,
+  ): Promise<UserRecord | null> {
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return null;
+    }
+    const doc = await User.findOneAndUpdate(
+      { doctorId },
+      { isActive },
+      { returnDocument: "after" },
+    );
+    return doc ? toUserRecord(doc) : null;
+  }
+
+  async update(
+    id: string,
+    input: UpdateUserProfileInput,
+  ): Promise<UserRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    try {
+      const doc = await User.findByIdAndUpdate(id, input, {
+        returnDocument: "after",
+      });
+      return doc ? toUserRecord(doc) : null;
+    } catch (error: any) {
+      if (error?.code === MONGO_DUPLICATE_KEY_ERROR_CODE) {
+        throw new Error("EMAIL_TAKEN");
+      }
+      throw error;
+    }
+  }
+
+  async setActiveById(
+    id: string,
+    isActive: boolean,
+  ): Promise<UserRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await User.findByIdAndUpdate(
+      id,
+      { isActive },
+      { returnDocument: "after" },
+    );
     return doc ? toUserRecord(doc) : null;
   }
 }

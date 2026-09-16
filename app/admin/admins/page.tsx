@@ -1,12 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import CreateSecretariaForm from "@/components/forms/CreateSecretariaForm";
-import { SecretariaRow } from "@/components/SecretariaRow";
-import { getSecretarias } from "@/lib/actions/secretaria.actions";
+import { AdminRow } from "@/components/AdminRow";
+import CreateAdminForm from "@/components/forms/CreateAdminForm";
+import { getAdmins } from "@/lib/actions/adminUser.actions";
 
-const SecretariasPage = async () => {
-  const secretarias = await getSecretarias();
+const AdminsPage = async () => {
+  const admins = await getAdmins();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
@@ -21,42 +21,42 @@ const SecretariasPage = async () => {
           />
         </Link>
 
-        <p className="text-16-semibold">Secretarías</p>
+        <p className="text-16-semibold">Administradores</p>
       </header>
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Secretarías</h1>
+          <h1 className="header">Administradores</h1>
           <ul className="space-y-4">
-            {secretarias.map(
-              (secretaria: {
+            {admins.map(
+              (admin: {
                 id: string;
                 name: string;
                 email: string;
                 isActive?: boolean;
               }) => (
-                <SecretariaRow
-                  key={secretaria.id}
-                  secretaria={{
-                    ...secretaria,
-                    isActive: secretaria.isActive !== false,
+                <AdminRow
+                  key={admin.id}
+                  admin={{
+                    ...admin,
+                    isActive: admin.isActive !== false,
                   }}
                 />
               ),
             )}
-            {secretarias.length === 0 && (
-              <p className="text-dark-700">Todavía no hay secretarías cargadas.</p>
+            {admins.length === 0 && (
+              <p className="text-dark-700">Todavía no hay administradores cargados.</p>
             )}
           </ul>
         </section>
 
         <section className="w-full max-w-lg space-y-4">
-          <h2 className="header">Alta de secretaría</h2>
-          <CreateSecretariaForm />
+          <h2 className="header">Alta de administrador</h2>
+          <CreateAdminForm />
         </section>
       </main>
     </div>
   );
 };
 
-export default SecretariasPage;
+export default AdminsPage;

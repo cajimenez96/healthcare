@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -16,10 +15,10 @@ import {
   GenderLabels,
   GenderOptions,
   IdentificationTypeLabels,
-  PatientFormDefaultValues,
+  IdentificationTypes,
 } from "@/constants";
-import { registerPatient } from "@/lib/actions/patient.actions";
-import { PatientFormValidation } from "@/lib/validation";
+import { createPatient } from "@/lib/actions/patient.actions";
+import { CreatePatientFormValidation } from "@/lib/validation";
 
 import "react-datepicker/dist/react-datepicker.css";
 import "react-phone-number-input/style.css";
@@ -27,50 +26,56 @@ import CustomFormField, { FormFieldType } from "../CustomFormField";
 import { FileUploader } from "../FileUploader";
 import SubmitButton from "../SubmitButton";
 
-const RegisterForm = ({
-  user,
+// TASK-024: staff-side patient creation, used from both /recepcion and
+// /admin (two thin pages mount this same form — see
+// app/recepcion/pacientes/nuevo/page.tsx and app/admin/pacientes/nuevo/page.tsx).
+// Adapted from RegisterForm.tsx's field set, but with no dependency on a
+// pre-existing User (there is none — patients have no login, TASK-023).
+export const CreatePatientForm = ({
   doctors,
   insuranceProviders,
 }: {
-  user: User;
   doctors: { name: string; image: string }[];
   insuranceProviders: { name: string }[];
 }) => {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [createdPatientName, setCreatedPatientName] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof PatientFormValidation>>({
-    resolver: zodResolver(PatientFormValidation),
+  const form = useForm<z.infer<typeof CreatePatientFormValidation>>({
+    resolver: zodResolver(CreatePatientFormValidation),
     defaultValues: {
-      ...PatientFormDefaultValues,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
+      name: "",
+      email: "",
+      phone: "",
+      gender: "Male",
+      address: "",
+      occupation: "",
+      emergencyContactName: "",
+      emergencyContactNumber: "",
+      primaryPhysician: "",
       insuranceProvider: DEFAULT_INSURANCE_PROVIDER,
+      insurancePolicyNumber: "",
+      identificationType: "National Identity Card",
+      identificationNumber: "",
+      identificationDocument: [],
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof PatientFormValidation>) => {
+  const onSubmit = async (values: z.infer<typeof CreatePatientFormValidation>) => {
     setIsLoading(true);
+    setError(null);
+    setCreatedPatientName(null);
 
-    // Store file info in form data as
-    let formData;
-    if (
-      values.identificationDocument &&
-      values.identificationDocument?.length > 0
-    ) {
-      const blobFile = new Blob([values.identificationDocument[0]], {
-        type: values.identificationDocument[0].type,
-      });
-
-      formData = new FormData();
-      formData.append("blobFile", blobFile);
-      formData.append("fileName", values.identificationDocument[0].name);
-    }
+    const blobFile = new Blob([values.identificationDocument[0]], {
+      type: values.identificationDocument[0].type,
+    });
+    const formData = new FormData();
+    formData.append("blobFile", blobFile);
+    formData.append("fileName", values.identificationDocument[0].name);
 
     try {
-      const patient = {
-        userId: user.$id,
+      const newPatient = await createPatient({
         name: values.name,
         email: values.email,
         phone: values.phone,
@@ -78,30 +83,25 @@ const RegisterForm = ({
         gender: values.gender,
         address: values.address,
         occupation: values.occupation,
-        emergencyContactName: values.emergencyContactName,
-        emergencyContactNumber: values.emergencyContactNumber,
+        emergencyContactName: values.emergencyContactName || undefined,
+        emergencyContactNumber: values.emergencyContactNumber || undefined,
         primaryPhysician: values.primaryPhysician,
-        insuranceProvider: values.insuranceProvider,
-        insurancePolicyNumber: values.insurancePolicyNumber,
-        allergies: values.allergies,
-        currentMedication: values.currentMedication,
-        familyMedicalHistory: values.familyMedicalHistory,
-        pastMedicalHistory: values.pastMedicalHistory,
-        identificationType: user.identificationType,
-        identificationNumber: user.identificationNumber,
-        identificationDocument: values.identificationDocument
-          ? formData
-          : undefined,
-        privacyConsent: values.privacyConsent,
-      };
-
-      const newPatient = await registerPatient(patient);
+        insuranceProvider: values.insuranceProvider || undefined,
+        insurancePolicyNumber: values.insurancePolicyNumber || undefined,
+        identificationType: values.identificationType,
+        identificationNumber: values.identificationNumber,
+        identificationDocument: formData,
+      });
 
       if (newPatient) {
-        router.push(`/patients/${user.$id}/new-appointment`);
+        setCreatedPatientName(newPatient.name);
+        form.reset();
+      } else {
+        setError("No se pudo crear el paciente. Intentá de nuevo.");
       }
-    } catch (error) {
-      console.log(error);
+    } catch (submitError) {
+      console.log(submitError);
+      setError("No se pudo crear el paciente. Intentá de nuevo.");
     }
 
     setIsLoading(false);
@@ -114,27 +114,32 @@ const RegisterForm = ({
         className="flex-1 space-y-12"
       >
         <section className="space-y-4">
-          <h1 className="header">¡Bienvenido! 👋</h1>
-          <p className="text-dark-700">Contanos un poco más sobre vos.</p>
+          <h1 className="header">Nuevo paciente</h1>
+          <p className="text-dark-700">Cargá los datos del paciente.</p>
         </section>
+
+        {createdPatientName && (
+          <p className="text-14-regular text-green-500">
+            Paciente {createdPatientName} creado con éxito.
+          </p>
+        )}
+        {error && <p className="shad-error text-14-regular">{error}</p>}
 
         <section className="space-y-6">
           <div className="mb-9 space-y-1">
             <h2 className="sub-header">Información Personal</h2>
           </div>
 
-          {/* NAME */}
-
           <CustomFormField
             fieldType={FormFieldType.INPUT}
             control={form.control}
             name="name"
+            label="Nombre completo"
             placeholder="Juan Pérez"
             iconSrc="/assets/icons/user.svg"
             iconAlt="user"
           />
 
-          {/* EMAIL & PHONE */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
               fieldType={FormFieldType.INPUT}
@@ -155,7 +160,6 @@ const RegisterForm = ({
             />
           </div>
 
-          {/* BirthDate & Gender */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
               fieldType={FormFieldType.DATE_PICKER}
@@ -190,7 +194,6 @@ const RegisterForm = ({
             />
           </div>
 
-          {/* Address & Occupation */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
               fieldType={FormFieldType.INPUT}
@@ -209,13 +212,12 @@ const RegisterForm = ({
             />
           </div>
 
-          {/* Emergency Contact Name & Emergency Contact Number */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
               fieldType={FormFieldType.INPUT}
               control={form.control}
               name="emergencyContactName"
-              label="Nombre de contacto de emergencia"
+              label="Nombre de contacto de emergencia (opcional)"
               placeholder="Nombre del responsable"
             />
 
@@ -223,7 +225,7 @@ const RegisterForm = ({
               fieldType={FormFieldType.PHONE_INPUT}
               control={form.control}
               name="emergencyContactNumber"
-              label="Teléfono de contacto de emergencia"
+              label="Teléfono de contacto de emergencia (opcional)"
               placeholder="+5491123456789"
             />
           </div>
@@ -234,7 +236,6 @@ const RegisterForm = ({
             <h2 className="sub-header">Información Médica</h2>
           </div>
 
-          {/* PRIMARY CARE PHYSICIAN */}
           <CustomFormField
             fieldType={FormFieldType.SELECT}
             control={form.control}
@@ -258,13 +259,12 @@ const RegisterForm = ({
             ))}
           </CustomFormField>
 
-          {/* INSURANCE & POLICY NUMBER */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
               fieldType={FormFieldType.SELECT}
               control={form.control}
               name="insuranceProvider"
-              label="Obra social"
+              label="Obra social (opcional)"
               placeholder="Seleccioná una obra social"
             >
               {insuranceProviders.map((provider) => (
@@ -278,58 +278,38 @@ const RegisterForm = ({
               fieldType={FormFieldType.INPUT}
               control={form.control}
               name="insurancePolicyNumber"
-              label="N° de afiliado"
+              label="N° de afiliado (opcional)"
               placeholder="ABC123456789"
-            />
-          </div>
-
-          {/* ALLERGY & CURRENT MEDICATIONS */}
-          <div className="flex flex-col gap-6 xl:flex-row">
-            <CustomFormField
-              fieldType={FormFieldType.TEXTAREA}
-              control={form.control}
-              name="allergies"
-              label="Alergias (si tiene)"
-              placeholder="Maní, Penicilina, Polen"
-            />
-
-            <CustomFormField
-              fieldType={FormFieldType.TEXTAREA}
-              control={form.control}
-              name="currentMedication"
-              label="Medicación actual"
-              placeholder="Ibuprofeno 200mg, Levotiroxina 50mcg"
-            />
-          </div>
-
-          {/* FAMILY MEDICATION & PAST MEDICATIONS */}
-          <div className="flex flex-col gap-6 xl:flex-row">
-            <CustomFormField
-              fieldType={FormFieldType.TEXTAREA}
-              control={form.control}
-              name="familyMedicalHistory"
-              label="Antecedentes familiares (si corresponde)"
-              placeholder="Madre con cáncer cerebral, Padre con hipertensión"
-            />
-
-            <CustomFormField
-              fieldType={FormFieldType.TEXTAREA}
-              control={form.control}
-              name="pastMedicalHistory"
-              label="Antecedentes personales"
-              placeholder="Apendicectomía en 2015, Asma diagnosticada en la infancia"
             />
           </div>
         </section>
 
         <section className="space-y-6">
           <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Verificación</h2>
-            <p className="text-dark-700 text-14-regular">
-              {IdentificationTypeLabels[user.identificationType] ?? user.identificationType} ·{" "}
-              {user.identificationNumber}
-            </p>
+            <h2 className="sub-header">Documento de identidad</h2>
           </div>
+
+          <CustomFormField
+            fieldType={FormFieldType.SELECT}
+            control={form.control}
+            name="identificationType"
+            label="Tipo de identificación"
+            placeholder="Seleccioná el tipo de identificación"
+          >
+            {IdentificationTypes.map((type, i) => (
+              <SelectItem key={type + i} value={type}>
+                {IdentificationTypeLabels[type] ?? type}
+              </SelectItem>
+            ))}
+          </CustomFormField>
+
+          <CustomFormField
+            fieldType={FormFieldType.INPUT}
+            control={form.control}
+            name="identificationNumber"
+            label="Número de identificación"
+            placeholder="30111222"
+          />
 
           <CustomFormField
             fieldType={FormFieldType.SKELETON}
@@ -344,39 +324,10 @@ const RegisterForm = ({
           />
         </section>
 
-        <section className="space-y-6">
-          <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Consentimiento y Privacidad</h2>
-          </div>
-
-          <CustomFormField
-            fieldType={FormFieldType.CHECKBOX}
-            control={form.control}
-            name="treatmentConsent"
-            label="Doy mi consentimiento para recibir tratamiento por mi condición de salud."
-          />
-
-          <CustomFormField
-            fieldType={FormFieldType.CHECKBOX}
-            control={form.control}
-            name="disclosureConsent"
-            label="Doy mi consentimiento para el uso y divulgación de mi
-            información de salud con fines de tratamiento."
-          />
-
-          <CustomFormField
-            fieldType={FormFieldType.CHECKBOX}
-            control={form.control}
-            name="privacyConsent"
-            label="Declaro que revisé y acepto la
-            política de privacidad"
-          />
-        </section>
-
-        <SubmitButton isLoading={isLoading}>Enviar y continuar</SubmitButton>
+        <SubmitButton isLoading={isLoading}>Crear paciente</SubmitButton>
       </form>
     </Form>
   );
 };
 
-export default RegisterForm;
+export default CreatePatientForm;

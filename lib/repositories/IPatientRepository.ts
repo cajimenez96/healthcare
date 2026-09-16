@@ -3,7 +3,9 @@
 
 export interface PatientRecord {
   id: string;
-  userId: string;
+  // Optional since TASK-023: staff-created patients have no linked login
+  // User (same pattern as Doctor — see IDoctorRepository/createDoctorAccess).
+  userId?: string;
   name: string;
   email: string;
   phone: string;
@@ -11,11 +13,14 @@ export interface PatientRecord {
   gender: Gender;
   address: string;
   occupation: string;
-  emergencyContactName: string;
-  emergencyContactNumber: string;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
   primaryPhysician: string;
+  // Optional at the input boundary (defaults to DEFAULT_INSURANCE_PROVIDER
+  // at the Mongoose level — see lib/db/models/Patient.ts) — but always
+  // present once read back, since the schema default guarantees a value.
   insuranceProvider: string;
-  insurancePolicyNumber: string;
+  insurancePolicyNumber?: string;
   allergies?: string;
   currentMedication?: string;
   familyMedicalHistory?: string;
@@ -27,11 +32,15 @@ export interface PatientRecord {
   privacyConsent: boolean;
 }
 
-export type CreatePatientInput = Omit<PatientRecord, "id">;
+// insuranceProvider is optional here specifically (unlike on PatientRecord,
+// where it's always present) — omitting it at creation falls back to
+// DEFAULT_INSURANCE_PROVIDER at the Mongoose level.
+export type CreatePatientInput = Omit<PatientRecord, "id" | "insuranceProvider"> & {
+  insuranceProvider?: string;
+};
 
 export interface IPatientRepository {
   create(input: CreatePatientInput): Promise<PatientRecord>;
-  findByUserId(userId: string): Promise<PatientRecord | null>;
   findById(id: string): Promise<PatientRecord | null>;
   /** Exact match on email or phone — used by Admin to find one patient to book a direct appointment for. */
   findByEmailOrPhone(query: string): Promise<PatientRecord | null>;
