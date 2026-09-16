@@ -80,9 +80,9 @@ La estrategia adoptada para el **MVP** consiste en un **Motor de Reglas Unificad
 ## 4. Flujo Operativo y de Negocio
 
 ```text
-[PACIENTE / REGISTRO]
+[ALTA DE PACIENTE / SECRETARÍA-ADMINISTRADOR]
   │
-  ├─ Selecciona Obra Social y Plan (Default: "Particular / Sin Convenio")
+  ├─ Secretaría o Administrador carga Obra Social y Plan (Opcional — Default: "Particular / Sin Convenio" si se omite)
   └─ Carga N° de Afiliado (Si aplica)
         │
         ▼

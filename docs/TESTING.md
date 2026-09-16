@@ -10,12 +10,14 @@ Cubre los 4 actores del sistema y los 6 flujos de negocio principales, con casos
 
 | Actor | Cómo se identifica | Home tras login | Rutas propias |
 |---|---|---|---|
-| **Paciente** | Sin autenticación real — se identifica por un `userId` (ObjectId de Mongo) en la URL, generado al completar el formulario inicial en `/`. No tiene contraseña. | `/patients/[userId]/register` → `/patients/[userId]/new-appointment` | `/`, `/patients/**` |
+| **Paciente** | *(ver nota `TASK-023`/`TASK-024` abajo)* Ya no es un actor con acceso propio — no tiene login, sesión ni rutas. Es un registro (`Patient`) creado y gestionado enteramente por Secretaria/Administrador desde `/recepcion/pacientes/nuevo` o `/admin/pacientes/nuevo`. | — | — |
 | **Administrador** | Usuario staff con `role: Administrador`, login por email + contraseña en `/login` | `/admin` | `/admin/**` |
 | **Doctor** | Usuario staff con `role: Doctor`, **vinculado obligatoriamente** a un documento `Doctor` (`doctorId`). Se crea únicamente desde "Crear acceso" en `/admin/doctors`. | `/doctor` | `/doctor/**` |
 | **Secretaria** | Usuario staff con `role: Secretaria`, login por email + contraseña. No hay alta desde la UI — se crea directamente en base (ver §3). | `/recepcion` | `/recepcion/**` |
 
-> ℹ️ **Nota de idioma para QA**: desde `TASK-022`, toda la UI (incluido el portal público del paciente en `/` y `/patients/**`, que hasta entonces había quedado en inglés por decisión de alcance de `TASK-004`) está en español. Los valores de enum persistidos en Mongo (`Gender`, `IdentificationType`, `Status`, `PaymentMethod`) siguen en inglés internamente — solo cambió la etiqueta mostrada en pantalla.
+> ⚠️ **Nota (`TASK-023`/`TASK-024`)**: hasta entonces el Paciente sí era un actor real, con login DNI+PIN (`TASK-015`) y rutas propias `/`, `/patients/**`. Por decisión de producto ese acceso se eliminó por completo — el onboarding (ficha + turnos) pasó a ser 100% mediado por el staff. La sección `6.1` (antes "Paciente") documenta hoy los casos `PAC-*` desde el lado del staff, no un flujo público.
+
+> ℹ️ **Nota de idioma para QA**: desde `TASK-022`, toda la UI (incluido, en ese momento, el portal público del paciente en `/` y `/patients/**` — eliminado después en `TASK-023`; su equivalente en español hoy es el alta staff-side en `/recepcion/pacientes/nuevo` y `/admin/pacientes/nuevo`) está en español. Los valores de enum persistidos en Mongo (`Gender`, `IdentificationType`, `Status`, `PaymentMethod`) siguen en inglés internamente — solo cambió la etiqueta mostrada en pantalla.
 
 ## 3. Preparación del entorno de pruebas
 
@@ -49,14 +51,14 @@ Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y
 
 ## 5. Matriz de RBAC (control de acceso por ruta)
 
-| Ruta | Público | Paciente | Administrador | Doctor | Secretaria |
-|---|:---:|:---:|:---:|:---:|:---:|
-| `/`, `/login` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `/patients/[userId]/**` | ⚠️ sin control de sesión (ver SEG-01) |
-| `/admin/**` | ❌ | ❌ | ✅ | ❌ | ❌ |
-| `/doctor/**` | ❌ | ❌ | ❌ | ✅ (solo si tiene `doctorId` vinculado) | ❌ |
-| `/recepcion/**` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `/api/files/[fileId]` | ⚠️ sin control de sesión (ver SEG-02) |
+| Ruta | Público | Administrador | Doctor | Secretaria |
+|---|:---:|:---:|:---:|:---:|
+| `/`, `/login` | ✅ | ✅ | ✅ | ✅ |
+| `/patients/**` | *(eliminada por `TASK-023`, ver SEG-01)* cualquier ruta bajo este prefijo devuelve 404, para cualquiera |
+| `/admin/**` | ❌ | ✅ | ❌ | ❌ |
+| `/doctor/**` | ❌ | ❌ | ✅ (solo si tiene `doctorId` vinculado) | ❌ |
+| `/recepcion/**` | ❌ | ❌ | ❌ | ✅ |
+| `/api/files/[fileId]` | ❌ exige sesión (401 sin ella, desde `TASK-015`) — en la práctica staff-only desde `TASK-023`, ya no queda ningún otro rol capaz de autenticarse (ver SEG-02) |
 
 ### AUTH-01 — Redirección a login sin sesión (Funcional / RBAC · Alta)
 **Pasos**: sin haber iniciado sesión, navegar directamente a `/admin`, `/doctor` y `/recepcion`.
@@ -82,53 +84,59 @@ Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y
 **Pasos**: borrar manualmente la cookie de sesión (o esperar expiración) y refrescar una página protegida.
 **Resultado esperado**: redirige a `/login`.
 
-### SEG-01 — Acceso al perfil de un paciente sin autenticación (Seguridad · Alta — validar con Producto)
-**Contexto técnico**: `/patients/[userId]/register`, `/patients/[userId]/new-appointment` y `/new-appointment/success` **no** están cubiertas por `middleware.ts` (su matcher solo incluye `/admin`, `/doctor`, `/recepcion`) y las Server Actions que usan (`getUser`, `getPatient`, `registerPatient`, `createAppointment`) tampoco validan sesión. La única "protección" es que `userId` es un ObjectId de Mongo difícil de adivinar.
-**Pasos**: como usuario no autenticado, con el `userId` de otro paciente (obtenido, por ejemplo, de un link compartido o de la URL de otra pestaña), navegar a `/patients/<userId-ajeno>/register`.
-**Resultado esperado hoy**: la página carga con los datos del paciente (nombre, email, teléfono, alergias, medicación, etc. si ya registró). **Esto es un hallazgo real, no una prueba que deba "pasar" en verde** — repórtese como IDOR (Insecure Direct Object Reference) sobre datos de salud (PHI) y que Producto decida si es aceptable para este MVP o si requiere autenticación real de pacientes.
+### SEG-01 — [RESUELTO POR ELIMINACIÓN — `TASK-023`] Acceso al perfil de un paciente sin autenticación (Seguridad · Alta)
+**Contexto histórico**: hasta `TASK-022`, `/patients/[userId]/register`, `/patients/[userId]/new-appointment` y `/new-appointment/success` no estaban cubiertas por `middleware.ts` (su matcher solo incluía `/admin`, `/doctor`, `/recepcion`) y las Server Actions que usaban (`getUser`, `getPatient`, `registerPatient`, `createAppointment`) tampoco validaban sesión — la única "protección" era que `userId` fuera un ObjectId de Mongo difícil de adivinar. Era un IDOR (Insecure Direct Object Reference) real sobre datos de salud (PHI): cualquiera con el `userId` de otro paciente podía ver su ficha sin autenticarse.
+**Resolución**: `TASK-023` eliminó por completo el portal público de pacientes (`/patients/**`) como decisión de producto — no como un parche de autenticación sobre la ruta pública (aunque `TASK-015` sí había llegado a agregar login DNI+PIN antes de esa decisión; ver `TASK-015`/`TASK-023` en `docs/PLANNING.md`). No queda ninguna ruta pública que exponga datos de un paciente por `userId`: la vulnerabilidad se cierra por eliminación de la superficie, no por control de acceso agregado sobre ella.
+**Cómo verificarlo hoy**: `/patients/login`, `/patients/<cualquier-userId>/register` y `/patients/<cualquier-userId>/new-appointment` deben devolver **404** para cualquiera, autenticado o no (cubierto por el spec automatizado `e2e/04-security.spec.ts`, describe "SEG-01").
+**Ya no es un caso a ejecutar como hallazgo abierto** — se deja documentado, con el mismo criterio que `docs/PLANNING.md` usa para tickets "superados", para que quede registro de qué vulnerabilidad existía y cómo se cerró.
 
-### SEG-02 — Descarga de documentos sin autenticación (Seguridad · Alta — validar con Producto)
-**Contexto técnico**: `/api/files/[fileId]` (usado tanto para la foto de perfil del doctor como para el documento de identificación escaneado del paciente) no valida sesión — solo valida que `fileId` tenga formato de ObjectId válido.
-**Pasos**: con un `fileId` de un documento de identificación subido por un paciente (visible en el HTML de la página de registro si el paciente ya lo cargó), pegar `/api/files/<fileId>` directo en el navegador sin sesión.
-**Resultado esperado hoy**: el archivo se descarga igual, sin pedir login. Mismo criterio que SEG-01: reportar como hallazgo para decisión de Producto, no como bug a "arreglar solo".
+### SEG-02 — Descarga de documentos: staff-only por construcción desde `TASK-023` (Seguridad · Media — antes Alta)
+**Contexto técnico**: `/api/files/[fileId]` (foto de perfil de doctor, documento de identificación del paciente) exige sesión autenticada desde `TASK-015` — ya no alcanza con que `fileId` tenga formato de ObjectId válido. Lo que cambió con `TASK-023`/`TASK-024` es que **ya no existe ningún rol capaz de autenticarse fuera de Administrador/Doctor/Secretaria** — no queda ningún login de paciente que pudiera, con sesión propia, intentar acceder al archivo de otro paciente. La ruta pasó de "requiere sesión (podía ser de paciente)" a "staff-only por construcción (no hay otra sesión posible)".
+**Pasos**: (a) sin sesión, pegar `/api/files/<fileId>` directo en el navegador; (b) repetir logueado con cualquier rol staff.
+**Resultado esperado**: (a) **401**, no descarga; (b) **200**, descarga normal. Cubierto por `e2e/04-security.spec.ts`, describe "SEG-02".
+**Nota**: no se restringió la descarga a "solo el staff que atiende a ese paciente puntual" — cualquier staff autenticado puede descargar cualquier archivo. Aceptable porque ya no hay pacientes con acceso al sistema que pudieran explotar esa amplitud entre sí; si en el futuro se reintrodujera algún tipo de acceso no-staff, esto habría que revisarlo de nuevo.
 
 ---
 
 ## 6. Suite por actor
 
-### 6.1 Paciente (`/`, `/patients/**`)
+### 6.1 Alta de pacientes y turnos, staff-side (`/recepcion/pacientes/nuevo`, `/admin/pacientes/nuevo`, "Nuevo turno" en `/admin`)
 
-#### PAC-01 — Alta inicial de paciente (Funcional · Alta)
-**Pasos**: en `/`, completar "Nombre completo", "Correo electrónico", "Número de teléfono" y enviar.
-**Resultado esperado**: redirige a `/patients/[userId]/register`.
+> Hasta `TASK-022` esta sección documentaba el flujo público de auto-servicio del paciente (`/`, `/patients/[userId]/register`, `/patients/[userId]/new-appointment`). `TASK-023` lo eliminó por completo — el paciente no tiene ningún acceso al sistema — y `TASK-024` lo reemplazó por un alta 100% mediada por Secretaría/Administrador. Los casos `PAC-*` de abajo prueban ese reemplazo. Se conserva el prefijo `PAC-` (casos sobre la ficha del paciente) y, donde hay equivalente real, el mismo número que el caso original — mismo criterio que usó la suite automatizada (`e2e/02-flujo.spec.ts` reutiliza literalmente los IDs `PAC-01/03` y `PAC-07` para sus versiones staff-side). El login DNI+PIN (`TASK-015`) y el re-registro por `userId` no tienen reemplazo — no existen más, por decisión de producto (ver `TASK-023` en `docs/PLANNING.md`).
 
-#### PAC-02 — Validaciones del formulario inicial (Validación · Media)
+#### PAC-01/03 — Alta de paciente con obra social y documento de identificación (Funcional · Alta)
+**Pasos**: logueado como Secretaria (flujo primario, `/recepcion/pacientes/nuevo`) o Administrador (`/admin/pacientes/nuevo`), completar `CreatePatientForm`: nombre completo, correo electrónico, teléfono, fecha de nacimiento, género (radio), dirección, ocupación, médico de cabecera (desplegable de doctores **activos**), obra social (desplegable, default **"Particular / Sin Convenio"**, opcional), N° de afiliado (opcional), contacto de emergencia (opcional), tipo y número de identificación, y documento de identificación escaneado (**obligatorio** — a diferencia del viejo flujo público, no hay ningún paciente que pueda volver después a completarlo).
+**Resultado esperado**: mensaje **"Paciente {nombre} creado con éxito."**; el paciente queda persistido con la obra social elegida (o el default). No hay checkboxes de consentimiento en este formulario — `createPatient` fija `privacyConsent: true` automáticamente, asumiendo que el consentimiento se capturó fuera del sistema (papel/verbal en la recepción), no que se relajó el requisito.
+**Cubierto por**: `e2e/02-flujo.spec.ts`, test "PAC-01/03 - alta de paciente con obra social y documento de identificacion" (vía `createStaffPatient`).
+
+#### PAC-02 — Validaciones del formulario de alta (Validación · Media)
 | Campo | Caso inválido | Mensaje esperado |
 |---|---|---|
 | Nombre completo | 1 carácter | "El nombre debe tener al menos 2 caracteres" |
 | Nombre completo | 51+ caracteres | "El nombre debe tener como máximo 50 caracteres" |
 | Correo electrónico | `sin-arroba` | "Correo electrónico inválido" |
 | Teléfono | sin código de país / formato libre | "Número de teléfono inválido" (regex `^\+\d{10,15}$`, exige `+` y 10 a 15 dígitos, sin espacios ni guiones) |
+| Dirección | 4 caracteres o menos | "La dirección debe tener al menos 5 caracteres" |
+| Ocupación | 1 carácter | "La ocupación debe tener al menos 2 caracteres" |
+| Médico de cabecera | sin seleccionar | "Seleccioná al menos un doctor" |
+| N° de identificación | 1 carácter | "El número de identificación debe tener al menos 2 caracteres" |
 
-#### PAC-03 — Registro completo del paciente (Funcional · Alta)
-**Pasos**: completar todo `/patients/[userId]/register`: datos personales, género (radio), dirección, ocupación, contacto de emergencia, médico de cabecera (desplegable de doctores **activos**), obra social (desplegable, default **"Particular / Sin Convenio"**), N° de afiliado, antecedentes médicos (opcionales), tipo y número de identificación, documento escaneado (opcional, drag & drop), y tildar los 3 consentimientos.
-**Resultado esperado**: redirige a `/patients/[userId]/new-appointment`. El paciente queda persistido con la obra social elegida.
-
-#### PAC-04 — Consentimientos obligatorios (Validación · Alta)
-**Pasos**: intentar enviar el registro sin tildar "treatmentConsent", "disclosureConsent" o "privacyConsent" (uno por vez).
-**Resultado esperado**: respectivamente — "Debés dar tu consentimiento de tratamiento para continuar", "Debés dar tu consentimiento de divulgación para continuar", "Debés aceptar la política de privacidad para continuar". No se crea el paciente.
+#### PAC-04 — Documento de identificación obligatorio (Validación · Alta)
+**Contexto**: en el viejo flujo público el documento era opcional (drag & drop, el paciente podía completarlo más tarde). En el alta staff-side no hay "más tarde" — es obligatorio desde `TASK-024`.
+**Pasos**: intentar enviar `CreatePatientForm` sin adjuntar ningún archivo.
+**Resultado esperado**: **"El documento de identificación es obligatorio"**. No se crea el paciente.
 
 #### PAC-05 — Selector de obra social trae datos reales (Funcional · Media)
-**Pasos**: abrir el desplegable de "Obra social" en el registro.
-**Resultado esperado**: lista al menos "Particular / Sin Convenio" (sembrada por `pnpm db:seed-nomenclador`), preseleccionada por default.
+**Pasos**: abrir el desplegable "Obra social (opcional)" en `/recepcion/pacientes/nuevo` o `/admin/pacientes/nuevo`.
+**Resultado esperado**: lista al menos "Particular / Sin Convenio" (sembrada por `pnpm db:seed-nomenclador`), preseleccionada por default si no se toca el campo.
 
-#### PAC-06 — Paciente ya registrado no puede re-registrarse (Funcional · Media)
-**Pasos**: con un `userId` que ya tiene un `Patient` asociado, navegar a `/patients/[userId]/register`.
-**Resultado esperado**: redirige directo a `/patients/[userId]/new-appointment` (no muestra el formulario de nuevo).
+#### PAC-06 — *(Retirado, sin reemplazo — `TASK-023`)* Re-registro sobre un `userId` existente
+El caso original probaba que, con un `userId` ya asociado a un `Patient`, `/patients/[userId]/register` redirigía directo al paso siguiente en vez de mostrar el formulario de nuevo. No tiene equivalente: el alta staff-side es un único paso sin `userId` en la URL, no existe el concepto de "paciente a medio registrar". Retirado por decisión de producto, no por omisión — se documenta para que quede registro de que la ausencia es intencional.
 
-#### PAC-07 — Solicitud de turno (Funcional · Alta)
-**Pasos**: en `/patients/[userId]/new-appointment`, elegir doctor, fecha/hora, motivo, y enviar.
-**Resultado esperado**: crea la cita con estado **`pending`** (no `scheduled` — la confirmación la hace el Administrador) y redirige a la página de éxito.
+#### PAC-07 — Alta de turno para el paciente recién creado (Funcional · Alta)
+**Pasos**: como Administrador, en `/admin`, clic en "Nuevo turno" (`AdminNewAppointmentModal`, `TASK-018`) → buscar al paciente por email o teléfono exacto → elegir doctor, fecha y hora → completar motivo → enviar.
+**Resultado esperado**: crea la cita con estado **`pending`** (no `scheduled` — la confirmación la hace el Administrador después, ver ADM-08) y cierra el modal, refrescando el listado de `/admin` sin recargar la página.
+**Cubierto por**: `e2e/02-flujo.spec.ts`, test "PAC-07 - solicitud de turno queda pending" (vía `bookAppointmentAsAdmin`).
 
 #### PAC-08 — Validaciones del formulario de turno (Validación · Media)
 - Sin doctor seleccionado → "Seleccioná al menos un doctor".
@@ -183,6 +191,7 @@ Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y
 **Contexto**: `sendSMSNotification` está en un `try/catch` separado — si Twilio falla (credenciales inválidas, número mal formado), el error se loguea a consola/Sentry pero **no** revierte la actualización del turno.
 **Pasos**: forzar una falla de Twilio (ej. credenciales inválidas en `.env.local` de un ambiente de prueba) y confirmar un turno.
 **Resultado esperado**: el turno queda `scheduled` igual, aunque el SMS no se haya enviado. Verificar en Sentry/logs que el error quedó registrado.
+**Nota (`TASK-024`/`TASK-028`)**: desde `TASK-024` ningún paciente tiene `userId` (el alta staff-side no lo crea), así que `updateAppointment` omite el envío de SMS **antes** de intentar Twilio — este caso ya no se puede disparar con un turno de un paciente nuevo. `TASK-028` documentó esto como decisión de producto (SMS de confirmación/cancelación no se usa por ahora), no como bug pendiente. Para ejercitar este caso puntual hace falta un turno de un paciente con `userId` heredado de antes de `TASK-024`.
 
 #### ADM-11 — CRUD del nomenclador de prestaciones (Funcional · Alta)
 **Pasos**: en `/admin/treatments`, crear una prestación (nombre, precio, descripción opcional), editarla, desactivarla y reactivarla.
@@ -204,7 +213,7 @@ Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y
 #### DOC-02 — Doctor sin perfil vinculado (RBAC · Alta)
 **Contexto**: `requireDoctorSession()` exige `session.user.role === "Doctor"` **y** `doctorId` presente.
 **Pasos**: (requiere acceso a base) loguear un usuario `role: Doctor` sin `doctorId` seteado.
-**Resultado esperado**: cualquier acción del doctor (ver agenda, ficha de paciente, odontograma, evolución) falla puertas adentro con `"Forbidden: Doctor role with a linked doctor profile required"` — en la UI esto se traduce en listas vacías o el formulario no guardando, no en un mensaje explícito (revisar si conviene mejorar el mensaje de error visible; hoy solo queda en el log de servidor).
+**Resultado esperado**: cualquier acción del doctor (ver agenda, ficha de paciente, odontograma, evolución) falla puertas adentro con `"Forbidden: Doctor role with a linked doctor profile required"`. Resuelto en `TASK-019`: la UI ahora muestra un mensaje de error explícito en estos casos (antes se traducía en listas vacías o el formulario no guardando, sin mensaje visible, y quedaba solo en el log de servidor).
 
 #### DOC-03 — Ficha clínica del paciente (Funcional · Alta)
 **Pasos**: desde la agenda, entrar a la ficha de un paciente con un turno asociado (`?appointmentId=...` en la URL).
@@ -247,9 +256,9 @@ Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y
 **Pasos**: loguearse como Secretaria, ver `/recepcion`.
 **Resultado esperado**: lista solo turnos con estado `scheduled` que tengan **al menos una prestación cargada** por el doctor en alguna evolución **y que todavía no tengan un pago registrado**. Si no hay ninguno: "No hay turnos con prestaciones cargadas pendientes de cobro."
 
-#### SEC-02 — Turno sin prestaciones no aparece para cobrar (Funcional · Alta — gap de negocio a validar)
-**Pasos**: un turno `scheduled` cuya consulta ya pasó, pero el doctor nunca tildó ninguna prestación al cargar la evolución (o no cargó evolución).
-**Resultado esperado hoy**: **no aparece nunca en la cola de cobro**, y no existe ninguna pantalla alternativa para cargar un cobro "a mano" sin pasar por el doctor. Documentar como límite conocido del MVP (no hay flujo de cobro manual/walk-in) — a validar con Producto si es aceptable.
+#### SEC-02 — Turno sin prestaciones cargadas por el doctor: cobro manual/walk-in (Funcional · Alta)
+**Pasos**: un turno `scheduled` cuya consulta ya pasó, pero el doctor nunca tildó ninguna prestación al cargar la evolución (o no cargó evolución). Loguearse como Secretaria y entrar a `/recepcion`.
+**Resultado esperado**: resuelto en `TASK-017` — el turno **sí aparece en la cola de cobro** (con el flag `hasChartedTreatments` en `false`), mostrando el aviso "El doctor no cargó prestaciones...". La Secretaria tilda manualmente las prestaciones sobre el nomenclador vigente (mismo patrón de checkboxes que usa el doctor en `ClinicalNoteForm`), el total se actualiza en vivo, y el botón "Cobrar" queda deshabilitado hasta tildar al menos una. Al confirmar, `closeAppointmentBilling` resuelve nombre y precio de cada prestación tildada **del lado del servidor** contra el nomenclador (nunca confía en un precio mandado por el cliente); el recibo generado muestra el detalle y el total igual que en un cobro con evolución cargada por el doctor.
 
 #### SEC-03 — Cierre de cobro (Funcional · Alta)
 **Pasos**: elegir un turno de la cola, seleccionar medio de pago (Efectivo / Transferencia / Tarjeta) y confirmar "Cobrar y cerrar turno".
@@ -281,8 +290,8 @@ Correrla: `pnpm test:e2e`. Solo necesita que `MONGODB_URI`, `SEED_ADMIN_EMAIL` y
 ## 7. Flujos de negocio end-to-end
 
 ### FLU-01 — Alta de paciente hasta turno solicitado (Alta)
-`/` (PAC-01) → `/patients/[userId]/register` (PAC-03, con obra social) → `/patients/[userId]/new-appointment` (PAC-07) → turno queda `pending`.
-**Criterio de aceptación**: el paciente, su obra social y el turno `pending` quedan visibles para el Administrador en `/admin` sin pasos manuales adicionales.
+`/recepcion/pacientes/nuevo` o `/admin/pacientes/nuevo` (PAC-01/03, con obra social y documento de identificación) → `/admin` → "Nuevo turno" (PAC-07) → turno queda `pending`.
+**Criterio de aceptación**: el paciente, su obra social y el turno `pending` quedan visibles para el Administrador en `/admin` sin pasos manuales adicionales. Desde `TASK-023`/`TASK-024` todo el flujo es staff-side — ningún paso depende de que el paciente use el sistema.
 
 ### FLU-02 — Confirmación de turno y atención clínica completa (Alta)
 Administrador confirma el turno `pending` → `scheduled` (ADM-08) → Doctor entra a la ficha del paciente el día del turno (DOC-03) → carga odontograma (DOC-05) → carga evolución con prestaciones (DOC-09).
@@ -327,8 +336,8 @@ Estos casos existen porque ya fallaron una vez en desarrollo. Priorizarlos en ca
 
 ## 10. Resumen de hallazgos abiertos para Producto (no son bugs de implementación, son decisiones de alcance a confirmar)
 
-1. **SEG-01 / SEG-02**: el portal del paciente y la descarga de archivos no tienen autenticación real. Aceptable para una demo/MVP cerrado, pero **no debería ir a producción con pacientes reales sin revisar esto**.
-2. **SEC-02**: no hay forma de cobrar un turno si el doctor no cargó prestaciones — no hay cobro manual/walk-in.
-3. **ADM-01**: los turnos `completed` no se cuentan en ningún stat card del dashboard de admin.
+1. **SEG-01 / SEG-02**: resueltos. `TASK-023` eliminó el portal público de pacientes por completo (SEG-01 deja de aplicar — no queda superficie pública que exponga datos de un paciente). La descarga de archivos (`/api/files/[fileId]`) exige sesión desde `TASK-015`, y desde `TASK-023` eso es staff-only en la práctica porque no queda ningún otro rol capaz de autenticarse (SEG-02).
+2. **SEC-02**: resuelto en `TASK-017` — Recepción ahora cuenta con un flujo de cobro manual/walk-in para turnos sin prestaciones cargadas por el doctor.
+3. **ADM-01**: resuelto en `TASK-016` — el dashboard de admin ahora cuenta los turnos `completed` en sus stat cards.
 4. **Idioma**: resuelto en `TASK-022` — todo el sistema, incluido el portal del paciente, está en español.
 5. No existe today una gestión de Obras Sociales/Planes con coberturas diferenciadas — todo se cobra al 100% como "Particular", por decisión explícita tomada durante el desarrollo (ver `docs/obra-social.md` para el diseño completo si se retoma a futuro).

@@ -21,12 +21,12 @@
 ```text
 healthcare/
 ├── app/                      # Rutas de Next.js (App Router)
-│   ├── admin/                # Dashboard administrativo (Turnos, Estadísticas)
-│   ├── patients/             # Flujo de pacientes ([userId]/register, [userId]/new-appointment)
+│   ├── admin/                # Dashboard administrativo (Turnos, Estadísticas, alta de pacientes en /admin/pacientes/nuevo)
+│   ├── recepcion/            # Panel de Secretaría (cobros, alta de pacientes en /recepcion/pacientes/nuevo)
 │   ├── api/                  # API routes & Sentry monitoring
-│   └── layout.tsx / page.tsx # Landing y modal de acceso Admin
+│   └── layout.tsx / page.tsx # Landing staff-only, sin flujo de paciente (TASK-023) — link a /login
 ├── components/               # Componentes UI de React
-│   ├── forms/                # Formularios principales (PatientForm, RegisterForm, AppointmentForm)
+│   ├── forms/                # Formularios principales (CreatePatientForm, AppointmentForm)
 │   ├── table/                # Tabla de turnos con TanStack Table
 │   └── ui/                   # Componentes atómicos (Radix UI + Tailwind)
 ├── lib/                      # Lógica de infraestructura y Server Actions
@@ -44,20 +44,30 @@ healthcare/
 
 Como **Tech Lead Sr**, identifiqué las siguientes deficiencias estructurales que deben ser subsanadas para evolucionar el proyecto hacia un sistema robusto de nivel Enterprise (CRM/ERP):
 
-### 4.1. Ausencia de Capa de Abstracción y Repositorios (Acoplamiento Alto)
-* **Problema**: Los *Server Actions* (`lib/actions/*.ts`) llaman directamente al SDK de Appwrite.
-* **Riesgo**: Imposibilidad de realizar pruebas unitarias (*unit testing*) mediante Mocks y acoplamiento severo a un proveedor de BaaS específico (dificulta la migración a PostgreSQL / Prisma / Supabase).
+### 4.1. Ausencia de Capa de Abstracción y Repositorios (Acoplamiento Alto) — ✅ Resuelto (`TASK-003`)
+* **Problema original**: Los *Server Actions* (`lib/actions/*.ts`) llamaban directamente al SDK de Appwrite.
+* **Riesgo original**: Imposibilidad de realizar pruebas unitarias (*unit testing*) mediante Mocks y acoplamiento severo a un proveedor de BaaS específico (dificultaba la migración a PostgreSQL / Prisma / Supabase).
+* **Resolución**: `TASK-003` introdujo una capa de repositorios: interfaces en `lib/repositories/*.ts` y sus implementaciones concretas en `lib/db/repositories/Mongo*.ts`. Los Server Actions (`lib/actions/*`) ya no acceden al SDK de base de datos directamente, sino a través de estos repositorios.
 
-### 4.2. Doctores y Horarios Hardcodeados
-* **Problema**: La lista de médicos está fija en `constants/index.ts` con imágenes estáticas.
-* **Riesgo**: No existe gestión dinámica de profesionales, especialidades, consultorios ni agendas de disponibilidad/turnos por profesional.
+### 4.2. Doctores y Horarios Hardcodeados — ✅ Resuelto (`TASK-006`)
+* **Problema original**: La lista de médicos estaba fija en `constants/index.ts` con imágenes estáticas.
+* **Riesgo original**: No existía gestión dinámica de profesionales, especialidades, consultorios ni agendas de disponibilidad/turnos por profesional.
+* **Resolución**: `TASK-006` incorporó gestión dinámica de doctores: `lib/actions/doctor.actions.ts` (CRUD), `app/admin/doctors/page.tsx` y `components/forms/DoctorForm.tsx` permiten dar de alta, editar, activar/desactivar y configurar la disponibilidad de cada profesional desde el Dashboard de Administración.
 
-### 4.3. Autenticación y Control de Acceso (RBAC) Inseguro
-* **Problema**: El acceso al Dashboard de Administración se valida mediante un OTP/Passkey guardado en `localStorage` del cliente.
-* **Riesgo**: Inseguridad crítica. No cumple con normativas de protección de datos médicos (HIPAA, GDPR, Leyes locales de Historia Clínica Digital).
+### 4.3. Autenticación y Control de Acceso (RBAC) Inseguro — ✅ Resuelto (`TASK-004` / `TASK-005`)
+* **Problema original**: El acceso al Dashboard de Administración se validaba mediante un OTP/Passkey guardado en `localStorage` del cliente.
+* **Riesgo original**: Inseguridad crítica. No cumplía con normativas de protección de datos médicos (HIPAA, GDPR, Leyes locales de Historia Clínica Digital).
+* **Resolución**: `TASK-004`/`TASK-005` reemplazaron ese mecanismo por autenticación basada en sesión (NextAuth con credenciales, `lib/auth/authOptions.ts`) y guards de sesión por rol (`lib/auth/requireAdminSession.ts`, `requireDoctorSession.ts`, `requireSecretariaSession.ts`).
 
-### 4.4. Modelo de Datos Limitado
-* **Problema**: No contempla historias clínicas continuas, tratamientos odontológicos (odontograma), presupuestos, facturación ni gestión de inventario/insumos.
+### 4.4. Modelo de Datos Limitado — ⚠️ Parcialmente resuelto
+* **Resuelto**: historia clínica continua, tratamientos odontológicos y odontograma (`TASK-008`/`TASK-009`), y facturación básica (`TASK-012`).
+* **Pendiente**: no existe gestión de presupuestos/cotizaciones ni de inventario/insumos — esto sigue siendo deuda técnica real, sin resolver.
+
+### 4.5. Portal de auto-servicio de pacientes: eliminado, alta 100% mediada por staff — ✅ Resuelto (`TASK-023` / `TASK-024`)
+* **Contexto original**: el sistema heredaba del template CarePulse un flujo público de auto-registro (`/`, `/patients/[userId]/register` con `RegisterForm.tsx`/`PatientForm.tsx`) y de auto-reserva de turnos (`/patients/[userId]/new-appointment`), al que `TASK-015` le sumó un login real por DNI+PIN (`/patients/login`, `authenticatePatientCredentials.ts`).
+* **Decisión de producto**: el paciente no tiene ningún acceso directo al sistema — todo el onboarding (alta de ficha clínica, turnos) queda a cargo exclusivamente de Secretaría o Administrador.
+* **Resolución**: `TASK-023` eliminó por completo el portal público (`/patients/**`, login DNI+PIN, `RegisterForm.tsx`, `PatientForm.tsx`, `PatientLoginForm.tsx`, `authenticatePatientCredentials.ts`) junto con las referencias en `middleware.ts`/`authOptions.ts`. `TASK-024` introdujo el reemplazo staff-side: la Server Action `createPatient` (`lib/actions/patient.actions.ts`), gateada por el nuevo `requireSecretariaOrAdminSession`, y el formulario compartido `CreatePatientForm.tsx`, montado en `/recepcion/pacientes/nuevo` (flujo primario) y `/admin/pacientes/nuevo`. `Patient` y `Appointment` aceptan ahora `userId` opcional — un paciente puede existir sin ningún `User`/login asociado, mismo patrón ya usado para `Doctor` desde `TASK-006`/`TASK-008`.
+* **Limitación derivada, no resuelta por este cambio**: sin `User` vinculado, no hay forma de resolver el teléfono del paciente por el mecanismo anterior (basado en `userId`) para las notificaciones SMS de confirmación/cancelación de turno. `TASK-028` (`docs/PLANNING.md`) documentó esto como decisión de producto — SMS de confirmación no se usa por ahora — y no como deuda técnica pendiente.
 
 ---
 

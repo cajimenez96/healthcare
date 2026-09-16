@@ -7,45 +7,47 @@
 
 ## 1. Descripción General del Sistema
 
-El **Sistema de Gestión Odontológica y Médica** es una plataforma web orientada al control operativo, clínico y financiero de la atención de salud. Permite descentralizar la carga administrativa mediante la auto-gestión del paciente para la solicitud de citas, mientras otorga herramientas específicas a Secretarias y Doctores para la admisión, atención clínica (odontograma e historial) y cobro diferencial de prestaciones según **Obras Sociales y Prepagas**.
+El **Sistema de Gestión Odontológica y Médica** es una plataforma web orientada al control operativo, clínico y financiero de la atención de salud. El onboarding de pacientes y la reserva de turnos son enteramente mediados por el staff: el paciente no tiene acceso propio al sistema (sin login, sin auto-registro, sin auto-gestión de turnos). El sistema otorga herramientas específicas a Secretaría/Administrador para el alta de pacientes y la agenda, y a Doctores para la atención clínica (odontograma e historial) y el cobro diferencial de prestaciones según **Obras Sociales y Prepagas**.
 
 ---
 
 ## 2. Definición de Roles y Matriz de Acciones
 
-El sistema contempla **4 roles principales** con accesos y permisos diferenciados:
+El sistema contempla **3 roles con acceso propio** (Secretaría, Doctor, Administrador). El **Paciente** es una entidad gestionada por el sistema (ficha clínica, turnos), pero no tiene ningún acceso a la plataforma: no existe login de paciente ni auto-registro — todo su onboarding y la reserva de turnos son mediados por Secretaría/Administrador.
 
-| Rol               | Responsabilidades Principales                 | Acciones en la Interfaz                                                                                                                                                                              |
-| :---------------- | :-------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Paciente**      | Auto-gestión de citas e información personal. | • Auto-registro y onboarding médico.<br>• Búsqueda de profesionales por especialidad.<br>• Solicitud, consulta y cancelación de turnos.                                                              |
-| **Secretaría**    | Control de admisión, agenda global y cobro.   | • Validar/completar datos de pacientes.<br>• Aprobar, reagendar y confirmar turnos.<br>• Calcular y cobrar copagos/aranceles en recepción.                                                           |
-| **Doctor**        | Atención clínica y registro de prestaciones.  | • Consulta de agenda diaria personal.<br>• Edición del Odontograma interactivo.<br>• Carga de anamnesis, evoluciones y prestaciones.                                                                 |
-| **Administrador** | Parametrización del sistema y finanzas.       | • Configurar permisos por rol (RBAC dinámico).<br>• Gestor de Obras Sociales, Planes y Copagos.<br>• Alta de personal médico y asignación de horarios.<br>• Reportes de facturación y liquidaciones. |
+| Rol               | Responsabilidades Principales                                                       | Acciones en la Interfaz                                                                                                                                                                              |
+| :---------------- | :------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Paciente**      | Ninguna — entidad administrada por el sistema, sin acceso propio.                      | — No inicia sesión ni interactúa con la plataforma. Su ficha y sus turnos son creados y gestionados enteramente por Secretaría/Administrador.                                                        |
+| **Secretaría**    | Control de admisión, agenda global y cobro.                                          | • Alta de pacientes (ficha completa) y validación de sus datos.<br>• Alta, confirmación, reagenda y cancelación de turnos.<br>• Calcular y cobrar copagos/aranceles en recepción.                    |
+| **Doctor**        | Atención clínica y registro de prestaciones.                                          | • Consulta de agenda diaria personal.<br>• Edición del Odontograma interactivo.<br>• Carga de anamnesis, evoluciones y prestaciones.                                                                 |
+| **Administrador** | Parametrización del sistema y finanzas.                                              | • Configurar permisos por rol (RBAC dinámico).<br>• Gestor de Obras Sociales, Planes y Copagos.<br>• Alta de personal médico y asignación de horarios; alta de pacientes.<br>• Reportes de facturación y liquidaciones. |
 
 ---
 
 ## 3. Flujos de Negocio Principales (End-to-End)
 
-[PACIENTE] [SECRETARÍA] [DOCTOR]
-│ │ │
-├── 1. Solicita Turno ──────►│ │
-│ (Estado: Pendiente) ├── 2. Confirma Turno │
-│ │ y Valida Prepaga │
-│ │ ├── 3. Atiende Consulta,
-│ │ │ Actualiza Odontograma
-│ │ │ y Carga Prestaciones
-│ │◄── 4. Cita Atendida ─────┤
-│ │ │
-│ ├── 5. Calcula Copago y │
-│ │ Cobra en Recepción │
-▼ ▼ ▼
+[SECRETARÍA] [DOCTOR]
+│ │
+├── 1. Da de alta al paciente │
+│ y crea el turno │
+│ (Estado: Pendiente) │
+├── 2. Confirma Turno │
+│ y Valida Obra Social │
+│ ├── 3. Atiende Consulta,
+│ │ Actualiza Odontograma
+│ │ y Carga Prestaciones
+│◄── 4. Cita Atendida ─────┤
+│ │
+├── 5. Calcula Copago y │
+│ Cobra en Recepción │
+▼ ▼
 
-### Flujo 1: Solicitud de Cita y Admisión
+### Flujo 1: Alta de Paciente y Turno (mediado por Secretaría/Administrador)
 
-1. El **Paciente** accede a la web, busca un médico por especialidad y selecciona fecha/hora disponible.
+1. La **Secretaría** (o el **Administrador**) da de alta la ficha del paciente desde `/recepcion/pacientes/nuevo` (o `/admin/pacientes/nuevo`) y agenda el turno seleccionando médico y fecha/hora disponible — el paciente nunca accede a la web ni elige nada por sí mismo.
 2. El sistema genera la cita en estado `Pendiente`.
-3. La **Secretaría** recibe la notificación en su panel, valida la Obra Social/Plan asignado al paciente y presiona `Confirmar`.
-4. El paciente recibe una notificación automática de confirmación (SMS/Email).
+3. La **Secretaría** valida la Obra Social/Plan asignado al paciente (por defecto, "Particular / Sin Convenio") y confirma el turno desde el listado.
+4. A diferencia del flujo público que existió brevemente (ver §4, fila "Portal del Paciente"), el paciente no recibe notificación automática de confirmación: el envío de SMS de confirmación/cancelación es un gap conocido y aceptado por decisión de producto para pacientes de alta staff-side (ver TASK-028 en `docs/PLANNING.md`), no una tarea pendiente.
 
 ### Flujo 2: Atención Médica y Odontograma
 
@@ -70,11 +72,11 @@ Comparativa entre lo existente en el repositorio base **CarePulse (`adrianhajdin
 
 | Módulo / Funcionalidad        | Estado en `healthcare`        | Faltante Requerido para MVP                                                          | Esfuerzo   |
 | :---------------------------- | :---------------------------- | :----------------------------------------------------------------------------------- | :--------- |
-| **Portal del Paciente**       | ✅ **Implementado**           | Agregar campos para selección de Obra Social, Plan y N° de Afiliado.                 | Bajo       |
+| **Portal del Paciente**       | ❌ **Eliminado (TASK-023/024)** | El paciente no tiene portal propio: alta de ficha y reserva de turno están completamente mediadas por Secretaría/Administrador (`CreatePatientForm`), con selección opcional de Obra Social/Plan y N° de Afiliado. | —          |
 | **Reserva de Turnos**         | ✅ **Implementado**           | Incluir estados de cita adicionales: `En Espera`, `Atendido` y `Finalizado`.         | Bajo       |
 | **Notificaciones (SMS)**      | ✅ **Implementado**           | Adaptar plantillas de Twilio para incluir detalles del copago estimado.              | Muy Bajo   |
 | **Autenticación & Admin**     | ⚠️ **Parcial** (PIN estático) | Implementar sistema multi-usuario con login real (NextAuth / JWT).                   | Medio      |
-| **Directorio de Médicos**     | ⚠️ **Parcial** (Hardcoded)    | Migrar la lista estática a colecciones/tablas dinámicas con filtros.                 | Medio      |
+| **Directorio de Médicos**     | ✅ **Resuelto (TASK-006)** (gestión dinámica) | Falta UI de filtrado por especialidad/estado en el listado de `/admin/doctors`.      | Bajo       |
 | **Permisos Dinámicos (RBAC)** | ❌ **No existe**              | Crear tabla de permisos y panel de configuración gráfica para el Admin.              | Medio-Alto |
 | **Odontograma Digital**       | ❌ **No existe**              | Integrar el componente visual de React (migrado de `odonto`) con persistencia.       | Alto       |
 | **Obras Sociales & Copagos**  | ❌ **No existe**              | Crear entidades `ObrasSociales`, `Planes`, `Coberturas` y la calculadora de copagos. | Alto       |
