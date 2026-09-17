@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (7 Tickets)          |  (0 Tickets)          |  (29 Tickets)         |
+|  (3 Tickets)          |  (0 Tickets)          |  (33 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -20,33 +20,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ### EPIC 9: Hallazgos de la primera ronda de pruebas locales (post-MVP)
 
 Tickets que surgen de correr el sistema por primera vez de punta a punta en local, tras cerrar EPIC 8. No son regresiones de lo ya construido — son gaps preexistentes nunca detectados (logout, navegación) y ajustes de UX/alcance sobre lo recién construido en TASK-024.
-
-#### `[TASK-030]` Botón de cierre de sesión (logout)
-* **Descripción**: no existe ningún botón de logout en ninguna pantalla del sistema — confirmado que `signOut` de NextAuth nunca se invoca en todo el código. No es una regresión de EPIC 8: este gap existe desde que se implementó el login (TASK-004) y nunca se había probado el flujo completo como usuario real hasta ahora.
-* **Criterios de Aceptación**:
-  - [ ] Botón/link de "Cerrar sesión" visible en `/admin`, `/doctor` y `/recepcion`, invocando `signOut()` de NextAuth.
-  - [ ] Redirige a `/login` tras cerrar sesión.
-* **Prioridad**: Alta | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
-
-#### `[TASK-031]` Navegación "volver" en pantallas internas
-* **Descripción**: las pantallas de alta/gestión (`/admin/doctors`, `/admin/secretarias`, `/admin/admins`, `/admin/treatments`, `/admin/pacientes/nuevo`, `/recepcion/pacientes/nuevo`) no tienen forma de volver a la vista anterior sin usar el botón "atrás" del navegador.
-* **Criterios de Aceptación**:
-  - [ ] Cada pantalla interna tiene un link/botón "Volver" hacia su pantalla padre (`/admin` o `/recepcion`).
-* **Prioridad**: Media | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
-
-#### `[TASK-032]` Ajustes de UX en el alta de paciente
-* **Descripción**: tres ajustes sobre `CreatePatientForm` (TASK-024), detectados al probar el alta real de un paciente.
-* **Criterios de Aceptación**:
-  - [ ] El selector de teléfono (`react-phone-number-input`) usa Argentina como país por defecto.
-  - [ ] El selector de fecha de nacimiento muestra formato `DD/MM/YYYY`.
-  - [ ] El **archivo escaneado** del documento de identificación pasa a opcional. El **tipo y número de documento** (DNI) siguen siendo obligatorios — es la clave de búsqueda que necesita TASK-033.
-* **Prioridad**: Alta | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
-
-#### `[TASK-033]` Buscar paciente por DNI en "Nuevo turno"
-* **Descripción**: `AdminNewAppointmentModal`/`findPatientByContact` (TASK-018) busca hoy por email o teléfono exacto. El flujo real de mostrador identifica pacientes por DNI, no por esos datos.
-* **Criterios de Aceptación**:
-  - [ ] La búsqueda de "Nuevo turno" acepta el número de documento de identificación como criterio (además de o en reemplazo de email/teléfono — a definir en diseño).
-* **Prioridad**: Alta | **Esfuerzo**: Bajo-Medio | **Dependencias**: TASK-032 (el DNI ya es obligatorio hoy, pero conviene implementarlos juntos)
 
 #### `[TASK-034]` Patrón de listado + Dialog para crear/editar (Doctores, Secretarias, Administradores, Nomenclador)
 * **Descripción**: hoy `/admin/doctors`, `/admin/secretarias`, `/admin/admins` y `/admin/treatments` muestran el formulario de alta y el listado en la misma pantalla, siempre visibles. Se pide separar: la pantalla por defecto muestra **solo el listado**, con un botón "Crear" que abre el formulario en un `Dialog`; "Editar" en cada fila abre el mismo `Dialog` en modo edición.
@@ -533,3 +506,53 @@ Tickets que surgen de correr el sistema por primera vez de punta a punta en loca
   - Se evaluó generalizar `SecretariaRow`/`EditSecretariaForm` junto con sus contrapartes de Administrador en un componente `StaffRow` compartido, pero se optó por copiar el patrón (como ya hizo TASK-026 tomando `DoctorRow` como base) — ambas entidades comparten forma visual pero no acciones/imports de destino, y una abstracción genérica no pagaba su complejidad para dos usos concretos.
   - No se tocó gestión de Doctor ni de Secretaria — fuera de alcance de este ticket. No se agregó cambio de contraseña/reset — fuera de alcance, igual que en TASK-026.
   - **Verificación**: `tsc --noEmit` limpio. `eslint` sobre todos los archivos nuevos/modificados de este ticket, limpio. `pnpm build` compila y pasa el paso de tipos/lint de Next.js sin errores nuevos (mismos 2 warnings preexistentes y no relacionados, en `FileUploader.tsx` y `BillingForm.tsx`), pero falla al llegar a "Collecting page data" para `/api/auth/[...nextauth]` porque el sandbox no tiene `MONGODB_URI`/`.env.local` accesible — misma limitación de entorno confirmada en TASK-024/025/026, no causada por este cambio. La suite Vitest completa (`pnpm exec vitest run --exclude "e2e/**" --exclude ".claude/worktrees/**"`) sí corrió en este entorno: los 5 tests nuevos de `lib/actions/adminSafeguard.test.ts` pasaron en verde (no dependen de Mongo), junto con el resto de los tests no dependientes de `connectToDatabase` que ya pasaban antes de este ticket (28 tests en total, 6 archivos). Los 23 archivos de test que sí dependen de Mongo real (incluyendo `MongoUserRepository.test.ts`, cuyos métodos reutiliza este ticket) no se ejecutaron por el mismo motivo de entorno — se recomienda correrlos a mano con la base de test local antes de dar el ticket por verificado de punta a punta.
+
+### EPIC 9: Hallazgos de la primera ronda de pruebas locales (post-MVP)
+
+#### `[TASK-030]` Botón de cierre de sesión (logout)
+* **Descripción**: no existe ningún botón de logout en ninguna pantalla del sistema — confirmado que `signOut` de NextAuth nunca se invoca en todo el código. No es una regresión de EPIC 8: este gap existe desde que se implementó el login (TASK-004) y nunca se había probado el flujo completo como usuario real hasta ahora.
+* **Criterios de Aceptación**:
+  - [x] Botón/link de "Cerrar sesión" visible en `/admin`, `/doctor` y `/recepcion`, invocando `signOut()` de NextAuth.
+  - [x] Redirige a `/login` tras cerrar sesión.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+* **Resultado**: `/admin`, `/doctor` y `/recepcion` son Server Components (hacen `await` de Server Actions al renderizar), así que `signOut()` — que depende del contexto de `next-auth/react`, cliente-only — no podía llamarse directo desde esas páginas sin convertirlas enteras a Client Components. Se aisló en un componente cliente chico, `LogoutButton`, montado en el `<header className="admin-header">` de cada una junto a los demás links de navegación. Usa `signOut({ callbackUrl: "/login" })`, así que redirige a `/login` tras cerrar sesión. `app/layout.tsx` ya envuelve toda la app en `SessionProvider` (`components/providers/AuthSessionProvider.tsx`, de `TASK-004`), así que no hizo falta ningún provider nuevo.
+  - **Archivos creados**: `components/LogoutButton.tsx`
+  - **Archivos modificados**: `app/admin/page.tsx`, `app/doctor/page.tsx`, `app/recepcion/page.tsx` (agregado `<LogoutButton />` al header de cada uno)
+* **Observaciones**:
+  - Se usó un `<button>` con `onClick={() => signOut(...)}`, no un `<Link>`, porque `signOut` dispara una llamada a NextAuth (invalida la sesión) antes de navegar — no es una navegación pura, así que un link no es semánticamente correcto acá.
+  - Estilo `className="text-green-500"`, igual que los demás links de navegación de cada header (ej. "Secretarías"/"Nomenclador" en `/admin`), para no introducir un patrón visual nuevo.
+
+#### `[TASK-031]` Navegación "volver" en pantallas internas
+* **Descripción**: las pantallas de alta/gestión (`/admin/doctors`, `/admin/secretarias`, `/admin/admins`, `/admin/treatments`, `/admin/pacientes/nuevo`, `/recepcion/pacientes/nuevo`) no tienen forma de volver a la vista anterior sin usar el botón "atrás" del navegador.
+* **Criterios de Aceptación**:
+  - [x] Cada pantalla interna tiene un link/botón "Volver" hacia su pantalla padre (`/admin` o `/recepcion`).
+* **Prioridad**: Media | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+* **Resultado**: se agregó un `<Link href="/admin">` (o `/recepcion` según corresponda) con texto "Volver" al `<header className="admin-header">` de las seis pantallas listadas en la descripción. No se encontró ningún patrón de "volver" preexistente en el código (`/doctor/patient/[id]` y `/recepcion/recibo/[appointmentId]` solo tienen el logo como link implícito al padre, sin texto) — se usó el mismo estilo `text-green-500` que ya usan los demás links de navegación de cada header, en vez de introducir un componente/patrón nuevo para un requerimiento tan chico.
+* **Archivos modificados**: `app/admin/doctors/page.tsx`, `app/admin/secretarias/page.tsx`, `app/admin/admins/page.tsx`, `app/admin/treatments/page.tsx`, `app/admin/pacientes/nuevo/page.tsx`, `app/recepcion/pacientes/nuevo/page.tsx`
+* **Observaciones**:
+  - Es un `<Link>` directo a la ruta padre conocida, no un hack de `router.back()`/historial — todas estas pantallas solo tienen un padre posible (`/admin` o `/recepcion`), así que no hay ambigüedad que justifique depender del historial del navegador.
+  - No se creó un `layout.tsx` compartido para `/admin/*` ni un componente `BackLink` reutilizable: son seis líneas casi idénticas pero de una sola palabra, y las páginas ya difieren en headers (algunas tienen más links, otras no) — el ticket pedía una navegación puntual, no una nueva capa de layout compartido.
+
+#### `[TASK-032]` Ajustes de UX en el alta de paciente
+* **Descripción**: tres ajustes sobre `CreatePatientForm` (TASK-024), detectados al probar el alta real de un paciente.
+* **Criterios de Aceptación**:
+  - [x] El selector de teléfono (`react-phone-number-input`) usa Argentina como país por defecto.
+  - [x] El selector de fecha de nacimiento muestra formato `DD/MM/YYYY`.
+  - [x] El **archivo escaneado** del documento de identificación pasa a opcional. El **tipo y número de documento** (DNI) siguen siendo obligatorios — es la clave de búsqueda que necesita TASK-033.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+* **Resultado**: Los tres ajustes se hicieron a nivel del componente compartido `CustomFormField.tsx`, no en `CreatePatientForm` puntualmente, porque es el único lugar donde `PHONE_INPUT`/`DATE_PICKER` renderizan de verdad: `PhoneInput` pasó de `defaultCountry="US"` a `"AR"`, y el `dateFormat` por defecto del `DATE_PICKER` pasó de `"MM/dd/yyyy"` a `"dd/MM/yyyy"` cuando el caller no pasa uno explícito. Se verificó primero que ningún otro formulario (`DoctorForm`, `CreateSecretariaForm`, `CreateAdminForm`) usa `PHONE_INPUT` — solo `CreatePatientForm` (teléfono del paciente y del contacto de emergencia) — así que el default global no cambia el comportamiento de ninguna otra pantalla. `AppointmentForm.tsx` sí usa `DATE_PICKER` (fecha/hora de turno), pero ya pasa su propio `dateFormat="MM/dd/yyyy  -  h:mm aa"` explícito, así que el nuevo default no lo afecta — el cambio de formato solo se ve en la fecha de nacimiento. Para el archivo opcional: `identificationDocument` en `CreatePatientFormValidation` pasó de `.refine((files) => files?.length === 1, ...)` a `.optional()` (mismo patrón ya usado por `DoctorEditFormValidation.photo`); `identificationType`/`identificationNumber` no se tocaron. Se confirmó leyendo el código (no se asumió) que `createPatient` (`lib/actions/patient.actions.ts`) ya toleraba la ausencia de archivo: solo sube algo si `FormData.get("blobFile")` y `get("fileName")` existen. El único ajuste real de código hecho falta era en el formulario: `CreatePatientForm.onSubmit` armaba el `Blob`/`FormData` accediendo directo a `values.identificationDocument[0]` sin chequear si había algún archivo, lo que hubiera tirado un `TypeError` en cuanto alguien enviara el formulario sin adjuntar nada — se cambió a construir el `FormData` vacío por defecto y solo agregarle `blobFile`/`fileName` si `values.identificationDocument?.[0]` existe. La etiqueta del campo también se actualizó a "(opcional)", siguiendo el mismo patrón visual que los demás campos opcionales del formulario.
+  - **Archivos modificados**: `components/CustomFormField.tsx`, `lib/validation.ts`, `components/forms/CreatePatientForm.tsx`
+* **Observaciones**:
+  - No se tocó `DoctorFormValidation.photo` (sigue obligatoria) — eso es TASK-036, decisión de producto separada, fuera de alcance acá.
+
+#### `[TASK-033]` Buscar paciente por DNI en "Nuevo turno"
+* **Descripción**: `AdminNewAppointmentModal`/`findPatientByContact` (TASK-018) busca hoy por email o teléfono exacto. El flujo real de mostrador identifica pacientes por DNI, no por esos datos.
+* **Criterios de Aceptación**:
+  - [x] La búsqueda de "Nuevo turno" acepta el número de documento de identificación como criterio, en **reemplazo** de email/teléfono (palabras explícitas del usuario: "no necesito agregar telefono o mail, debería poder agregar DNI").
+* **Prioridad**: Alta | **Esfuerzo**: Bajo-Medio | **Dependencias**: TASK-032
+* **Resultado**: `findByEmailOrPhone` en `IPatientRepository`/`MongoPatientRepository` fue **reemplazado** por `findByIdentificationNumber(identificationNumber)` (match exacto sobre `Patient.identificationNumber`, mismo nivel de simplicidad que el método que reemplaza — sin matching difuso/parcial), agregado con TDD (rojo primero: `MongoPatientRepository.test.ts` falló con `TypeError: repository.findByIdentificationNumber is not a function` contra Mongo real antes de implementarlo). La Server Action `findPatientByContact` se renombró a `findPatientByIdentificationNumber` (`lib/actions/patient.actions.ts`), mismo gateo con `requireAdminSession`. `AdminNewAppointmentModal.tsx` actualizado: el input pasó de placeholder "Email o teléfono del paciente" a "DNI del paciente", la descripción del modal a "Buscá al paciente por su DNI para agendarle un turno", el mensaje de error a "No se encontró ningún paciente con ese DNI", y la búsqueda llama a `findPatientByIdentificationNumber`.
+  - **Archivos modificados**: `lib/repositories/IPatientRepository.ts`, `lib/db/repositories/MongoPatientRepository.ts` (+test), `lib/actions/patient.actions.ts`, `components/AdminNewAppointmentModal.tsx`
+* **Observaciones**:
+  - **`findByEmailOrPhone` eliminado, no dejado como código muerto**: se verificó con `rg` que, tras actualizar `AdminNewAppointmentModal`, no quedaba ningún consumidor de `findByEmailOrPhone`/`findPatientByContact` en el código (solo referencias históricas en este mismo archivo, en el `Resultado` de TASK-018). Se eliminó el método de la interfaz, de la implementación y su `describe` de test — mismo criterio de "no dejar código muerto" ya aplicado en TASK-023/024 (`findByIdentificationNumberWithPassword`, `createUser`).
+  - No se agregó DNI como criterio "además de" email/teléfono (una tercera opción alternativa) — se siguió la palabra explícita del usuario de **reemplazo**, no de adición, como pedía el criterio de aceptación original (marcado "a definir en diseño").
+  - **Verificación real contra MongoDB** (no solo mockeada): en este entorno `.env.local`/`MONGODB_URI` estuvo accesible, así que el test nuevo de `findByIdentificationNumber` corrió contra una base real (`healthcare-test`) — rojo confirmado primero, luego verde tras implementar.
