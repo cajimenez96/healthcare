@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { AdminRow } from "@/components/AdminRow";
-import CreateAdminForm from "@/components/forms/CreateAdminForm";
+import { CreateAdminModal } from "@/components/CreateAdminModal";
 import { getAdmins } from "@/lib/actions/adminUser.actions";
 
 const AdminsPage = async () => {
@@ -22,11 +22,17 @@ const AdminsPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Administradores</p>
+        <Link href="/admin" className="text-green-500">
+          Volver
+        </Link>
       </header>
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Administradores</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="header">Administradores</h1>
+            <CreateAdminModal />
+          </div>
           <ul className="space-y-4">
             {admins.map(
               (admin: {
@@ -48,11 +54,6 @@ const AdminsPage = async () => {
               <p className="text-dark-700">Todavía no hay administradores cargados.</p>
             )}
           </ul>
-        </section>
-
-        <section className="w-full max-w-lg space-y-4">
-          <h2 className="header">Alta de administrador</h2>
-          <CreateAdminForm />
         </section>
       </main>
     </div>

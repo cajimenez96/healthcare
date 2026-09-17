@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { findPatientByContact } from "@/lib/actions/patient.actions";
+import { findPatientByIdentificationNumber } from "@/lib/actions/patient.actions";
 
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -49,14 +49,14 @@ export const AdminNewAppointmentModal = ({
     setIsSearching(true);
     setSearchError(null);
 
-    const found = await findPatientByContact(query);
+    const found = await findPatientByIdentificationNumber(query);
 
     setIsSearching(false);
 
     if (found) {
       setPatient(found);
     } else {
-      setSearchError("No se encontró ningún paciente con ese email o teléfono.");
+      setSearchError("No se encontró ningún paciente con ese DNI.");
     }
   };
 
@@ -85,7 +85,7 @@ export const AdminNewAppointmentModal = ({
         <DialogHeader className="mb-4 space-y-3">
           <DialogTitle>Nuevo turno</DialogTitle>
           <DialogDescription>
-            Buscá al paciente por su email o teléfono para agendarle un turno.
+            Buscá al paciente por su DNI para agendarle un turno.
           </DialogDescription>
         </DialogHeader>
 
@@ -94,7 +94,7 @@ export const AdminNewAppointmentModal = ({
             <div className="flex gap-2">
               <Input
                 className="shad-input"
-                placeholder="Email o teléfono del paciente"
+                placeholder="DNI del paciente"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />

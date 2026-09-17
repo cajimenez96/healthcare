@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { CreateDoctorModal } from "@/components/CreateDoctorModal";
 import { DoctorRow } from "@/components/DoctorRow";
-import DoctorForm from "@/components/forms/DoctorForm";
 import { getAllDoctors } from "@/lib/actions/doctor.actions";
 
 const DoctorsPage = async () => {
@@ -22,11 +22,17 @@ const DoctorsPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Doctores</p>
+        <Link href="/admin" className="text-green-500">
+          Volver
+        </Link>
       </header>
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Doctores</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="header">Doctores</h1>
+            <CreateDoctorModal />
+          </div>
           <ul className="space-y-4">
             {doctors.map(
               (doctor: {
@@ -49,11 +55,6 @@ const DoctorsPage = async () => {
               <p className="text-dark-700">Todavía no hay doctores cargados.</p>
             )}
           </ul>
-        </section>
-
-        <section className="w-full max-w-lg space-y-4">
-          <h2 className="header">Alta de doctor</h2>
-          <DoctorForm />
         </section>
       </main>
     </div>

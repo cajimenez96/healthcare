@@ -27,6 +27,9 @@ const NewPatientPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Recepción</p>
+        <Link href="/recepcion" className="text-green-500">
+          Volver
+        </Link>
       </header>
 
       <main className="admin-main">

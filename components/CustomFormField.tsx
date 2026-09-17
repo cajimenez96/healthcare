@@ -87,7 +87,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
       return (
         <FormControl>
           <PhoneInput
-            defaultCountry="US"
+            defaultCountry="AR"
             placeholder={props.placeholder}
             international
             withCountryCallingCode
@@ -128,7 +128,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               selected={field.value}
               onChange={(date: Date) => field.onChange(date)}
               timeInputLabel="Hora:"
-              dateFormat={props.dateFormat ?? "MM/dd/yyyy"}
+              dateFormat={props.dateFormat ?? "dd/MM/yyyy"}
               wrapperClassName="date-picker"
               excludeTimes={props.excludeTimes}
               includeTimes={props.includeTimes}

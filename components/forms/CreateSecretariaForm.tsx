@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -13,7 +13,11 @@ import { SecretariaFormValidation } from "@/lib/validation";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
 
-const CreateSecretariaForm = () => {
+interface CreateSecretariaFormProps {
+  setOpen?: Dispatch<SetStateAction<boolean>>;
+}
+
+const CreateSecretariaForm = ({ setOpen }: CreateSecretariaFormProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,7 @@ const CreateSecretariaForm = () => {
     if (user) {
       form.reset();
       router.refresh();
+      setOpen?.(false);
     } else {
       setError("No se pudo crear el acceso. Verificá el email e intentá de nuevo.");
     }

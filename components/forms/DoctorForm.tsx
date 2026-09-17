@@ -16,7 +16,11 @@ import SubmitButton from "../SubmitButton";
 
 import { DoctorAvailabilityPicker } from "./DoctorAvailabilityPicker";
 
-const DoctorForm = () => {
+interface DoctorFormProps {
+  onDone?: () => void;
+}
+
+const DoctorForm = ({ onDone }: DoctorFormProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,8 +53,9 @@ const DoctorForm = () => {
     setIsLoading(false);
 
     if (doctor) {
-      router.push("/admin/doctors");
+      form.reset();
       router.refresh();
+      onDone?.();
     }
   };
 

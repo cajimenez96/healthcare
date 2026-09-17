@@ -28,6 +28,9 @@ const NewPatientPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Panel de Administración</p>
+        <Link href="/admin" className="text-green-500">
+          Volver
+        </Link>
       </header>
 
       <main className="admin-main">

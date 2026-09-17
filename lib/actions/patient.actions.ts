@@ -84,12 +84,13 @@ export const getPatientById = async (id: string) => {
   }
 };
 
-// FIND PATIENT BY EMAIL OR PHONE (Admin — direct appointment booking, TASK-018)
-export const findPatientByContact = async (query: string) => {
+// FIND PATIENT BY IDENTIFICATION NUMBER (Admin — direct appointment booking,
+// TASK-018/033. Front-desk staff identify patients by DNI, not email/phone.)
+export const findPatientByIdentificationNumber = async (query: string) => {
   try {
     await requireAdminSession();
     await connectToDatabase();
-    const patient = await patientRepository.findByEmailOrPhone(query.trim());
+    const patient = await patientRepository.findByIdentificationNumber(query.trim());
 
     return patient ? parseStringify(toPatient(patient)) : undefined;
   } catch (error) {

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { AdminNewAppointmentModal } from "@/components/AdminNewAppointmentModal";
+import { LogoutButton } from "@/components/LogoutButton";
 import { StatCard } from "@/components/StatCard";
 import { AppointmentsTable } from "@/components/table/AppointmentsTable";
 import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
@@ -42,6 +43,7 @@ const AdminPage = async () => {
         <Link href="/admin/treatments" className="text-green-500">
           Nomenclador
         </Link>
+        <LogoutButton />
       </header>
 
       <main className="admin-main">

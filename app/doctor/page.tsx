@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { LogoutButton } from "@/components/LogoutButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getMyAppointments } from "@/lib/actions/appointment.actions";
 import { formatDateTime } from "@/lib/utils";
@@ -33,6 +34,7 @@ const DoctorPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Mi agenda</p>
+        <LogoutButton />
       </header>
 
       <main className="admin-main">

@@ -4,6 +4,13 @@ import { useState } from "react";
 
 import EditAdminForm from "@/components/forms/EditAdminForm";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { setAdminActive } from "@/lib/actions/adminUser.actions";
 
 interface AdminRowProps {
@@ -15,10 +22,8 @@ interface AdminRowProps {
   };
 }
 
-type RowMode = "view" | "edit";
-
 export const AdminRow = ({ admin }: AdminRowProps) => {
-  const [mode, setMode] = useState<RowMode>("view");
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,14 +44,6 @@ export const AdminRow = ({ admin }: AdminRowProps) => {
     }
   };
 
-  if (mode === "edit") {
-    return (
-      <li className="rounded-md border border-dark-500 p-4">
-        <EditAdminForm admin={admin} onDone={() => setMode("view")} />
-      </li>
-    );
-  }
-
   return (
     <li className="flex items-center gap-4">
       <div className="flex-1">
@@ -57,14 +54,19 @@ export const AdminRow = ({ admin }: AdminRowProps) => {
         <p className="text-12-regular text-dark-700">{admin.email}</p>
         {error && <p className="shad-error text-12-regular">{error}</p>}
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shad-gray-btn"
-        onClick={() => setMode("edit")}
-      >
-        Editar
-      </Button>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="shad-gray-btn">
+            Editar
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="shad-dialog sm:max-w-md">
+          <DialogHeader className="mb-4">
+            <DialogTitle>Editar administrador</DialogTitle>
+          </DialogHeader>
+          <EditAdminForm admin={admin} onDone={() => setIsEditOpen(false)} />
+        </DialogContent>
+      </Dialog>
       <Button
         variant="outline"
         size="sm"

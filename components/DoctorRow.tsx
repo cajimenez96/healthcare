@@ -6,6 +6,12 @@ import { useState } from "react";
 import CreateDoctorAccessForm from "@/components/forms/CreateDoctorAccessForm";
 import EditDoctorForm from "@/components/forms/EditDoctorForm";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { setDoctorActive } from "@/lib/actions/doctor.actions";
 
 interface DoctorRowProps {
@@ -20,10 +26,11 @@ interface DoctorRowProps {
   };
 }
 
-type RowMode = "view" | "edit" | "createAccess";
+type RowMode = "view" | "createAccess";
 
 export const DoctorRow = ({ doctor }: DoctorRowProps) => {
   const [mode, setMode] = useState<RowMode>("view");
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
   const toggleActive = async () => {
@@ -31,14 +38,6 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
     await setDoctorActive(doctor.id, !doctor.isActive);
     setIsToggling(false);
   };
-
-  if (mode === "edit") {
-    return (
-      <li className="rounded-md border border-dark-500 p-4">
-        <EditDoctorForm doctor={doctor} onDone={() => setMode("view")} />
-      </li>
-    );
-  }
 
   if (mode === "createAccess") {
     return (
@@ -52,50 +51,61 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
   }
 
   return (
-    <li className="flex items-center gap-4">
-      <Image
-        src={doctor.image}
-        alt={doctor.name}
-        width={40}
-        height={40}
-        className="rounded-full border border-dark-500"
-      />
-      <div className="flex-1">
-        <p className="text-14-medium">
-          {doctor.name}
-          {!doctor.isActive && (
-            <span className="text-dark-700"> (inactivo)</span>
-          )}
-        </p>
-        <p className="text-12-regular text-dark-700">
-          {doctor.specialty} · {doctor.licenseNumber}
-        </p>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shad-gray-btn"
-        onClick={() => setMode("createAccess")}
-      >
-        Crear acceso
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shad-gray-btn"
-        onClick={() => setMode("edit")}
-      >
-        Editar
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className={doctor.isActive ? "shad-danger-btn" : "shad-primary-btn"}
-        disabled={isToggling}
-        onClick={toggleActive}
-      >
-        {doctor.isActive ? "Desactivar" : "Reactivar"}
-      </Button>
-    </li>
+    <>
+      <li className="flex items-center gap-4">
+        <Image
+          src={doctor.image}
+          alt={doctor.name}
+          width={40}
+          height={40}
+          className="rounded-full border border-dark-500"
+        />
+        <div className="flex-1">
+          <p className="text-14-medium">
+            {doctor.name}
+            {!doctor.isActive && (
+              <span className="text-dark-700"> (inactivo)</span>
+            )}
+          </p>
+          <p className="text-12-regular text-dark-700">
+            {doctor.specialty} · {doctor.licenseNumber}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shad-gray-btn"
+          onClick={() => setMode("createAccess")}
+        >
+          Crear acceso
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shad-gray-btn"
+          onClick={() => setIsEditOpen(true)}
+        >
+          Editar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={doctor.isActive ? "shad-danger-btn" : "shad-primary-btn"}
+          disabled={isToggling}
+          onClick={toggleActive}
+        >
+          {doctor.isActive ? "Desactivar" : "Reactivar"}
+        </Button>
+      </li>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="shad-dialog sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar doctor</DialogTitle>
+          </DialogHeader>
+          <EditDoctorForm doctor={doctor} onDone={() => setIsEditOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

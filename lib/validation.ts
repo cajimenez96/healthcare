@@ -40,9 +40,10 @@ export const CreatePatientFormValidation = z.object({
     .string()
     .min(2, "El número de identificación debe tener al menos 2 caracteres")
     .max(50, "El número de identificación debe tener como máximo 50 caracteres"),
-  identificationDocument: z
-    .custom<File[]>()
-    .refine((files) => files?.length === 1, "El documento de identificación es obligatorio"),
+  // TASK-032: the scanned file is optional now — identificationType/Number
+  // above remain required and are the actual DNI-based lookup key TASK-033
+  // needs. Same optional-file pattern already used by DoctorEditFormValidation.
+  identificationDocument: z.custom<File[]>().optional(),
 });
 
 export const CreateAppointmentSchema = z.object({

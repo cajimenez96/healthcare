@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (3 Tickets)          |  (0 Tickets)          |  (33 Tickets)         |
+|  (2 Tickets)          |  (0 Tickets)          |  (34 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -20,14 +20,6 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ### EPIC 9: Hallazgos de la primera ronda de pruebas locales (post-MVP)
 
 Tickets que surgen de correr el sistema por primera vez de punta a punta en local, tras cerrar EPIC 8. No son regresiones de lo ya construido — son gaps preexistentes nunca detectados (logout, navegación) y ajustes de UX/alcance sobre lo recién construido en TASK-024.
-
-#### `[TASK-034]` Patrón de listado + Dialog para crear/editar (Doctores, Secretarias, Administradores, Nomenclador)
-* **Descripción**: hoy `/admin/doctors`, `/admin/secretarias`, `/admin/admins` y `/admin/treatments` muestran el formulario de alta y el listado en la misma pantalla, siempre visibles. Se pide separar: la pantalla por defecto muestra **solo el listado**, con un botón "Crear" que abre el formulario en un `Dialog`; "Editar" en cada fila abre el mismo `Dialog` en modo edición.
-* **Criterios de Aceptación**:
-  - [ ] Las 4 pantallas muestran únicamente el listado por defecto.
-  - [ ] Botón "Crear" abre un `Dialog` con el formulario de alta correspondiente.
-  - [ ] "Editar" en cada fila abre el mismo `Dialog` en modo edición, precargado.
-* **Prioridad**: Media | **Esfuerzo**: Medio-Alto (toca 4 pantallas) | **Dependencias**: Ninguna
 
 #### `[TASK-035]` Listado y filtro de Pacientes
 * **Descripción**: no existe ninguna pantalla para listar pacientes — la única forma de encontrar uno hoy es la búsqueda exacta de "Nuevo turno" (TASK-018/033). Se pide una pantalla de listado con filtros.
@@ -544,6 +536,25 @@ Tickets que surgen de correr el sistema por primera vez de punta a punta en loca
   - **Archivos modificados**: `components/CustomFormField.tsx`, `lib/validation.ts`, `components/forms/CreatePatientForm.tsx`
 * **Observaciones**:
   - No se tocó `DoctorFormValidation.photo` (sigue obligatoria) — eso es TASK-036, decisión de producto separada, fuera de alcance acá.
+
+#### `[TASK-034]` Patrón de listado + Dialog para crear/editar (Doctores, Secretarias, Administradores, Nomenclador)
+* **Descripción**: hoy `/admin/doctors`, `/admin/secretarias`, `/admin/admins` y `/admin/treatments` mostraban el formulario de alta y el listado en la misma pantalla, siempre visibles. Se pidió separar: la pantalla por defecto muestra solo el listado, con un botón "Crear" que abre el formulario en un `Dialog`; "Editar" en cada fila abre el mismo `Dialog` en modo edición.
+* **Criterios de Aceptación**:
+  - [x] Las 4 pantallas muestran únicamente el listado por defecto.
+  - [x] Botón "Crear" abre un `Dialog` con el formulario de alta correspondiente.
+  - [x] "Editar" en cada fila abre el mismo `Dialog` en modo edición, precargado.
+* **Prioridad**: Media | **Esfuerzo**: Medio-Alto (tocó 4 pantallas) | **Dependencias**: Ninguna
+* **Resultado**: reutilizado el `Dialog` de Radix ya existente (`components/ui/dialog.tsx`, mismo que `AdminNewAppointmentModal`) — sin dependencias nuevas. Trabajo dividido en dos mitades en paralelo, sin superposición de archivos entre ambas: **Doctores + Nomenclador** por un lado, **Secretarias + Administradores** por otro.
+  - **Doctores/Nomenclador**: `app/admin/doctors/page.tsx` y `app/admin/treatments/page.tsx` perdieron la sección de alta inline; nuevos `CreateDoctorModal.tsx`/`CreateTreatmentModal.tsx` (botón "Crear" + `Dialog` con `DoctorForm`/`TreatmentForm`). `DoctorRow.tsx`/`TreatmentRow.tsx` perdieron su modo de edición inline (`mode === "edit"`) — "Editar" ahora abre un `Dialog` controlado (`isEditOpen`) con `EditDoctorForm`/`TreatmentForm` (edición) precargado. `DoctorForm.tsx` sumó un `onDone?: () => void` opcional (mismo patrón que ya tenía `TreatmentForm`) para poder cerrar el diálogo tras `router.refresh()`. "Crear acceso" (`CreateDoctorAccessForm`, TASK-008) y "Desactivar"/"Reactivar" quedaron exactamente como estaban — no son formularios de alta/edición, no correspondía moverlos a un diálogo.
+  - **Secretarias/Administradores**: mismo tratamiento en `app/admin/secretarias/page.tsx`/`app/admin/admins/page.tsx`, nuevos `CreateSecretariaModal.tsx`/`CreateAdminModal.tsx`, `SecretariaRow.tsx`/`AdminRow.tsx` con `Dialog` controlado para "Editar". `CreateSecretariaForm.tsx`/`CreateAdminForm.tsx` sumaron un `setOpen?` opcional (mismo patrón que ya usa `AppointmentForm` dentro de `AdminNewAppointmentModal`) para cerrar el diálogo solo tras un submit exitoso.
+  - **Archivos creados**: `components/CreateDoctorModal.tsx`, `components/CreateTreatmentModal.tsx`, `components/CreateSecretariaModal.tsx`, `components/CreateAdminModal.tsx`
+  - **Archivos modificados**: `app/admin/doctors/page.tsx`, `app/admin/treatments/page.tsx`, `app/admin/secretarias/page.tsx`, `app/admin/admins/page.tsx`, `components/DoctorRow.tsx`, `components/TreatmentRow.tsx`, `components/SecretariaRow.tsx`, `components/AdminRow.tsx`, `components/forms/DoctorForm.tsx`, `components/forms/CreateSecretariaForm.tsx`, `components/forms/CreateAdminForm.tsx`
+* **Observaciones**:
+  - **Manejo de errores preservado sin cambios de lógica**: `EMAIL_TAKEN` (Secretaria/Admin, TASK-026/027) y `LAST_ADMIN` (salvaguarda del último Administrador, TASK-027) siguen resolviéndose exactamente igual — el diálogo de edición/alta solo se cierra cuando el callback `onDone`/`setOpen(false)` se invoca tras un submit realmente exitoso; en el camino de error, el formulario nunca lo llama, así que el mensaje queda visible dentro del `Dialog` en vez de perderse.
+  - No se tocó ninguna Server Action, schema de validación, ni la lógica de la salvaguarda de último Administrador — cambio puramente presentacional (dónde vive el formulario), consistente con el patrón container-presentational que ya usa `AdminNewAppointmentModal` desde TASK-018/024.
+  - `TreatmentForm.tsx` no se dividió en dos componentes (alta/edición) — sigue siendo un único componente con `treatment?` opcional, decisión ya tomada en TASK-010 y respetada acá.
+  - No se agregaron tests — no hay convención de testear componentes de UI/layout en este proyecto (`DoctorRow`/`SecretariaRow`/`AdminRow`/`TreatmentRow` nunca tuvieron test).
+  - **Verificación**: `pnpm build` corrido tres veces — una por cada mitad en paralelo (ambas limpias, sin errores nuevos, mismos 2 warnings preexistentes no relacionados en `FileUploader.tsx`/`BillingForm.tsx`) y una tercera vez con las dos mitades ya integradas en el mismo working tree, confirmando que no hay conflicto entre los archivos que tocó cada una (`git status` confirmó cero solapamiento). Build completo de punta a punta las tres veces, incluyendo `/api/auth/[...nextauth]` — no se pisó el límite de sandbox de `MONGODB_URI` en esta tanda.
 
 #### `[TASK-033]` Buscar paciente por DNI en "Nuevo turno"
 * **Descripción**: `AdminNewAppointmentModal`/`findPatientByContact` (TASK-018) busca hoy por email o teléfono exacto. El flujo real de mostrador identifica pacientes por DNI, no por esos datos.

@@ -67,12 +67,15 @@ export const CreatePatientForm = ({
     setError(null);
     setCreatedPatientName(null);
 
-    const blobFile = new Blob([values.identificationDocument[0]], {
-      type: values.identificationDocument[0].type,
-    });
     const formData = new FormData();
-    formData.append("blobFile", blobFile);
-    formData.append("fileName", values.identificationDocument[0].name);
+    const identificationFile = values.identificationDocument?.[0];
+    if (identificationFile) {
+      const blobFile = new Blob([identificationFile], {
+        type: identificationFile.type,
+      });
+      formData.append("blobFile", blobFile);
+      formData.append("fileName", identificationFile.name);
+    }
 
     try {
       const newPatient = await createPatient({
@@ -315,7 +318,7 @@ export const CreatePatientForm = ({
             fieldType={FormFieldType.SKELETON}
             control={form.control}
             name="identificationDocument"
-            label="Copia escaneada del documento de identificación"
+            label="Copia escaneada del documento de identificación (opcional)"
             renderSkeleton={(field) => (
               <FormControl>
                 <FileUploader files={field.value} onChange={field.onChange} />

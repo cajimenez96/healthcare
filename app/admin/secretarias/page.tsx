@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import CreateSecretariaForm from "@/components/forms/CreateSecretariaForm";
+import { CreateSecretariaModal } from "@/components/CreateSecretariaModal";
 import { SecretariaRow } from "@/components/SecretariaRow";
 import { getSecretarias } from "@/lib/actions/secretaria.actions";
 
@@ -22,11 +22,17 @@ const SecretariasPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Secretarías</p>
+        <Link href="/admin" className="text-green-500">
+          Volver
+        </Link>
       </header>
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Secretarías</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="header">Secretarías</h1>
+            <CreateSecretariaModal />
+          </div>
           <ul className="space-y-4">
             {secretarias.map(
               (secretaria: {
@@ -48,11 +54,6 @@ const SecretariasPage = async () => {
               <p className="text-dark-700">Todavía no hay secretarías cargadas.</p>
             )}
           </ul>
-        </section>
-
-        <section className="w-full max-w-lg space-y-4">
-          <h2 className="header">Alta de secretaría</h2>
-          <CreateSecretariaForm />
         </section>
       </main>
     </div>

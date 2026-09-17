@@ -103,23 +103,20 @@ describe("MongoPatientRepository", () => {
     });
   });
 
-  describe("findByEmailOrPhone", () => {
-    it("returns the patient matching by exact email", async () => {
-      await repository.create(basePatient);
+  describe("findByIdentificationNumber", () => {
+    it("returns the patient matching by exact identification number", async () => {
+      await repository.create({
+        ...basePatient,
+        identificationType: "National Identity Card",
+        identificationNumber: "30111222",
+      });
 
-      const result = await repository.findByEmailOrPhone("john@example.com");
-      expect(result?.email).toBe("john@example.com");
-    });
-
-    it("returns the patient matching by exact phone", async () => {
-      await repository.create(basePatient);
-
-      const result = await repository.findByEmailOrPhone("+123456");
-      expect(result?.phone).toBe("+123456");
+      const result = await repository.findByIdentificationNumber("30111222");
+      expect(result?.identificationNumber).toBe("30111222");
     });
 
     it("returns null when nothing matches", async () => {
-      const result = await repository.findByEmailOrPhone("nobody@example.com");
+      const result = await repository.findByIdentificationNumber("99999999");
       expect(result).toBeNull();
     });
   });

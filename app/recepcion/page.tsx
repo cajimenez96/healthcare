@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import BillingForm from "@/components/forms/BillingForm";
+import { LogoutButton } from "@/components/LogoutButton";
 import { getBillableAppointments } from "@/lib/actions/payment.actions";
 import { getActiveTreatments } from "@/lib/actions/treatment.actions";
 
@@ -25,6 +26,7 @@ const RecepcionPage = async () => {
         <Link href="/recepcion/pacientes/nuevo" className="text-green-500">
           Nuevo paciente
         </Link>
+        <LogoutButton />
       </header>
 
       <main className="admin-main">

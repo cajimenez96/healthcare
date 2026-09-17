@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import TreatmentForm from "@/components/forms/TreatmentForm";
+import { CreateTreatmentModal } from "@/components/CreateTreatmentModal";
 import { TreatmentRow } from "@/components/TreatmentRow";
 import { getAllTreatments } from "@/lib/actions/treatment.actions";
 
@@ -22,11 +22,17 @@ const TreatmentsPage = async () => {
         </Link>
 
         <p className="text-16-semibold">Nomenclador</p>
+        <Link href="/admin" className="text-green-500">
+          Volver
+        </Link>
       </header>
 
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Prestaciones</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="header">Prestaciones</h1>
+            <CreateTreatmentModal />
+          </div>
           <ul className="space-y-4">
             {treatments.map(
               (treatment: {
@@ -46,11 +52,6 @@ const TreatmentsPage = async () => {
               </p>
             )}
           </ul>
-        </section>
-
-        <section className="w-full max-w-lg space-y-4">
-          <h2 className="header">Nueva prestación</h2>
-          <TreatmentForm />
         </section>
       </main>
     </div>

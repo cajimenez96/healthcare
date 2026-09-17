@@ -4,6 +4,13 @@ import { useState } from "react";
 
 import EditSecretariaForm from "@/components/forms/EditSecretariaForm";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { setSecretariaActive } from "@/lib/actions/secretaria.actions";
 
 interface SecretariaRowProps {
@@ -15,10 +22,8 @@ interface SecretariaRowProps {
   };
 }
 
-type RowMode = "view" | "edit";
-
 export const SecretariaRow = ({ secretaria }: SecretariaRowProps) => {
-  const [mode, setMode] = useState<RowMode>("view");
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
   const toggleActive = async () => {
@@ -26,14 +31,6 @@ export const SecretariaRow = ({ secretaria }: SecretariaRowProps) => {
     await setSecretariaActive(secretaria.id, !secretaria.isActive);
     setIsToggling(false);
   };
-
-  if (mode === "edit") {
-    return (
-      <li className="rounded-md border border-dark-500 p-4">
-        <EditSecretariaForm secretaria={secretaria} onDone={() => setMode("view")} />
-      </li>
-    );
-  }
 
   return (
     <li className="flex items-center gap-4">
@@ -46,14 +43,22 @@ export const SecretariaRow = ({ secretaria }: SecretariaRowProps) => {
         </p>
         <p className="text-12-regular text-dark-700">{secretaria.email}</p>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shad-gray-btn"
-        onClick={() => setMode("edit")}
-      >
-        Editar
-      </Button>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="shad-gray-btn">
+            Editar
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="shad-dialog sm:max-w-md">
+          <DialogHeader className="mb-4">
+            <DialogTitle>Editar secretaría</DialogTitle>
+          </DialogHeader>
+          <EditSecretariaForm
+            secretaria={secretaria}
+            onDone={() => setIsEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
       <Button
         variant="outline"
         size="sm"
