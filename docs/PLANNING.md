@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (0 Tickets)          |  (0 Tickets)          |  (29 Tickets)         |
+|  (7 Tickets)          |  (0 Tickets)          |  (29 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -17,7 +17,57 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## 📋 BACKLOG (Por Hacer)
 
-*(No hay tickets pendientes actualmente — EPIC 8 (`docs/MVP.md`) se completó con el cierre de TASK-027)*
+### EPIC 9: Hallazgos de la primera ronda de pruebas locales (post-MVP)
+
+Tickets que surgen de correr el sistema por primera vez de punta a punta en local, tras cerrar EPIC 8. No son regresiones de lo ya construido — son gaps preexistentes nunca detectados (logout, navegación) y ajustes de UX/alcance sobre lo recién construido en TASK-024.
+
+#### `[TASK-030]` Botón de cierre de sesión (logout)
+* **Descripción**: no existe ningún botón de logout en ninguna pantalla del sistema — confirmado que `signOut` de NextAuth nunca se invoca en todo el código. No es una regresión de EPIC 8: este gap existe desde que se implementó el login (TASK-004) y nunca se había probado el flujo completo como usuario real hasta ahora.
+* **Criterios de Aceptación**:
+  - [ ] Botón/link de "Cerrar sesión" visible en `/admin`, `/doctor` y `/recepcion`, invocando `signOut()` de NextAuth.
+  - [ ] Redirige a `/login` tras cerrar sesión.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+
+#### `[TASK-031]` Navegación "volver" en pantallas internas
+* **Descripción**: las pantallas de alta/gestión (`/admin/doctors`, `/admin/secretarias`, `/admin/admins`, `/admin/treatments`, `/admin/pacientes/nuevo`, `/recepcion/pacientes/nuevo`) no tienen forma de volver a la vista anterior sin usar el botón "atrás" del navegador.
+* **Criterios de Aceptación**:
+  - [ ] Cada pantalla interna tiene un link/botón "Volver" hacia su pantalla padre (`/admin` o `/recepcion`).
+* **Prioridad**: Media | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+
+#### `[TASK-032]` Ajustes de UX en el alta de paciente
+* **Descripción**: tres ajustes sobre `CreatePatientForm` (TASK-024), detectados al probar el alta real de un paciente.
+* **Criterios de Aceptación**:
+  - [ ] El selector de teléfono (`react-phone-number-input`) usa Argentina como país por defecto.
+  - [ ] El selector de fecha de nacimiento muestra formato `DD/MM/YYYY`.
+  - [ ] El **archivo escaneado** del documento de identificación pasa a opcional. El **tipo y número de documento** (DNI) siguen siendo obligatorios — es la clave de búsqueda que necesita TASK-033.
+* **Prioridad**: Alta | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+
+#### `[TASK-033]` Buscar paciente por DNI en "Nuevo turno"
+* **Descripción**: `AdminNewAppointmentModal`/`findPatientByContact` (TASK-018) busca hoy por email o teléfono exacto. El flujo real de mostrador identifica pacientes por DNI, no por esos datos.
+* **Criterios de Aceptación**:
+  - [ ] La búsqueda de "Nuevo turno" acepta el número de documento de identificación como criterio (además de o en reemplazo de email/teléfono — a definir en diseño).
+* **Prioridad**: Alta | **Esfuerzo**: Bajo-Medio | **Dependencias**: TASK-032 (el DNI ya es obligatorio hoy, pero conviene implementarlos juntos)
+
+#### `[TASK-034]` Patrón de listado + Dialog para crear/editar (Doctores, Secretarias, Administradores, Nomenclador)
+* **Descripción**: hoy `/admin/doctors`, `/admin/secretarias`, `/admin/admins` y `/admin/treatments` muestran el formulario de alta y el listado en la misma pantalla, siempre visibles. Se pide separar: la pantalla por defecto muestra **solo el listado**, con un botón "Crear" que abre el formulario en un `Dialog`; "Editar" en cada fila abre el mismo `Dialog` en modo edición.
+* **Criterios de Aceptación**:
+  - [ ] Las 4 pantallas muestran únicamente el listado por defecto.
+  - [ ] Botón "Crear" abre un `Dialog` con el formulario de alta correspondiente.
+  - [ ] "Editar" en cada fila abre el mismo `Dialog` en modo edición, precargado.
+* **Prioridad**: Media | **Esfuerzo**: Medio-Alto (toca 4 pantallas) | **Dependencias**: Ninguna
+
+#### `[TASK-035]` Listado y filtro de Pacientes
+* **Descripción**: no existe ninguna pantalla para listar pacientes — la única forma de encontrar uno hoy es la búsqueda exacta de "Nuevo turno" (TASK-018/033). Se pide una pantalla de listado con filtros.
+* **Criterios de Aceptación**:
+  - [ ] Pantalla de listado de pacientes (`/recepcion` y/o `/admin`, a definir) con filtros (a definir cuáles: nombre, DNI, obra social, etc.).
+  - [ ] Construida directamente con el patrón de TASK-034 (listado + Dialog), no con el patrón viejo de formulario-siempre-visible.
+* **Prioridad**: Media | **Esfuerzo**: Medio | **Dependencias**: TASK-034 (para no construir la pantalla dos veces)
+
+#### `[TASK-036]` Decisión de Producto: foto obligatoria en alta de Doctor
+* **Descripción**: `DoctorFormValidation` exige una foto para crear un doctor (`lib/validation.ts:128`), pero el formulario no aclara para qué se usa ni dónde queda (se guarda en GridFS, mismo bucket que los documentos de pacientes, servida vía `/api/files/[fileId]`, y se muestra en el listado de doctores). Al probarlo en vivo, generó confusión.
+* **Criterios de Aceptación**:
+  - [ ] Producto decide: (a) dejarla obligatoria y solo mejorar el texto/ayuda del campo, o (b) volverla opcional (mismo criterio que ya tiene `DoctorEditFormValidation`, que no la exige).
+* **Prioridad**: Baja | **Esfuerzo**: Bajo (una vez decidido) | **Dependencias**: Ninguna
 
 ---
 
