@@ -11,7 +11,7 @@ import { updateSecretaria } from "@/lib/actions/secretaria.actions";
 import { SecretariaEditFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 interface EditSecretariaFormProps {
   secretaria: {
@@ -85,7 +85,9 @@ const EditSecretariaForm = ({ secretaria, onDone }: EditSecretariaFormProps) => 
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
-        <SubmitButton isLoading={isLoading}>Guardar cambios</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Guardar cambios
+        </Button>
       </form>
     </Form>
   );

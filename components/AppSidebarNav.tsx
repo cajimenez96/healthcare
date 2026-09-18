@@ -6,6 +6,7 @@ import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
 import { LogoutButton } from "@/components/LogoutButton";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -45,13 +46,15 @@ export const AppSidebarNav = ({ items }: AppSidebarNavProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label="Abrir menú de navegación"
-          className="text-green-500"
+          className="text-green-500 hover:text-green-500"
         >
           <Menu className="size-6" />
-        </button>
+        </Button>
       </DialogTrigger>
       <DialogPortal>
         <DialogOverlay />

@@ -59,7 +59,7 @@ export const TreatmentRow = ({ treatment }: TreatmentRowProps) => {
           variant="outline"
           size="sm"
           className={treatment.isActive ? "shad-danger-btn" : "shad-primary-btn"}
-          disabled={isToggling}
+          isLoading={isToggling}
           onClick={toggleActive}
         >
           {treatment.isActive ? "Desactivar" : "Reactivar"}

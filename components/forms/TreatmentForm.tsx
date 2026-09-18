@@ -11,7 +11,7 @@ import { createTreatment, updateTreatment } from "@/lib/actions/treatment.action
 import { TreatmentFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 interface TreatmentFormProps {
   treatment?: {
@@ -93,9 +93,9 @@ const TreatmentForm = ({ treatment, onDone }: TreatmentFormProps) => {
           placeholder="Detalle de la prestación"
         />
 
-        <SubmitButton isLoading={isLoading}>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
           {treatment ? "Guardar cambios" : "Crear prestación"}
-        </SubmitButton>
+        </Button>
       </form>
     </Form>
   );

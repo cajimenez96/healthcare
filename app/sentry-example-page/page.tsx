@@ -2,8 +2,13 @@
 
 import * as Sentry from "@sentry/nextjs";
 import Head from "next/head";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
 
 export default function Page() {
+  const [isThrowing, setIsThrowing] = useState(false);
+
   return (
     <div>
       <Head>
@@ -36,8 +41,10 @@ export default function Page() {
         </h1>
 
         <p>Get started by sending us a sample error:</p>
-        <button
+        <Button
           type="button"
+          isLoading={isThrowing}
+          loadingText="Enviando..."
           style={{
             padding: "12px",
             cursor: "pointer",
@@ -49,22 +56,27 @@ export default function Page() {
             margin: "18px",
           }}
           onClick={async () => {
-            await Sentry.startSpan(
-              {
-                name: "Example Frontend Span",
-                op: "test",
-              },
-              async () => {
-                const res = await fetch("/api/sentry-example-api");
-                if (!res.ok) {
-                  throw new Error("Sentry Example Frontend Error");
+            setIsThrowing(true);
+            try {
+              await Sentry.startSpan(
+                {
+                  name: "Example Frontend Span",
+                  op: "test",
+                },
+                async () => {
+                  const res = await fetch("/api/sentry-example-api");
+                  if (!res.ok) {
+                    throw new Error("Sentry Example Frontend Error");
+                  }
                 }
-              }
-            );
+              );
+            } finally {
+              setIsThrowing(false);
+            }
           }}
         >
           Throw error!
-        </button>
+        </Button>
 
         <p>
           Next, look for the error on the{" "}

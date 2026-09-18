@@ -25,7 +25,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import "react-phone-number-input/style.css";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import { FileUploader } from "../FileUploader";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 // TASK-024: staff-side patient creation, used from both /recepcion and
 // /admin (two thin pages mount this same form — see
@@ -55,7 +55,15 @@ export const CreatePatientForm = ({
   // patient back (e.g. "Nuevo turno" auto-selecting them for booking right
   // away) instead of just refreshing/closing. Additive — every existing
   // caller that doesn't pass it keeps behaving exactly as before.
-  onCreated?: (patient: { $id: string; name: string }) => void;
+  // TASK-050: widened (additively) with identificationNumber/phone so
+  // NewAppointmentView can show the same confirmation fields for a
+  // freshly-created patient as it does for one found via search.
+  onCreated?: (patient: {
+    $id: string;
+    name: string;
+    identificationNumber?: string;
+    phone: string;
+  }) => void;
 }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -121,7 +129,12 @@ export const CreatePatientForm = ({
         form.reset();
         router.refresh();
         setOpen?.(false);
-        onCreated?.({ $id: newPatient.$id, name: newPatient.name });
+        onCreated?.({
+          $id: newPatient.$id,
+          name: newPatient.name,
+          identificationNumber: newPatient.identificationNumber,
+          phone: newPatient.phone,
+        });
       } else {
         setError("No se pudo crear el paciente. Intentá de nuevo.");
       }
@@ -344,7 +357,9 @@ export const CreatePatientForm = ({
           />
         </section>
 
-        <SubmitButton isLoading={isLoading}>Crear paciente</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Crear paciente
+        </Button>
       </form>
     </Form>
   );

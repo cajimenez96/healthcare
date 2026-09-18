@@ -133,8 +133,10 @@ test.describe("ADM-05 - desactivar / reactivar doctor", () => {
     // (Admin's direct booking flow, TASK-043 — the full-page calendar that
     // replaced AdminNewAppointmentModal, TASK-018).
     await page.goto("/admin/turnos/nuevo");
-    await page.getByPlaceholder("DNI del paciente").fill(patientDni);
-    await page.getByRole("button", { name: "Buscar" }).click();
+    // TASK-050: real-time debounced search (name OR DNI), no separate
+    // "Buscar" button anymore.
+    await page.getByPlaceholder("Buscar por nombre o DNI").fill(patientDni);
+    await page.getByRole("button").filter({ hasText: patientDni }).first().click();
     await page.getByRole("combobox", { name: "Doctor" }).click();
     await expect(page.getByRole("option", { name: DOCTOR_NAME })).toHaveCount(0);
     await page.keyboard.press("Escape");

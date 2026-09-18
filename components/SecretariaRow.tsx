@@ -63,7 +63,7 @@ export const SecretariaRow = ({ secretaria }: SecretariaRowProps) => {
         variant="outline"
         size="sm"
         className={secretaria.isActive ? "shad-danger-btn" : "shad-primary-btn"}
-        disabled={isToggling}
+        isLoading={isToggling}
         onClick={toggleActive}
       >
         {secretaria.isActive ? "Desactivar" : "Reactivar"}

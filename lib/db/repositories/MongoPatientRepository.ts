@@ -66,14 +66,19 @@ export class MongoPatientRepository implements IPatientRepository {
   async findAll(filters: PatientListFilters = {}): Promise<PatientRecord[]> {
     const query: Record<string, unknown> = {};
 
-    if (filters.name) {
-      query.name = { $regex: escapeRegExp(filters.name), $options: "i" };
-    }
+    if (filters.search) {
+      const regex = { $regex: escapeRegExp(filters.search), $options: "i" };
+      query.$or = [{ name: regex }, { identificationNumber: regex }];
+    } else {
+      if (filters.name) {
+        query.name = { $regex: escapeRegExp(filters.name), $options: "i" };
+      }
 
-    if (filters.identificationNumber) {
-      query.identificationNumber = {
-        $regex: escapeRegExp(filters.identificationNumber),
-      };
+      if (filters.identificationNumber) {
+        query.identificationNumber = {
+          $regex: escapeRegExp(filters.identificationNumber),
+        };
+      }
     }
 
     const docs = await Patient.find(query).sort({ name: 1 });

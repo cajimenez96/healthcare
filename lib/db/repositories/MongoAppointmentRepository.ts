@@ -11,6 +11,15 @@ import type {
 import type { PatientRecord } from "../../repositories/IPatientRepository";
 import type { IAppointment } from "../models/Appointment";
 import { Appointment } from "../models/Appointment";
+// Side-effect import: this file only ever imports IPatient as a *type*
+// below, which TypeScript erases entirely at compile time — Mongoose's
+// model registry never runs lib/db/models/Patient.ts's `model("Patient", ...)`
+// call as a result, so `.populate("patientId")` fails at runtime with
+// "Schema hasn't been registered for model 'Patient'" whenever this is the
+// first code path to touch the Patient model in a given process. Importing
+// the module for its side effect (registration) fixes this without needing
+// the value itself.
+import "../models/Patient";
 import type { IPatient } from "../models/Patient";
 
 function toAppointmentRecord(

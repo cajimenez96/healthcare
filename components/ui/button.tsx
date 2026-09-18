@@ -1,5 +1,6 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import Image from "next/image";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -39,17 +40,55 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  // TASK-049: loading state moved here from the now-retired SubmitButton
+  // wrapper. Ignored when asChild is true — an asChild usage (e.g. a
+  // Link-wrapped nav button) renders as its single child via Radix Slot,
+  // which requires exactly one child element; injecting the spinner+text
+  // wrapper would break that contract, and asChild call sites are
+  // navigational, not async actions waiting on a loading state anyway.
+  isLoading?: boolean;
+  loadingText?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      isLoading = false,
+      loadingText = "Cargando...",
+      disabled,
+      children,
+      ...props
+    },
+    ref
+  ) => {
     const Comp = asChild ? Slot : "button";
+    const showLoading = isLoading && !asChild;
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        disabled={asChild ? disabled : disabled || isLoading}
         {...props}
-      />
+      >
+        {showLoading ? (
+          <div className="flex items-center gap-4">
+            <Image
+              src="/assets/icons/loader.svg"
+              alt="loader"
+              width={24}
+              height={24}
+              className="animate-spin"
+            />
+            {loadingText}
+          </div>
+        ) : (
+          children
+        )}
+      </Comp>
     );
   }
 );

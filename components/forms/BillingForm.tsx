@@ -13,7 +13,7 @@ import { formatDateTime } from "@/lib/utils";
 import { PaymentFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 const PAYMENT_METHOD_OPTIONS = [
   { value: "cash", label: "Efectivo" },
@@ -148,12 +148,14 @@ const BillingForm = ({ appointment, activeTreatments }: BillingFormProps) => {
 
           {error && <p className="shad-error text-14-regular">{error}</p>}
 
-          <SubmitButton
+          <Button
+            type="submit"
+            className="shad-primary-btn w-full"
             isLoading={isLoading}
             disabled={!appointment.hasChartedTreatments && selectedTreatmentIds.length === 0}
           >
             Cobrar y cerrar turno
-          </SubmitButton>
+          </Button>
         </form>
       </Form>
     </div>

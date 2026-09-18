@@ -71,7 +71,7 @@ export const AdminRow = ({ admin }: AdminRowProps) => {
         variant="outline"
         size="sm"
         className={admin.isActive ? "shad-danger-btn" : "shad-primary-btn"}
-        disabled={isToggling}
+        isLoading={isToggling}
         onClick={toggleActive}
       >
         {admin.isActive ? "Desactivar" : "Reactivar"}

@@ -11,7 +11,7 @@ import { createClinicalNote } from "@/lib/actions/clinicalNote.actions";
 import { ClinicalNoteValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 interface ClinicalNoteFormProps {
   patientId: string;
@@ -102,7 +102,9 @@ const ClinicalNoteForm = ({ patientId, appointmentId, treatments }: ClinicalNote
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
-        <SubmitButton isLoading={isLoading}>Guardar evolución</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Guardar evolución
+        </Button>
       </form>
     </Form>
   );

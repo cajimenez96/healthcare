@@ -34,8 +34,14 @@ export const CreatePatientModal = ({
   defaultName?: string;
   defaultIdentificationNumber?: string;
   // TASK-043: forwarded straight through to CreatePatientForm — see its own
-  // comment for why this is optional/additive.
-  onCreated?: (patient: { $id: string; name: string }) => void;
+  // comment for why this is optional/additive. TASK-050 widened the shape;
+  // see CreatePatientForm's comment.
+  onCreated?: (patient: {
+    $id: string;
+    name: string;
+    identificationNumber?: string;
+    phone: string;
+  }) => void;
 }) => {
   const [open, setOpen] = useState(false);
 

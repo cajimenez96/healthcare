@@ -427,6 +427,14 @@
   );
 }
 
+/* TASK-052: a clicked-but-not-yet-confirmed slot — layered on top of the
+   available/unavailable class above (both apply together), so the selection
+   ring reads clearly regardless of which one it's covering. */
+.rbc-dark-theme .rbc-slot-selected {
+  background-color: rgba(59, 130, 246, 0.35);
+  box-shadow: inset 0 0 0 2px #3b82f6;
+}
+
 .rbc-dark-theme .rbc-event {
   background-color: #152432;
   border: 1px solid #79b5ec;

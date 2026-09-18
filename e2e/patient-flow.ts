@@ -94,10 +94,18 @@ export async function goToNewAppointmentWithSelection(
   await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
   await page.goto("/admin/turnos/nuevo");
 
+  // TASK-050: real-time debounced search (name OR DNI), no separate "Buscar"
+  // button anymore — type the DNI and click the matching result card once it
+  // appears (Playwright's role locator auto-waits through the debounce +
+  // round trip).
   await page
-    .getByPlaceholder("DNI del paciente")
+    .getByPlaceholder("Buscar por nombre o DNI")
     .fill(opts.patientIdentificationNumber);
-  await page.getByRole("button", { name: "Buscar" }).click();
+  await page
+    .getByRole("button")
+    .filter({ hasText: opts.patientIdentificationNumber })
+    .first()
+    .click();
 
   await page.getByRole("combobox", { name: "Doctor" }).click();
   await page.getByRole("option", { name: opts.doctorName }).click();
@@ -107,8 +115,10 @@ export async function goToNewAppointmentWithSelection(
     .getByRole("option", { name: new RegExp(`^${opts.treatmentName}`) })
     .click();
 
-  // The calendar (react-big-calendar week view) only mounts once patient +
-  // doctor + treatment are all selected.
+  // TASK-051: once patient + doctor + treatment are all selected, the
+  // calendar no longer mounts inline — it opens in a Dialog behind a "Ver
+  // calendario" trigger button.
+  await page.getByRole("button", { name: "Ver calendario" }).click();
   await expect(page.locator(".rbc-time-content")).toBeVisible();
 }
 
@@ -116,11 +126,13 @@ export async function goToNewAppointmentWithSelection(
 // `dayIndex` (0-6, Monday-first per the "es" date-fns locale the calendar
 // uses) and `hour` (24h, on the hour — matches this suite's doctor, whose
 // availability spans every day 08:00-20:00, see 00-setup.spec.ts, so any
-// hour in that range books directly with no out-of-availability confirm).
-// Targets react-big-calendar's own DOM structure directly (step=30,
-// timeslots=1 on DoctorWeekCalendar means one .rbc-timeslot-group per
-// 30-minute slot) — there's no accessible name on an individual grid cell
-// to select by role/label instead.
+// hour in that range books directly with no out-of-availability confirm),
+// then confirms it via the "Guardar turno" button (TASK-052 — a slot click
+// only selects now, it no longer books by itself). Targets react-big-
+// calendar's own DOM structure directly (step=30, timeslots=1 on
+// DoctorWeekCalendar means one .rbc-timeslot-group per 30-minute slot) —
+// there's no accessible name on an individual grid cell to select by
+// role/label instead.
 export async function clickCalendarSlot(
   page: Page,
   opts: { weeksAhead: number; dayIndex: number; hour: number },
@@ -145,6 +157,8 @@ export async function clickCalendarSlot(
     .locator(".rbc-time-slot")
     .first()
     .click({ force: true });
+
+  await page.getByRole("button", { name: "Guardar turno" }).click();
 }
 
 // Convenience wrapper for the common case (no need to click on two separate

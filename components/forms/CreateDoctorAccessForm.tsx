@@ -10,7 +10,7 @@ import { createDoctorAccess } from "@/lib/actions/doctor.actions";
 import { LoginFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 interface CreateDoctorAccessFormProps {
   doctorId: string;
@@ -65,7 +65,9 @@ const CreateDoctorAccessForm = ({ doctorId, onDone }: CreateDoctorAccessFormProp
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
-        <SubmitButton isLoading={isLoading}>Crear acceso</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Crear acceso
+        </Button>
       </form>
     </Form>
   );

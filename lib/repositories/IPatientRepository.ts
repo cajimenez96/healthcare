@@ -44,6 +44,16 @@ export interface PatientListFilters {
   name?: string;
   /** Partial match on identification number (DNI) — front-desk staff rarely have the full number at hand. */
   identificationNumber?: string;
+  /**
+   * Partial, case-insensitive free-text match against name OR identification
+   * number (TASK-050) — a single search box where the user might type
+   * either (NewAppointmentView's combined patient search). ORs across both
+   * fields and takes precedence over name/identificationNumber above when
+   * present, rather than ANDing with them — those two exist for
+   * PatientsList's separate name+DNI filter fields (TASK-035), a distinct
+   * use case from this single combined box.
+   */
+  search?: string;
 }
 
 export interface IPatientRepository {

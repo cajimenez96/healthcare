@@ -104,11 +104,16 @@ export const findPatientByIdentificationNumber = async (query: string) => {
 export type ListPatientsFilters = {
   name?: string;
   identificationNumber?: string;
+  // TASK-050: single free-text filter matching name OR identification
+  // number — see IPatientRepository.PatientListFilters.search.
+  search?: string;
 };
 
 // LIST PATIENTS (list + filter screen, TASK-035. Same dual-role access as
 // createPatient — Secretaria is the primary front-desk user, Administrador
-// also has access — no editing/creation happens from this screen.)
+// also has access — no editing/creation happens from this screen. Also
+// reused by NewAppointmentView's combined name-or-DNI patient search,
+// TASK-050, via the `search` filter.)
 export const listPatients = async (filters: ListPatientsFilters = {}) => {
   try {
     await requireSecretariaOrAdminSession();
@@ -117,6 +122,7 @@ export const listPatients = async (filters: ListPatientsFilters = {}) => {
     const patients = await patientRepository.findAll({
       name: filters.name?.trim() || undefined,
       identificationNumber: filters.identificationNumber?.trim() || undefined,
+      search: filters.search?.trim() || undefined,
     });
 
     return parseStringify(patients.map(toPatient));

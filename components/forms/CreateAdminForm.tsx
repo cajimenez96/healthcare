@@ -11,7 +11,7 @@ import { createAdminAccess } from "@/lib/actions/adminUser.actions";
 import { AdminFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 interface CreateAdminFormProps {
   setOpen?: Dispatch<SetStateAction<boolean>>;
@@ -74,7 +74,9 @@ const CreateAdminForm = ({ setOpen }: CreateAdminFormProps) => {
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
-        <SubmitButton isLoading={isLoading}>Crear acceso</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Crear acceso
+        </Button>
       </form>
     </Form>
   );

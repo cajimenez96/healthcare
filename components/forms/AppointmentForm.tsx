@@ -21,7 +21,7 @@ import { Appointment } from "@/types/appwrite.types";
 import "react-datepicker/dist/react-datepicker.css";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 import { Form } from "../ui/form";
 
 interface DoctorAvailability {
@@ -352,12 +352,13 @@ export const AppointmentForm = ({
           <p className="shad-error text-14-regular">{submitError}</p>
         )}
 
-        <SubmitButton
+        <Button
+          type="submit"
           isLoading={isLoading}
           className={`${type === "cancel" ? "shad-danger-btn" : "shad-primary-btn"} w-full`}
         >
           {buttonLabel}
-        </SubmitButton>
+        </Button>
       </form>
 
       <OutOfAvailabilityAlertDialog

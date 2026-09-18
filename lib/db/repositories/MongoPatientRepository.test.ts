@@ -199,5 +199,80 @@ describe("MongoPatientRepository", () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe("Ana (Test) Perez");
     });
+
+    // TASK-050: single free-text `search` filter for NewAppointmentView's
+    // combined name-or-DNI box — ORs across both fields, unlike the
+    // name/identificationNumber filters above which AND together.
+    describe("search filter (name OR identification number)", () => {
+      it("matches by partial, case-insensitive name", async () => {
+        await repository.create({ ...basePatient, name: "Maria Rodriguez" });
+        await repository.create({ ...basePatient, name: "Juan Gomez" });
+
+        const result = await repository.findAll({ search: "rod" });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].name).toBe("Maria Rodriguez");
+      });
+
+      it("matches by partial identification number", async () => {
+        await repository.create({
+          ...basePatient,
+          name: "Patient A",
+          identificationNumber: "30111222",
+        });
+        await repository.create({
+          ...basePatient,
+          name: "Patient B",
+          identificationNumber: "40333444",
+        });
+
+        const result = await repository.findAll({ search: "0111" });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].name).toBe("Patient A");
+      });
+
+      it("returns every patient whose name OR identification number matches", async () => {
+        await repository.create({
+          ...basePatient,
+          name: "Carlos Jimenez",
+          identificationNumber: "11112222",
+        });
+        await repository.create({
+          ...basePatient,
+          name: "Ana Perez",
+          identificationNumber: "99998888",
+        });
+        await repository.create({
+          ...basePatient,
+          name: "Beatriz Gomez",
+          identificationNumber: "12345678",
+        });
+
+        const result = await repository.findAll({ search: "12" });
+
+        expect(result.map((patient) => patient.name)).toEqual([
+          "Beatriz Gomez",
+          "Carlos Jimenez",
+        ]);
+      });
+
+      it("returns an empty array when nothing matches either field", async () => {
+        await repository.create(basePatient);
+
+        const result = await repository.findAll({ search: "nobody-matches-this" });
+
+        expect(result).toEqual([]);
+      });
+
+      it("treats regex special characters as literal text", async () => {
+        await repository.create({ ...basePatient, name: "Ana (Test) Perez" });
+
+        const result = await repository.findAll({ search: "(Test)" });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].name).toBe("Ana (Test) Perez");
+      });
+    });
   });
 });

@@ -11,6 +11,7 @@ import {
 } from "react-big-calendar";
 
 import { OutOfAvailabilityAlertDialog } from "@/components/OutOfAvailabilityAlertDialog";
+import { Button } from "@/components/ui/button";
 import {
   createAppointment,
   getDoctorAppointmentsInRange,
@@ -61,13 +62,20 @@ interface CalendarEvent {
 // single already-selected doctor/patient/treatment (NewAppointmentView only
 // mounts this once all three are picked). Renders that doctor's busy
 // appointments for the visible week, distinguishes hours inside/outside
-// their configured availability (TASK-006/042), and books directly on an
-// empty-slot click (within availability) or after the same
-// warning+confirm flow AppointmentForm already uses (outside availability,
-// TASK-042) — reused via OutOfAvailabilityAlertDialog rather than
-// reimplemented. Clicking an occupied event shows a brief notice instead of
-// attempting to book; the real invariant is still createAppointment's
-// server-side existsOverlapping hard block (TASK-041) regardless.
+// their configured availability (TASK-006/042).
+//
+// TASK-052: an empty-slot click no longer books immediately — it only
+// *selects* that slot (highlighted via slotPropGetter, same mechanism
+// already used for availability coloring). Booking now happens from the
+// explicit "Guardar turno" button below the calendar, which runs the exact
+// same within-availability-direct / outside-availability-warning logic that
+// used to run on click: within availability books directly, outside it
+// opens OutOfAvailabilityAlertDialog first (TASK-042's warning+confirm flow,
+// reused unchanged via OutOfAvailabilityAlertDialog — only the trigger
+// moment moved from slot click to button click). Clicking an occupied event
+// still shows a brief notice instead of selecting/booking anything; the real
+// invariant is still createAppointment's server-side existsOverlapping hard
+// block (TASK-041) regardless.
 export const DoctorWeekCalendar = ({
   doctorName,
   availability,
@@ -85,6 +93,7 @@ export const DoctorWeekCalendar = ({
   treatmentName: string;
   onBooked?: () => void;
 }) => {
+  const [date, setDate] = useState(() => new Date());
   const [range, setRange] = useState(() => {
     const now = new Date();
     return {
@@ -93,6 +102,12 @@ export const DoctorWeekCalendar = ({
     };
   });
   const [appointments, setAppointments] = useState<BusyAppointment[]>([]);
+  // TASK-052: the slot a click has selected but not yet confirmed. Distinct
+  // from `pendingSlot` below, which is specifically the slot awaiting the
+  // out-of-availability warning's confirm/cancel — a selected slot only
+  // becomes a pending one once "Guardar turno" is clicked and it turns out
+  // to be outside availability.
+  const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
   const [pendingSlot, setPendingSlot] = useState<Date | null>(null);
   const [isBooking, setIsBooking] = useState(false);
   const [message, setMessage] = useState<
@@ -160,6 +175,11 @@ export const DoctorWeekCalendar = ({
     });
 
     setIsBooking(false);
+    // TASK-052: whether the booking attempt succeeded or failed, the
+    // confirm step is over — clear the selection so the highlight and
+    // "Guardar turno" bar disappear rather than lingering on a slot that's
+    // either now booked or was rejected server-side.
+    setSelectedSlot(null);
     await loadAppointments();
 
     if (created) {
@@ -173,14 +193,34 @@ export const DoctorWeekCalendar = ({
     }
   };
 
+  // TASK-052: an empty-slot click only selects it now — clicking the
+  // already-selected slot again clears the selection (a discoverable toggle,
+  // backed up by the explicit "Cancelar selección" button below for anyone
+  // who wouldn't find the toggle on their own), and clicking a different
+  // empty slot just moves the selection rather than booking the old one.
   const handleSelectSlot = (slotInfo: SlotInfo) => {
     if (isBooking) return;
     setMessage(null);
+    setSelectedSlot((current) =>
+      current && current.getTime() === slotInfo.start.getTime()
+        ? null
+        : slotInfo.start,
+    );
+  };
 
-    if (isWithinAvailability(slotInfo.start, availability)) {
-      book(slotInfo.start);
+  // TASK-052: this is the exact logic that used to run directly from
+  // handleSelectSlot on click — moved verbatim to fire from the "Guardar
+  // turno" button instead. Within availability books immediately; outside
+  // it, same as before, opens OutOfAvailabilityAlertDialog and only books
+  // once that's confirmed (confirmOutOfAvailability below).
+  const confirmBooking = () => {
+    if (!selectedSlot || isBooking) return;
+    setMessage(null);
+
+    if (isWithinAvailability(selectedSlot, availability)) {
+      book(selectedSlot);
     } else {
-      setPendingSlot(slotInfo.start);
+      setPendingSlot(selectedSlot);
     }
   };
 
@@ -210,14 +250,53 @@ export const DoctorWeekCalendar = ({
         </p>
       )}
 
+      {/* TASK-052: the selection step between clicking a slot and actually
+          booking it — stays visible for as long as a slot is selected, and
+          disappears once it's confirmed, cancelled, or another slot is
+          picked instead. */}
+      {selectedSlot && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dark-500 bg-dark-400 px-4 py-3">
+          <p className="text-14-medium">
+            Horario seleccionado:{" "}
+            <span className="text-green-500">
+              {format(selectedSlot, "EEEE d 'de' MMMM, HH:mm 'hs'", {
+                locale: es,
+              })}
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="shad-gray-btn"
+              disabled={isBooking}
+              onClick={() => setSelectedSlot(null)}
+            >
+              Cancelar selección
+            </Button>
+            <Button
+              type="button"
+              className="shad-primary-btn"
+              onClick={confirmBooking}
+              isLoading={isBooking}
+              loadingText="Guardando..."
+            >
+              Guardar turno
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="rbc-dark-theme rounded-md border border-dark-500 bg-dark-400 p-2">
         <Calendar
           localizer={localizer}
           culture="es"
           events={events}
-          defaultView={Views.WEEK}
+          view={Views.WEEK}
+          onView={() => {}}
           views={[Views.WEEK]}
-          defaultDate={range.start}
+          date={date}
+          onNavigate={setDate}
           onRangeChange={(newRange) => {
             if (Array.isArray(newRange)) return;
             setRange({ start: newRange.start, end: newRange.end });
@@ -230,11 +309,19 @@ export const DoctorWeekCalendar = ({
           min={MIN_TIME}
           max={MAX_TIME}
           style={{ height: 600 }}
-          slotPropGetter={(date: Date) => ({
-            className: isWithinAvailability(date, availability)
+          slotPropGetter={(date: Date) => {
+            const availabilityClass = isWithinAvailability(date, availability)
               ? "rbc-slot-available"
-              : "rbc-slot-unavailable",
-          })}
+              : "rbc-slot-unavailable";
+            const isSelected =
+              selectedSlot !== null &&
+              date.getTime() === selectedSlot.getTime();
+            return {
+              className: isSelected
+                ? `${availabilityClass} rbc-slot-selected`
+                : availabilityClass,
+            };
+          }}
           messages={{
             week: "Semana",
             day: "Día",

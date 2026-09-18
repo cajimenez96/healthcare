@@ -12,7 +12,7 @@ import { getRoleHomeRoute } from "@/lib/auth/roleHomeRoute";
 import { LoginFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 const LoginForm = () => {
   const router = useRouter();
@@ -71,7 +71,9 @@ const LoginForm = () => {
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
-        <SubmitButton isLoading={isLoading}>Ingresar</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Ingresar
+        </Button>
       </form>
     </Form>
   );

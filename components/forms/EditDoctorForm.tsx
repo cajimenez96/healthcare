@@ -12,7 +12,7 @@ import { DoctorEditFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import { FileUploader } from "../FileUploader";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 import { DoctorAvailabilityPicker } from "./DoctorAvailabilityPicker";
 
@@ -122,7 +122,9 @@ const EditDoctorForm = ({ doctor, onDone }: EditDoctorFormProps) => {
           )}
         />
 
-        <SubmitButton isLoading={isLoading}>Guardar cambios</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Guardar cambios
+        </Button>
       </form>
     </Form>
   );

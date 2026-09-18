@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { saveOdontogram } from "@/lib/actions/odontogram.actions";
 import type { Tooth, ToothCondition, ToothFace } from "@/lib/odontogram/createEmptyOdontogram";
+import { cn } from "@/lib/utils";
 
 const CONDITION_CYCLE: (ToothCondition | undefined)[] = [
   undefined,
@@ -61,14 +62,17 @@ const ToothGrid = ({
       {(Object.keys(FACE_GRID_POSITION) as ToothFace[]).map((face) => {
         const condition = tooth.faces[face];
         return (
-          <button
+          <Button
             key={face}
             type="button"
+            variant="ghost"
             title={`${tooth.toothNumber} · ${face}${condition ? ` · ${condition}` : ""}`}
             onClick={() => onFaceClick(tooth.toothNumber, face)}
-            className={`size-4 ${FACE_GRID_POSITION[face]} ${
-              condition ? CONDITION_COLOR[condition] : "bg-white"
-            }`}
+            className={cn(
+              "size-4 rounded-none p-0",
+              FACE_GRID_POSITION[face],
+              condition ? CONDITION_COLOR[condition] : "bg-white",
+            )}
           />
         );
       })}
@@ -126,10 +130,11 @@ export const Odontogram = ({ patientId, initialTeeth }: OdontogramProps) => {
       <Button
         type="button"
         className="shad-primary-btn"
-        disabled={isSaving}
+        isLoading={isSaving}
+        loadingText="Guardando..."
         onClick={handleSave}
       >
-        {isSaving ? "Guardando..." : "Guardar odontograma"}
+        Guardar odontograma
       </Button>
     </div>
   );

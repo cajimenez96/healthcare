@@ -11,7 +11,7 @@ import { updateAdmin } from "@/lib/actions/adminUser.actions";
 import { AdminEditFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import SubmitButton from "../SubmitButton";
+import { Button } from "../ui/button";
 
 interface EditAdminFormProps {
   admin: {
@@ -81,7 +81,9 @@ const EditAdminForm = ({ admin, onDone }: EditAdminFormProps) => {
 
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
-        <SubmitButton isLoading={isLoading}>Guardar cambios</SubmitButton>
+        <Button type="submit" className="shad-primary-btn w-full" isLoading={isLoading}>
+          Guardar cambios
+        </Button>
       </form>
     </Form>
   );

@@ -85,7 +85,7 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
           variant="outline"
           size="sm"
           className={doctor.isActive ? "shad-danger-btn" : "shad-primary-btn"}
-          disabled={isToggling}
+          isLoading={isToggling}
           onClick={toggleActive}
         >
           {doctor.isActive ? "Desactivar" : "Reactivar"}
