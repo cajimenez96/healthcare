@@ -15,6 +15,16 @@ export interface AppointmentRecord {
   reason: string;
   note?: string;
   cancellationReason?: string;
+  // TASK-041: optional here because appointments created before this
+  // migration have no treatment reference at all — there's no meaningful
+  // value to fall back to (unlike durationMinutes below). Required on
+  // CreateAppointmentInput for every new appointment going forward.
+  treatmentId?: string;
+  // Always resolves to a real number — MongoAppointmentRepository falls
+  // back to DEFAULT_TREATMENT_DURATION_MINUTES for appointments created
+  // before this field existed, mirroring
+  // TreatmentRecord.estimatedDurationMinutes (TASK-040).
+  durationMinutes: number;
 }
 
 /** Appointment shape returned by findRecent(), with the referenced patient populated. */
@@ -22,8 +32,14 @@ export interface AppointmentWithPatient extends AppointmentRecord {
   patient: PatientRecord;
 }
 
-export type CreateAppointmentInput = Omit<AppointmentRecord, "id" | "status"> & {
+export type CreateAppointmentInput = Omit<
+  AppointmentRecord,
+  "id" | "status" | "treatmentId"
+> & {
   status?: Status;
+  // Genuinely required for new appointments (TASK-041) — snapshotted once
+  // at creation, never recomputed from a live Treatment lookup afterward.
+  treatmentId: string;
 };
 
 export type UpdateAppointmentInput = Partial<
@@ -37,12 +53,28 @@ export interface IAppointmentRepository {
   findById(id: string): Promise<AppointmentRecord | null>;
   /** "HH:mm" times already booked (non-cancelled) for a doctor on a given calendar day. */
   findBookedTimes(primaryPhysician: string, date: Date): Promise<string[]>;
-  /** Whether a doctor already has a non-cancelled appointment at that exact time. */
+  /**
+   * Whether a doctor already has a non-cancelled appointment whose real
+   * [schedule, schedule + durationMinutes) interval overlaps the given one
+   * (TASK-041 — no longer a fixed 30-minute/exact-time assumption).
+   */
   existsOverlapping(
     primaryPhysician: string,
     schedule: Date,
+    durationMinutes: number,
     excludeAppointmentId?: string,
   ): Promise<boolean>;
   /** A doctor's own appointments (their agenda), soonest first, with the patient populated. */
   findByDoctor(primaryPhysician: string): Promise<AppointmentWithPatient[]>;
+  /**
+   * That doctor's non-cancelled appointments whose schedule falls within
+   * [start, end), soonest first, with the patient populated — TASK-043's
+   * "Nuevo turno" calendar week view, scoped to whatever range is currently
+   * visible rather than the doctor's entire history (unlike findByDoctor).
+   */
+  findByDoctorInRange(
+    primaryPhysician: string,
+    start: Date,
+    end: Date,
+  ): Promise<AppointmentWithPatient[]>;
 }

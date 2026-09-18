@@ -6,15 +6,18 @@ export const BASE_TREATMENTS = [
     name: "Consulta Odontológica",
     price: 5000,
     description: "Consulta y diagnóstico inicial",
+    estimatedDurationMinutes: 30,
   },
   {
     name: "Obturación de Resina",
     price: 15000,
     description: "Obturación (tapado de caries) con resina compuesta",
+    estimatedDurationMinutes: 45,
   },
   {
     name: "Limpieza Dental",
     price: 8000,
     description: "Profilaxis y limpieza dental",
+    estimatedDurationMinutes: 40,
   },
 ];

@@ -1,18 +1,20 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { DoctorAvatar } from "@/components/DoctorAvatar";
+import { OutOfAvailabilityAlertDialog } from "@/components/OutOfAvailabilityAlertDialog";
 import { SelectItem } from "@/components/ui/select";
 import {
   createAppointment,
   getAvailableSlotsForDoctor,
   updateAppointment,
 } from "@/lib/actions/appointment.actions";
+import { isWithinAvailability } from "@/lib/scheduling/getAvailableSlots";
 import { getAppointmentSchema } from "@/lib/validation";
 import { Appointment } from "@/types/appwrite.types";
 
@@ -30,8 +32,17 @@ interface DoctorAvailability {
 
 interface DoctorOption {
   name: string;
-  image: string;
+  image?: string;
   availability?: DoctorAvailability[];
+}
+
+// TASK-041: the estimated treatment picked at booking time — its current
+// estimatedDurationMinutes (TASK-040) is what createAppointment snapshots
+// as the appointment's durationMinutes for the overlap check.
+interface TreatmentOption {
+  id: string;
+  name: string;
+  estimatedDurationMinutes: number;
 }
 
 function dayKey(date: Date): string {
@@ -45,6 +56,7 @@ export const AppointmentForm = ({
   appointment,
   setOpen,
   doctors,
+  treatments = [],
 }: {
   // Optional since TASK-023/024: staff-created patients have no linked
   // User — only used to resolve a phone number for the SMS confirmation.
@@ -54,6 +66,10 @@ export const AppointmentForm = ({
   appointment?: Appointment;
   setOpen?: Dispatch<SetStateAction<boolean>>;
   doctors: DoctorOption[];
+  // Optional: only required for type="create" (TASK-041), where the
+  // selector below is rendered. Rescheduling/cancelling an existing
+  // appointment doesn't touch its already-snapshotted treatment.
+  treatments?: TreatmentOption[];
 }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -62,10 +78,17 @@ export const AppointmentForm = ({
 
   const AppointmentFormValidation = getAppointmentSchema(type);
 
+  // TASK-042: client-side-only soft warning — see the Observaciones note in
+  // docs/PLANNING.md (TASK-042) for why this isn't also enforced server-side.
+  const [pendingValues, setPendingValues] = useState<z.infer<
+    typeof AppointmentFormValidation
+  > | null>(null);
+
   const form = useForm<z.infer<typeof AppointmentFormValidation>>({
     resolver: zodResolver(AppointmentFormValidation),
     defaultValues: {
       primaryPhysician: appointment ? appointment?.primaryPhysician : "",
+      treatmentId: "",
       schedule: appointment
         ? new Date(appointment?.schedule!)
         : new Date(Date.now()),
@@ -106,7 +129,7 @@ export const AppointmentForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDoctorName, selectedDate && dayKey(selectedDate)]);
 
-  const onSubmit = async (
+  const submitAppointment = async (
     values: z.infer<typeof AppointmentFormValidation>
   ) => {
     setIsLoading(true);
@@ -130,6 +153,7 @@ export const AppointmentForm = ({
           userId,
           patient: patientId,
           primaryPhysician: values.primaryPhysician,
+          treatmentId: values.treatmentId!,
           schedule: new Date(values.schedule),
           reason: values.reason!,
           status: status as Status,
@@ -183,6 +207,36 @@ export const AppointmentForm = ({
     setIsLoading(false);
   };
 
+  // TASK-042: soft warning gate for the create flow only — reschedule/cancel
+  // go straight to submitAppointment, unaffected. If the chosen date/time
+  // falls outside the selected doctor's configured availability, hold the
+  // values and ask for confirmation instead of submitting immediately; the
+  // happy path (within availability) submits directly, with no extra step.
+  const onSubmit = async (
+    values: z.infer<typeof AppointmentFormValidation>
+  ) => {
+    if (type === "create") {
+      const withinAvailability = isWithinAvailability(
+        new Date(values.schedule),
+        selectedDoctor?.availability ?? [],
+      );
+
+      if (!withinAvailability) {
+        setPendingValues(values);
+        return;
+      }
+    }
+
+    await submitAppointment(values);
+  };
+
+  const confirmOutOfAvailability = async () => {
+    if (!pendingValues) return;
+    const values = pendingValues;
+    setPendingValues(null);
+    await submitAppointment(values);
+  };
+
   let buttonLabel;
   switch (type) {
     case "cancel":
@@ -219,18 +273,28 @@ export const AppointmentForm = ({
               {doctors.map((doctor, i) => (
                 <SelectItem key={doctor.name + i} value={doctor.name}>
                   <div className="flex cursor-pointer items-center gap-2">
-                    <Image
-                      src={doctor.image}
-                      width={32}
-                      height={32}
-                      alt="doctor"
-                      className="rounded-full border border-dark-500"
-                    />
+                    <DoctorAvatar name={doctor.name} image={doctor.image} size={32} />
                     <p>{doctor.name}</p>
                   </div>
                 </SelectItem>
               ))}
             </CustomFormField>
+
+            {type === "create" && (
+              <CustomFormField
+                fieldType={FormFieldType.SELECT}
+                control={form.control}
+                name="treatmentId"
+                label="Prestación"
+                placeholder="Seleccioná la prestación estimada"
+              >
+                {treatments.map((treatment) => (
+                  <SelectItem key={treatment.id} value={treatment.id}>
+                    {treatment.name} ({treatment.estimatedDurationMinutes} min)
+                  </SelectItem>
+                ))}
+              </CustomFormField>
+            )}
 
             <CustomFormField
               fieldType={FormFieldType.DATE_PICKER}
@@ -238,7 +302,7 @@ export const AppointmentForm = ({
               name="schedule"
               label="Fecha estimada del turno"
               showTimeSelect
-              dateFormat="MM/dd/yyyy  -  h:mm aa"
+              dateFormat="dd/MM/yyyy  -  h:mm aa"
               includeTimes={availableTimes ?? undefined}
               filterDate={
                 selectedDoctor?.availability
@@ -295,6 +359,12 @@ export const AppointmentForm = ({
           {buttonLabel}
         </SubmitButton>
       </form>
+
+      <OutOfAvailabilityAlertDialog
+        open={pendingValues !== null}
+        onCancel={() => setPendingValues(null)}
+        onConfirm={confirmOutOfAvailability}
+      />
     </Form>
   );
 };

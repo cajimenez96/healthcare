@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { ADMIN_CREDENTIALS } from "./credentials";
 import { loginAs, uniqueSuffix } from "./helpers";
-import { bookAppointmentAsAdmin, createStaffPatient } from "./patient-flow";
+import {
+  clickCalendarSlot,
+  createStaffPatient,
+  goToNewAppointmentWithSelection,
+} from "./patient-flow";
 import { readState } from "./state";
 
 test.describe.configure({ mode: "serial" });
@@ -20,20 +24,27 @@ test.beforeAll(() => {
   DOCTOR_NAME = state.doctor.name;
 });
 
-// A different time-of-day than 02-flujo.spec.ts's slots (10:00/11:00 AM),
-// so even if both files land on the same day for this same shared doctor,
-// they never collide. Second-granularity across a wide day range keeps
-// quick repeated runs during local iteration from colliding with a
-// previous run's still-booked slot.
-const DAY_OF_MONTH = String(2 + (Math.floor(Date.now() / 1000) % 26));
-const TIME_LABEL = "9:00 AM";
+// A different weeks-ahead offset than 02-flujo.spec.ts's slots, so even if
+// both files land on the same day for this same shared doctor, they never
+// collide. Second-granularity across a wide range keeps quick repeated runs
+// during local iteration from colliding with a previous run's still-booked
+// slot.
+const WEEKS_AHEAD = 7 + (Math.floor(Date.now() / 1000) % 6);
+const DAY_INDEX = Math.floor(Date.now() / 1000) % 7;
+const HOUR = 8 + (Math.floor(Date.now() / 1000) % 11);
 
 // TASK-023/024: both patient creation and appointment booking are
-// staff-mediated now (createStaffPatient / bookAppointmentAsAdmin instead
-// of the deleted public self-service flow). The slot-collision race this
-// test reproduces is still real-world reachable - two receptionists (or,
-// here, the same Administrador in two tabs) booking the same doctor+time at
-// once - it just no longer needs two different patient sessions to set up.
+// staff-mediated now. TASK-043 replaced the "fill the form, submit later"
+// deferred-submit trick this test used to reproduce the race
+// (AdminNewAppointmentModal/AppointmentForm, deleted) with two pages that
+// each independently load the doctor's calendar for the exact same
+// week/day/hour (both fetch the doctor's busy appointments once, before
+// either books) and then click that identical slot in sequence — the second
+// click still targets a cell its own (now-stale) view still shows as free,
+// so the race is reproduced the same way, just via two page loads instead of
+// two unsubmitted forms. The slot-collision race itself is still
+// real-world reachable - two receptionists (or, here, the same
+// Administrador in two tabs) booking the same doctor+time at once.
 test.describe("ADM-09 - choque de horario", () => {
   test("segundo turno para el mismo doctor y horario falla con el mensaje literal", async ({ browser }) => {
     const context = await browser.newContext();
@@ -42,7 +53,7 @@ test.describe("ADM-09 - choque de horario", () => {
 
     const runA = uniqueSuffix();
     const emailA = `qa.adm09.a.${runA}@test.local`;
-    await createStaffPatient(pageA, {
+    const { identificationNumber: dniA } = await createStaffPatient(pageA, {
       name: `Paciente ADM09 A ${runA}`,
       email: emailA,
       phone: "+5491166667777",
@@ -51,48 +62,37 @@ test.describe("ADM-09 - choque de horario", () => {
 
     const runB = uniqueSuffix();
     const emailB = `qa.adm09.b.${runB}@test.local`;
-    await createStaffPatient(pageB, {
+    const { identificationNumber: dniB } = await createStaffPatient(pageB, {
       name: `Paciente ADM09 B ${runB}`,
       email: emailB,
       phone: "+5491177778888",
       doctorName: DOCTOR_NAME,
     });
 
-    // Both fill (but don't submit) the identical doctor+date+time on the
-    // Admin's "Nuevo turno" dialog (AppointmentForm's time picker
-    // proactively hides slots that are already booked, so a strictly
-    // sequential "book A, then try B at the same slot" never lets B even
-    // select the taken time in the UI) - at this point the slot is still
-    // free for both.
-    const dialogA = await bookAppointmentAsAdmin(pageA, {
-      patientEmail: emailA,
+    // Both reach the doctor's calendar for the identical target week - at
+    // this point the slot is still free for both.
+    await goToNewAppointmentWithSelection(pageA, {
+      patientIdentificationNumber: dniA,
       doctorName: DOCTOR_NAME,
-      dayOfMonth: DAY_OF_MONTH,
-      timeLabel: TIME_LABEL,
-      reason: "Primer turno de choque de horario",
-      submit: false,
+      treatmentName: "Consulta Odontológica",
     });
-    const dialogB = await bookAppointmentAsAdmin(pageB, {
-      patientEmail: emailB,
+    await goToNewAppointmentWithSelection(pageB, {
+      patientIdentificationNumber: dniB,
       doctorName: DOCTOR_NAME,
-      dayOfMonth: DAY_OF_MONTH,
-      timeLabel: TIME_LABEL,
-      reason: "Segundo turno, mismo horario, debe fallar",
-      submit: false,
+      treatmentName: "Consulta Odontológica",
     });
 
-    // A submits first and wins the slot.
-    await dialogA.getByRole("button", { name: "Solicitar turno" }).click();
-    await expect(dialogA).toBeHidden();
+    // A clicks first and wins the slot.
+    await clickCalendarSlot(pageA, { weeksAhead: WEEKS_AHEAD, dayIndex: DAY_INDEX, hour: HOUR });
+    await expect(pageA.getByText("Turno agendado con éxito.")).toBeVisible();
 
-    // B submits second, against the same (now-taken) slot it still has
-    // selected in memory.
+    // B clicks the same slot second, against its own view (fetched before A
+    // booked) which still shows it as free.
     await pageB.bringToFront();
-    await dialogB.getByRole("button", { name: "Solicitar turno" }).click();
+    await clickCalendarSlot(pageB, { weeksAhead: WEEKS_AHEAD, dayIndex: DAY_INDEX, hour: HOUR });
 
-    await expect(dialogB).toBeVisible(); // didn't close - no success
     await expect(
-      dialogB.getByText(
+      pageB.getByText(
         "No se pudo guardar el turno. Es posible que el horario ya no esté disponible — elegí otro e intentá de nuevo.",
       ),
     ).toBeVisible();
@@ -109,7 +109,7 @@ test.describe("ADM-05 - desactivar / reactivar doctor", () => {
     // the booking dropdown after deactivation.
     const run = uniqueSuffix();
     const patientEmail = `qa.adm05.${run}@test.local`;
-    await createStaffPatient(page, {
+    const { identificationNumber: patientDni } = await createStaffPatient(page, {
       name: `Paciente ADM05 ${run}`,
       email: patientEmail,
       phone: "+5491188889999",
@@ -130,13 +130,12 @@ test.describe("ADM-05 - desactivar / reactivar doctor", () => {
     await expect(page.locator("li", { hasText: DOCTOR_NAME })).toBeVisible();
 
     // Disappears from the active-doctors dropdown used by "Nuevo turno"
-    // (Admin's direct booking flow, TASK-018).
-    await page.goto("/admin");
-    await page.getByRole("button", { name: "Nuevo turno" }).click();
-    const dialog = page.getByRole("dialog");
-    await dialog.getByPlaceholder("Email o teléfono del paciente").fill(patientEmail);
-    await dialog.getByRole("button", { name: "Buscar" }).click();
-    await dialog.getByRole("combobox", { name: "Doctor" }).click();
+    // (Admin's direct booking flow, TASK-043 — the full-page calendar that
+    // replaced AdminNewAppointmentModal, TASK-018).
+    await page.goto("/admin/turnos/nuevo");
+    await page.getByPlaceholder("DNI del paciente").fill(patientDni);
+    await page.getByRole("button", { name: "Buscar" }).click();
+    await page.getByRole("combobox", { name: "Doctor" }).click();
     await expect(page.getByRole("option", { name: DOCTOR_NAME })).toHaveCount(0);
     await page.keyboard.press("Escape");
   });

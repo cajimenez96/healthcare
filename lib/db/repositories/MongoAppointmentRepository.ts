@@ -1,5 +1,6 @@
 import mongoose, { type HydratedDocument } from "mongoose";
 
+import { DEFAULT_TREATMENT_DURATION_MINUTES } from "../../../constants";
 import type {
   AppointmentRecord,
   AppointmentWithPatient,
@@ -25,6 +26,14 @@ function toAppointmentRecord(
     reason: doc.reason,
     note: doc.note,
     cancellationReason: doc.cancellationReason,
+    // TASK-041: no fallback for treatmentId — an appointment that predates
+    // this field genuinely has no treatment reference.
+    treatmentId: doc.treatmentId?.toString(),
+    // Schema `default: 30` only fires for newly-created documents (same
+    // caveat as Treatment.estimatedDurationMinutes, TASK-040) — this
+    // fallback guarantees existsOverlapping always has a real duration to
+    // compute a real end time with, old appointment or new.
+    durationMinutes: doc.durationMinutes ?? DEFAULT_TREATMENT_DURATION_MINUTES,
   };
 }
 
@@ -72,6 +81,22 @@ export class MongoAppointmentRepository implements IAppointmentRepository {
 
   async findByDoctor(primaryPhysician: string): Promise<AppointmentWithPatient[]> {
     const docs = await Appointment.find({ primaryPhysician })
+      .sort({ schedule: 1 })
+      .populate<{ patientId: IPatient }>("patientId");
+
+    return this.mapWithPatient(docs);
+  }
+
+  async findByDoctorInRange(
+    primaryPhysician: string,
+    start: Date,
+    end: Date,
+  ): Promise<AppointmentWithPatient[]> {
+    const docs = await Appointment.find({
+      primaryPhysician,
+      status: { $ne: "cancelled" },
+      schedule: { $gte: start, $lt: end },
+    })
       .sort({ schedule: 1 })
       .populate<{ patientId: IPatient }>("patientId");
 
@@ -142,16 +167,34 @@ export class MongoAppointmentRepository implements IAppointmentRepository {
   async existsOverlapping(
     primaryPhysician: string,
     schedule: Date,
+    durationMinutes: number,
     excludeAppointmentId?: string,
   ): Promise<boolean> {
-    const count = await Appointment.countDocuments({
+    // TASK-041: real overlap, not a fixed 30-minute/exact-time assumption.
+    // Every non-cancelled appointment for this doctor that could possibly
+    // overlap starts before the new appointment's end — narrow down with
+    // that (indexed) range first, then compute each candidate's real end
+    // time in-memory using its own snapshotted durationMinutes (falling
+    // back to 30 for appointments that predate that field) and check for a
+    // genuine interval overlap.
+    const newStart = schedule.getTime();
+    const newEnd = newStart + durationMinutes * 60_000;
+
+    const candidates = await Appointment.find({
       primaryPhysician,
-      schedule,
       status: { $ne: "cancelled" },
+      schedule: { $lt: new Date(newEnd) },
       ...(excludeAppointmentId && mongoose.isValidObjectId(excludeAppointmentId)
         ? { _id: { $ne: excludeAppointmentId } }
         : {}),
     });
-    return count > 0;
+
+    return candidates.some((doc) => {
+      const existingStart = doc.schedule.getTime();
+      const existingDuration =
+        doc.durationMinutes ?? DEFAULT_TREATMENT_DURATION_MINUTES;
+      const existingEnd = existingStart + existingDuration * 60_000;
+      return existingStart < newEnd && existingEnd > newStart;
+    });
   }
 }

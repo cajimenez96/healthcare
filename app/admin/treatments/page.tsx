@@ -1,6 +1,3 @@
-import Image from "next/image";
-import Link from "next/link";
-
 import { CreateTreatmentModal } from "@/components/CreateTreatmentModal";
 import { TreatmentRow } from "@/components/TreatmentRow";
 import { getAllTreatments } from "@/lib/actions/treatment.actions";
@@ -10,23 +7,6 @@ const TreatmentsPage = async () => {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
-      <header className="admin-header">
-        <Link href="/admin" className="cursor-pointer">
-          <Image
-            src="/assets/icons/logo-full.svg"
-            height={32}
-            width={162}
-            alt="logo"
-            className="h-8 w-fit"
-          />
-        </Link>
-
-        <p className="text-16-semibold">Nomenclador</p>
-        <Link href="/admin" className="text-green-500">
-          Volver
-        </Link>
-      </header>
-
       <main className="admin-main">
         <section className="w-full space-y-4">
           <div className="flex items-center justify-between">
@@ -41,6 +21,7 @@ const TreatmentsPage = async () => {
                 price: number;
                 description?: string;
                 isActive: boolean;
+                estimatedDurationMinutes: number;
               }) => (
                 <TreatmentRow key={treatment.id} treatment={treatment} />
               ),

@@ -37,6 +37,14 @@ describe("MongoDoctorRepository", () => {
       expect(doctor.name).toBe("Dr. Cameron");
       expect(doctor.isActive).toBe(true);
     });
+
+    it("creates a doctor without an image (TASK-036: photo optional at creation)", async () => {
+      const { image, ...doctorWithoutImage } = validDoctor;
+
+      const doctor = await repository.create(doctorWithoutImage);
+
+      expect(doctor.image).toBeUndefined();
+    });
   });
 
   describe("findActive", () => {

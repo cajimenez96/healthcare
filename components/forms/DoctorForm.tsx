@@ -37,10 +37,13 @@ const DoctorForm = ({ onDone }: DoctorFormProps) => {
   const onSubmit = async (values: z.infer<typeof DoctorFormValidation>) => {
     setIsLoading(true);
 
-    const blobFile = new Blob([values.photo[0]], { type: values.photo[0].type });
     const photo = new FormData();
-    photo.append("blobFile", blobFile);
-    photo.append("fileName", values.photo[0].name);
+    const photoFile = values.photo?.[0];
+    if (photoFile) {
+      const blobFile = new Blob([photoFile], { type: photoFile.type });
+      photo.append("blobFile", blobFile);
+      photo.append("fileName", photoFile.name);
+    }
 
     const doctor = await createDoctor({
       name: values.name,
@@ -90,7 +93,7 @@ const DoctorForm = ({ onDone }: DoctorFormProps) => {
           fieldType={FormFieldType.SKELETON}
           control={form.control}
           name="photo"
-          label="Foto"
+          label="Foto (opcional)"
           renderSkeleton={(field) => (
             <FormControl>
               <FileUploader files={field.value} onChange={field.onChange} />

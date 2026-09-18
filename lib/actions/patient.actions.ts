@@ -100,3 +100,28 @@ export const findPatientByIdentificationNumber = async (query: string) => {
     );
   }
 };
+
+export type ListPatientsFilters = {
+  name?: string;
+  identificationNumber?: string;
+};
+
+// LIST PATIENTS (list + filter screen, TASK-035. Same dual-role access as
+// createPatient — Secretaria is the primary front-desk user, Administrador
+// also has access — no editing/creation happens from this screen.)
+export const listPatients = async (filters: ListPatientsFilters = {}) => {
+  try {
+    await requireSecretariaOrAdminSession();
+    await connectToDatabase();
+
+    const patients = await patientRepository.findAll({
+      name: filters.name?.trim() || undefined,
+      identificationNumber: filters.identificationNumber?.trim() || undefined,
+    });
+
+    return parseStringify(patients.map(toPatient));
+  } catch (error) {
+    console.error("An error occurred while listing patients:", error);
+    return [];
+  }
+};

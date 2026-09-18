@@ -22,7 +22,7 @@ interface EditDoctorFormProps {
     name: string;
     specialty: string;
     licenseNumber: string;
-    image: string;
+    image?: string;
     availability: { dayOfWeek: number; startTime: string; endTime: string }[];
   };
   onDone: () => void;

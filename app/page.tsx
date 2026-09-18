@@ -1,14 +1,24 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth/next";
 
 import { Button } from "@/components/ui/button";
+import { authOptions } from "@/lib/auth/authOptions";
+import { getRoleHomeRoute } from "@/lib/auth/roleHomeRoute";
 
 // TASK-023: patients have no self-service access at all anymore — onboarding
 // is 100% staff-mediated (see createPatient / CreatePatientForm, TASK-024).
 // This landing page is now staff-only, pointing straight at /login instead
 // of also offering the public self-registration form this page used to
 // render (PatientForm, removed along with the rest of the patient portal).
-const Home = () => {
+const Home = async () => {
+  const session = await getServerSession(authOptions);
+
+  if (session?.user?.role) {
+    redirect(getRoleHomeRoute(session.user.role));
+  }
+
   return (
     <div className="flex h-screen max-h-screen">
       <section className="remove-scrollbar container my-auto">

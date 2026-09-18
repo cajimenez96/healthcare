@@ -73,6 +73,9 @@ describe("getRecentAppointmentList - status counts", () => {
       primaryPhysician: "Dr. Cameron",
       schedule: new Date(),
       reason: "Control",
+      // TASK-041: now required on the model — irrelevant to what this test
+      // actually verifies (status counting), just needs a valid value.
+      treatmentId: new mongoose.Types.ObjectId(),
     };
 
     await Appointment.create({ ...base, status: "scheduled" });

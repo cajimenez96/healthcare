@@ -15,12 +15,15 @@ const doctorRepository = new MongoDoctorRepository();
 const userRepository = new MongoUserRepository();
 const fileStorage = new GridFsFileStorage();
 
-async function uploadPhoto(photo: FormData): Promise<string> {
+// Photo is optional (TASK-036) — returns undefined when none was provided
+// instead of throwing, same pattern as identificationDocument in
+// patient.actions.ts.
+async function uploadPhoto(photo: FormData): Promise<string | undefined> {
   const blobFile = photo.get("blobFile") as Blob | null;
   const fileName = photo.get("fileName") as string | null;
 
   if (!blobFile || !fileName) {
-    throw new Error("A photo is required");
+    return undefined;
   }
 
   const uploadedFile = await fileStorage.upload(blobFile, fileName);
@@ -53,7 +56,7 @@ export type UpdateDoctorParams = {
   specialty: string;
   licenseNumber: string;
   availability: CreateDoctorInput["availability"];
-  existingImage: string;
+  existingImage?: string;
   photo?: FormData;
 };
 

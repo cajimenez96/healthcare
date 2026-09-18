@@ -10,6 +10,12 @@ export const GenderLabels: Record<string, string> = {
 
 export const DEFAULT_INSURANCE_PROVIDER = "Particular / Sin Convenio";
 
+// TASK-040: the duration every appointment already assumed fixed before
+// treatments carried their own. Schema-level default for new Treatment
+// writes; also used as the repository-level fallback for documents that
+// predate this field (see MongoTreatmentRepository.toTreatmentRecord).
+export const DEFAULT_TREATMENT_DURATION_MINUTES = 30;
+
 export const PatientFormDefaultValues = {
   firstName: "",
   lastName: "",

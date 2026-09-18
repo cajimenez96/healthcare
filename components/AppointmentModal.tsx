@@ -40,7 +40,7 @@ export const AppointmentModal = ({
   description: string;
   doctors: {
     name: string;
-    image: string;
+    image?: string;
     availability?: { dayOfWeek: number; startTime: string; endTime: string }[];
   }[];
 }) => {

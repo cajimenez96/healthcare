@@ -27,13 +27,20 @@ describe("Doctor model", () => {
     await mongoose.disconnect();
   });
 
-  it("requires name, image, specialty and licenseNumber", async () => {
+  it("requires name, specialty and licenseNumber", async () => {
     const error = await getValidationError(new Doctor({}));
 
     expect(error.errors.name).toBeDefined();
-    expect(error.errors.image).toBeDefined();
     expect(error.errors.specialty).toBeDefined();
     expect(error.errors.licenseNumber).toBeDefined();
+  });
+
+  it("does not require an image (TASK-036: photo optional at creation)", async () => {
+    const { image, ...doctorWithoutImage } = validDoctor;
+
+    const doctor = await Doctor.create(doctorWithoutImage);
+
+    expect(doctor.image).toBeUndefined();
   });
 
   it("rejects an invalid dayOfWeek in availability", async () => {

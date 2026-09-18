@@ -39,6 +39,8 @@ function appointmentInput(patientId: string): CreateAppointmentInput {
     primaryPhysician: "Dr. Cameron",
     schedule: new Date("2026-08-01T10:00:00Z"),
     reason: "Annual checkup",
+    treatmentId: new mongoose.Types.ObjectId().toString(),
+    durationMinutes: 30,
   };
 }
 
@@ -80,6 +82,40 @@ describe("MongoAppointmentRepository", () => {
 
       expect(created.status).toBe("scheduled");
     });
+
+    // TASK-041: treatmentId/durationMinutes are snapshotted at creation.
+    it("snapshots the given treatmentId and durationMinutes", async () => {
+      const patientId = await createPatient();
+      const treatmentId = new mongoose.Types.ObjectId().toString();
+      const created = await repository.create({
+        ...appointmentInput(patientId),
+        treatmentId,
+        durationMinutes: 45,
+      });
+
+      expect(created.treatmentId).toBe(treatmentId);
+      expect(created.durationMinutes).toBe(45);
+    });
+
+    // Same migration discipline as MongoTreatmentRepository (TASK-040): a
+    // pre-existing appointment inserted directly through the native driver
+    // (bypassing the model's `default: 30` entirely) must still read back a
+    // usable durationMinutes through the repository.
+    it("falls back to 30 minutes for an appointment that predates durationMinutes", async () => {
+      const patientId = await createPatient();
+      const inserted = await Appointment.collection.insertOne({
+        patientId: new mongoose.Types.ObjectId(patientId),
+        primaryPhysician: "Dr. Cameron",
+        schedule: new Date("2026-08-01T10:00:00Z"),
+        status: "scheduled",
+        reason: "Annual checkup",
+      });
+
+      const result = await repository.findById(inserted.insertedId.toString());
+
+      expect(result?.durationMinutes).toBe(30);
+      expect(result?.treatmentId).toBeUndefined();
+    });
   });
 
   describe("findRecent", () => {
@@ -117,6 +153,56 @@ describe("MongoAppointmentRepository", () => {
 
       expect(result.map((r) => r.id)).toEqual([earlier.id, later.id]);
       expect(result[0].patient.name).toBe("John Doe");
+    });
+  });
+
+  // TASK-043: powers the new "Nuevo turno" calendar page's week view — the
+  // doctor's busy events for whatever range is currently visible, not their
+  // entire history (findByDoctor above, used for the Doctor's own agenda).
+  describe("findByDoctorInRange", () => {
+    it("returns only that doctor's non-cancelled appointments within the range, soonest first, with the patient populated", async () => {
+      const patientId = await createPatient();
+      const inRangeEarlier = await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 6, 6, 9, 0),
+      });
+      const inRangeLater = await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 6, 7, 9, 0),
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 6, 6, 11, 0),
+        status: "cancelled",
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 6, 10, 9, 0), // outside the queried range
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        primaryPhysician: "Dr. Other",
+        schedule: new Date(2026, 6, 6, 9, 0),
+      });
+
+      const result = await repository.findByDoctorInRange(
+        "Dr. Cameron",
+        new Date(2026, 6, 5),
+        new Date(2026, 6, 9),
+      );
+
+      expect(result.map((r) => r.id)).toEqual([inRangeEarlier.id, inRangeLater.id]);
+      expect(result[0].patient.name).toBe("John Doe");
+    });
+
+    it("returns an empty array when the doctor has no appointments in range", async () => {
+      const result = await repository.findByDoctorInRange(
+        "Dr. Cameron",
+        new Date(2026, 6, 5),
+        new Date(2026, 6, 9),
+      );
+
+      expect(result).toEqual([]);
     });
   });
 
@@ -214,6 +300,7 @@ describe("MongoAppointmentRepository", () => {
       const result = await repository.existsOverlapping(
         "Dr. Cameron",
         new Date("2026-08-01T10:00:00Z"),
+        30,
       );
 
       expect(result).toBe(true);
@@ -230,6 +317,7 @@ describe("MongoAppointmentRepository", () => {
       const result = await repository.existsOverlapping(
         "Dr. Cameron",
         new Date("2026-08-01T10:00:00Z"),
+        30,
       );
 
       expect(result).toBe(false);
@@ -246,10 +334,91 @@ describe("MongoAppointmentRepository", () => {
       const result = await repository.existsOverlapping(
         "Dr. Cameron",
         new Date("2026-08-01T10:00:00Z"),
+        30,
         created.id,
       );
 
       expect(result).toBe(false);
+    });
+
+    // TASK-041: a 45-minute appointment starting at 10:00 occupies until
+    // 10:45 — a fixed-30-minute assumption would only have blocked another
+    // request landing at exactly 10:00, missing a genuine overlap like one
+    // requested for 10:30.
+    it("blocks a new request that starts mid-way through an existing longer appointment", async () => {
+      const patientId = await createPatient();
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 10, 0),
+        durationMinutes: 45,
+        status: "scheduled",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date(2026, 7, 1, 10, 30),
+        30,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it("blocks a new longer request that would swallow an existing shorter appointment", async () => {
+      const patientId = await createPatient();
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 10, 15),
+        durationMinutes: 15,
+        status: "scheduled",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date(2026, 7, 1, 10, 0),
+        60,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it("allows a back-to-back appointment that starts exactly when the previous one ends", async () => {
+      const patientId = await createPatient();
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 10, 0),
+        durationMinutes: 30,
+        status: "scheduled",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date(2026, 7, 1, 10, 30),
+        30,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    // Same migration discipline as the model/repository tests above: an
+    // appointment inserted before durationMinutes existed must still block
+    // real overlaps using the 30-minute fallback, not be silently ignored.
+    it("uses the 30-minute fallback duration for a pre-existing appointment without durationMinutes", async () => {
+      const patientId = await createPatient();
+      await Appointment.collection.insertOne({
+        patientId: new mongoose.Types.ObjectId(patientId),
+        primaryPhysician: "Dr. Cameron",
+        schedule: new Date(2026, 7, 1, 10, 0),
+        status: "scheduled",
+        reason: "Annual checkup",
+      });
+
+      const result = await repository.existsOverlapping(
+        "Dr. Cameron",
+        new Date(2026, 7, 1, 10, 15),
+        30,
+      );
+
+      expect(result).toBe(true);
     });
   });
 });

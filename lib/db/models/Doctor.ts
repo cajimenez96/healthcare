@@ -9,7 +9,7 @@ export interface IDoctorAvailability {
 export interface IDoctor {
   _id: Types.ObjectId;
   name: string;
-  image: string;
+  image?: string;
   specialty: string;
   licenseNumber: string;
   availability: IDoctorAvailability[];
@@ -28,7 +28,9 @@ const doctorAvailabilitySchema = new Schema<IDoctorAvailability>(
 const doctorSchema = new Schema<IDoctor>(
   {
     name: { type: String, required: true },
-    image: { type: String, required: true },
+    // Optional since TASK-036: photo is no longer required to create a
+    // doctor — every render site falls back to a generic avatar when absent.
+    image: String,
     specialty: { type: String, required: true },
     licenseNumber: { type: String, required: true },
     availability: { type: [doctorAvailabilitySchema], default: [] },

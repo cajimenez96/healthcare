@@ -5,7 +5,7 @@ import { Appointment } from "@/types/appwrite.types";
 import { getColumns } from "./columns";
 import { DataTable } from "./DataTable";
 
-type DoctorOption = { name: string; image: string };
+type DoctorOption = { name: string; image?: string };
 
 interface AppointmentsTableProps {
   data: Appointment[];

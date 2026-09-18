@@ -1,6 +1,3 @@
-import Image from "next/image";
-import Link from "next/link";
-
 import CreatePatientForm from "@/components/forms/CreatePatientForm";
 import { getActiveDoctors } from "@/lib/actions/doctor.actions";
 import { getActiveInsuranceProviders } from "@/lib/actions/insuranceProvider.actions";
@@ -16,23 +13,6 @@ const NewPatientPage = async () => {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col space-y-14">
-      <header className="admin-header">
-        <Link href="/admin" className="cursor-pointer">
-          <Image
-            src="/assets/icons/logo-full.svg"
-            height={32}
-            width={162}
-            alt="logo"
-            className="h-8 w-fit"
-          />
-        </Link>
-
-        <p className="text-16-semibold">Panel de Administración</p>
-        <Link href="/admin" className="text-green-500">
-          Volver
-        </Link>
-      </header>
-
       <main className="admin-main">
         <CreatePatientForm doctors={doctors} insuranceProviders={insuranceProviders} />
       </main>

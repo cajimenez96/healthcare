@@ -348,3 +348,97 @@
 .PhoneInputInput::placeholder {
   color: #1a1d21;
 }
+
+/* =====  REACT BIG CALENDAR OVERRIDES (TASK-043) */
+/* Scoped under .rbc-dark-theme (DoctorWeekCalendar's wrapper) rather than
+   bare element selectors, since this is the only place the library is used
+   — same dark palette (#0d0f10/#1a1d21/#363a3d/#76828d) as the rest of the
+   app instead of the library's default white background. */
+.rbc-dark-theme .rbc-calendar {
+  color: #abb8c4;
+}
+
+.rbc-dark-theme .rbc-off-range-bg {
+  background: #131619;
+}
+
+.rbc-dark-theme .rbc-today {
+  background-color: #152432;
+}
+
+.rbc-dark-theme .rbc-header,
+.rbc-dark-theme .rbc-time-header-content,
+.rbc-dark-theme .rbc-time-content,
+.rbc-dark-theme .rbc-time-header.rbc-overflowing,
+.rbc-dark-theme .rbc-timeslot-group,
+.rbc-dark-theme .rbc-time-content > * + * > *,
+.rbc-dark-theme .rbc-day-slot .rbc-time-slot {
+  border-color: #363a3d;
+}
+
+.rbc-dark-theme .rbc-header {
+  padding: 8px 4px;
+  color: #e8e9e9;
+}
+
+.rbc-dark-theme .rbc-label {
+  color: #76828d;
+}
+
+.rbc-dark-theme .rbc-toolbar button {
+  color: #abb8c4;
+  border-color: #363a3d;
+  background: #1a1d21;
+}
+
+.rbc-dark-theme .rbc-toolbar button:hover,
+.rbc-dark-theme .rbc-toolbar button:focus {
+  background: #363a3d;
+  color: #ffffff;
+}
+
+.rbc-dark-theme .rbc-toolbar button.rbc-active {
+  background: #24ae7c;
+  border-color: #24ae7c;
+  color: #ffffff;
+}
+
+.rbc-dark-theme .rbc-toolbar-label {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Within the doctor's configured availability (TASK-006/042) — a subtle
+   green tint distinguishes it from a plain empty slot. */
+.rbc-dark-theme .rbc-slot-available {
+  background-color: rgba(36, 174, 124, 0.08);
+}
+
+/* Outside the doctor's configured availability — dimmed/hatched so it still
+   reads as clickable (TASK-042's soft warning), just visually discouraged. */
+.rbc-dark-theme .rbc-slot-unavailable {
+  background-color: rgba(0, 0, 0, 0.35);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.rbc-dark-theme .rbc-event {
+  background-color: #152432;
+  border: 1px solid #79b5ec;
+  color: #e8e9e9;
+}
+
+.rbc-dark-theme .rbc-event:focus,
+.rbc-dark-theme .rbc-event.rbc-selected {
+  background-color: #152432;
+  outline: 2px solid #79b5ec;
+}
+
+.rbc-dark-theme .rbc-current-time-indicator {
+  background-color: #24ae7c;
+}

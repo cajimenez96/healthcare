@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 
+import { DoctorAvatar } from "@/components/DoctorAvatar";
 import CreateDoctorAccessForm from "@/components/forms/CreateDoctorAccessForm";
 import EditDoctorForm from "@/components/forms/EditDoctorForm";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ interface DoctorRowProps {
     name: string;
     specialty: string;
     licenseNumber: string;
-    image: string;
+    image?: string;
     isActive: boolean;
     availability: { dayOfWeek: number; startTime: string; endTime: string }[];
   };
@@ -53,13 +53,7 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
   return (
     <>
       <li className="flex items-center gap-4">
-        <Image
-          src={doctor.image}
-          alt={doctor.name}
-          width={40}
-          height={40}
-          className="rounded-full border border-dark-500"
-        />
+        <DoctorAvatar name={doctor.name} image={doctor.image} size={40} />
         <div className="flex-1">
           <p className="text-14-medium">
             {doctor.name}

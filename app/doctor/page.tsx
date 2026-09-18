@@ -1,7 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
 
-import { LogoutButton } from "@/components/LogoutButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getMyAppointments } from "@/lib/actions/appointment.actions";
 import { formatDateTime } from "@/lib/utils";
@@ -22,21 +20,6 @@ const DoctorPage = async () => {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
-      <header className="admin-header">
-        <Link href="/doctor" className="cursor-pointer">
-          <Image
-            src="/assets/icons/logo-full.svg"
-            height={32}
-            width={162}
-            alt="logo"
-            className="h-8 w-fit"
-          />
-        </Link>
-
-        <p className="text-16-semibold">Mi agenda</p>
-        <LogoutButton />
-      </header>
-
       <main className="admin-main">
         <section className="w-full space-y-4">
           <h1 className="header">Mis turnos</h1>

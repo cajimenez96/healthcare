@@ -31,16 +31,20 @@ const RUN = uniqueSuffix();
 const PATIENT_NAME = `Paciente QA ${RUN}`;
 const PATIENT_EMAIL = `qa.patient.${RUN}@test.local`;
 const PATIENT_PHONE = "+5491133334444";
+let PATIENT_DNI: string;
 
-// Our doctor's availability covers every weekday 08:00-20:00 (see
-// 00-setup), so any future date/time works - but the doctor (and its
-// booked slots) persists in the real DB across re-runs of this spec against
-// an already-running dev server, so pick the day from the current run
-// instant instead of a fixed constant to avoid colliding with a
+// TASK-043: the doctor's week calendar replaced the react-datepicker flow
+// this suite used to drive (AdminNewAppointmentModal, deleted). Our doctor's
+// availability still covers every day 08:00-20:00 (see 00-setup), so any
+// weekday/hour books directly with no out-of-availability confirm - but the
+// doctor (and its booked slots) persists in the real DB across re-runs of
+// this spec against an already-running dev server, so derive the target
+// week/day/hour from the current run instant to avoid colliding with a
 // still-scheduled appointment left over from a previous run.
-const DAY_OF_MONTH = String(2 + (Math.floor(Date.now() / 1000) % 20));
-const DOC06_DAY_OF_MONTH = String(2 + ((Math.floor(Date.now() / 1000) + 1) % 20));
-const TIME_LABEL = "10:00 AM";
+const WEEKS_AHEAD = 1 + (Math.floor(Date.now() / 1000) % 6);
+const DAY_INDEX = Math.floor(Date.now() / 1000) % 7;
+const HOUR = 8 + (Math.floor(Date.now() / 1000) % 11);
+const DOC06_HOUR = 8 + ((Math.floor(Date.now() / 1000) + 1) % 11);
 
 // TASK-023/024: onboarding + booking are 100% staff-mediated now. What used
 // to be PAC-01 (alta inicial) + PAC-03 (registro completo) - two separate
@@ -50,7 +54,7 @@ const TIME_LABEL = "10:00 AM";
 // bookAppointmentAsAdmin) instead of a patient requesting it themselves.
 test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
   test("PAC-01/03 - alta de paciente con obra social y documento de identificacion", async ({ page }) => {
-    const { fileId } = await createStaffPatient(page, {
+    const { fileId, identificationNumber } = await createStaffPatient(page, {
       name: PATIENT_NAME,
       email: PATIENT_EMAIL,
       phone: PATIENT_PHONE,
@@ -59,6 +63,7 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
     });
 
     expect(fileId, "SEG-02 necesita un fileId de un documento subido").toBeTruthy();
+    PATIENT_DNI = identificationNumber;
 
     writeState({
       patient: { name: PATIENT_NAME, email: PATIENT_EMAIL, phone: PATIENT_PHONE },
@@ -67,15 +72,16 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
   });
 
   test("PAC-07 - solicitud de turno queda pending", async ({ page }) => {
-    const dialog = await bookAppointmentAsAdmin(page, {
-      patientEmail: PATIENT_EMAIL,
+    await bookAppointmentAsAdmin(page, {
+      patientIdentificationNumber: PATIENT_DNI,
       doctorName: DOCTOR_NAME,
-      dayOfMonth: DAY_OF_MONTH,
-      timeLabel: TIME_LABEL,
-      reason: "Dolor de muela persistente",
+      treatmentName: "Consulta Odontológica",
+      weeksAhead: WEEKS_AHEAD,
+      dayIndex: DAY_INDEX,
+      hour: HOUR,
     });
 
-    await expect(dialog).toBeHidden();
+    await expect(page.getByText("Turno agendado con éxito.")).toBeVisible();
   });
 
   test("Criterio de aceptacion FLU-01 - el turno pending es visible para el Administrador", async ({ page }) => {
@@ -181,23 +187,24 @@ test.describe("FLU-02 - confirmacion y atencion clinica", () => {
     const run2 = uniqueSuffix();
     const patient2Name = `Paciente QA DOC06 ${run2}`;
     const patient2Email = `qa.patient.doc06.${run2}@test.local`;
-    await createStaffPatient(page, {
+    const { identificationNumber: patient2Dni } = await createStaffPatient(page, {
       name: patient2Name,
       email: patient2Email,
       phone: "+5491144445555",
       doctorName: DOCTOR_NAME,
       insuranceProviderName: "Particular / Sin Convenio",
     });
-    const dialog = await bookAppointmentAsAdmin(page, {
-      patientEmail: patient2Email,
+    await bookAppointmentAsAdmin(page, {
+      patientIdentificationNumber: patient2Dni,
       doctorName: DOCTOR_NAME,
-      dayOfMonth: DOC06_DAY_OF_MONTH,
-      timeLabel: "11:00 AM",
-      reason: "Control de rutina",
+      treatmentName: "Consulta Odontológica",
+      weeksAhead: WEEKS_AHEAD,
+      dayIndex: DAY_INDEX,
+      hour: DOC06_HOUR,
     });
     // Without this, the subsequent loginAs()'s page.goto("/login") can abort
     // the still-in-flight createAppointment submission.
-    await expect(dialog).toBeHidden();
+    await expect(page.getByText("Turno agendado con éxito.")).toBeVisible();
 
     await loginAs(page, DOCTOR_EMAIL, DOCTOR_PASSWORD);
     await page.goto("/doctor");

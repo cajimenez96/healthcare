@@ -19,6 +19,7 @@ interface TreatmentRowProps {
     price: number;
     description?: string;
     isActive: boolean;
+    estimatedDurationMinutes: number;
   };
 }
 
@@ -41,7 +42,8 @@ export const TreatmentRow = ({ treatment }: TreatmentRowProps) => {
             {!treatment.isActive && <span className="text-dark-700"> (inactivo)</span>}
           </p>
           <p className="text-12-regular text-dark-700">
-            ${treatment.price.toLocaleString("es-AR")}
+            ${treatment.price.toLocaleString("es-AR")} ·{" "}
+            {treatment.estimatedDurationMinutes} min
             {treatment.description ? ` · ${treatment.description}` : ""}
           </p>
         </div>

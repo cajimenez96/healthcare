@@ -1,15 +1,15 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import Image from "next/image";
 
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
 
 import { AppointmentModal } from "../AppointmentModal";
+import { DoctorAvatar } from "../DoctorAvatar";
 import { StatusBadge } from "../StatusBadge";
 
-type DoctorOption = { name: string; image: string };
+type DoctorOption = { name: string; image?: string };
 
 export const getColumns = (
   allDoctors: DoctorOption[],
@@ -62,17 +62,12 @@ export const getColumns = (
       const doctor = allDoctors.find(
         (doctor) => doctor.name === appointment.primaryPhysician
       );
+      const doctorName = doctor?.name ?? appointment.primaryPhysician;
 
       return (
         <div className="flex items-center gap-3">
-          <Image
-            src={doctor?.image!}
-            alt="doctor"
-            width={100}
-            height={100}
-            className="size-8"
-          />
-          <p className="whitespace-nowrap">Dr. {doctor?.name}</p>
+          <DoctorAvatar name={doctorName} image={doctor?.image} size={32} />
+          <p className="whitespace-nowrap">Dr. {doctorName}</p>
         </div>
       );
     },

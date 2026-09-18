@@ -9,7 +9,7 @@ export interface DoctorAvailability {
 export interface DoctorRecord {
   id: string;
   name: string;
-  image: string;
+  image?: string;
   specialty: string;
   licenseNumber: string;
   availability: DoctorAvailability[];

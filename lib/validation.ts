@@ -48,6 +48,7 @@ export const CreatePatientFormValidation = z.object({
 
 export const CreateAppointmentSchema = z.object({
   primaryPhysician: z.string().min(2, "Seleccioná al menos un doctor"),
+  treatmentId: z.string().min(1, "Seleccioná una prestación"),
   schedule: z.coerce.date(),
   reason: z
     .string()
@@ -59,6 +60,10 @@ export const CreateAppointmentSchema = z.object({
 
 export const ScheduleAppointmentSchema = z.object({
   primaryPhysician: z.string().min(2, "Seleccioná al menos un doctor"),
+  // Not required here: rescheduling an existing appointment doesn't change
+  // its already-snapshotted treatment (TASK-041) — only present so
+  // AppointmentForm's `values` type stays uniform across create/schedule/cancel.
+  treatmentId: z.string().optional(),
   schedule: z.coerce.date(),
   reason: z.string().optional(),
   note: z.string().optional(),
@@ -67,6 +72,7 @@ export const ScheduleAppointmentSchema = z.object({
 
 export const CancelAppointmentSchema = z.object({
   primaryPhysician: z.string().min(2, "Seleccioná al menos un doctor"),
+  treatmentId: z.string().optional(),
   schedule: z.coerce.date(),
   reason: z.string().optional(),
   note: z.string().optional(),
@@ -126,7 +132,7 @@ export const DoctorFormValidation = z.object({
     .string()
     .min(2, "La matrícula debe tener al menos 2 caracteres")
     .max(50, "La matrícula debe tener como máximo 50 caracteres"),
-  photo: z.custom<File[]>().refine((files) => files?.length === 1, "La foto es obligatoria"),
+  photo: z.custom<File[]>().optional(),
   availability: z
     .array(DoctorAvailabilityValidation)
     .min(1, "Seleccioná al menos un día de disponibilidad"),
@@ -149,6 +155,10 @@ export const TreatmentFormValidation = z.object({
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .max(100, "El nombre debe tener como máximo 100 caracteres"),
   price: z.coerce.number().positive("El precio debe ser mayor a 0"),
+  estimatedDurationMinutes: z.coerce
+    .number()
+    .int("La duración debe ser un número entero de minutos")
+    .min(5, "La duración debe ser de al menos 5 minutos"),
   description: z.string().max(500, "La descripción debe tener como máximo 500 caracteres").optional(),
 });
 

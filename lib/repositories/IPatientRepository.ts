@@ -39,9 +39,18 @@ export type CreatePatientInput = Omit<PatientRecord, "id" | "insuranceProvider">
   insuranceProvider?: string;
 };
 
+export interface PatientListFilters {
+  /** Partial, case-insensitive match on name. */
+  name?: string;
+  /** Partial match on identification number (DNI) — front-desk staff rarely have the full number at hand. */
+  identificationNumber?: string;
+}
+
 export interface IPatientRepository {
   create(input: CreatePatientInput): Promise<PatientRecord>;
   findById(id: string): Promise<PatientRecord | null>;
   /** Exact match on identification number (DNI) — used by Admin to find one patient to book a direct appointment for (TASK-033). */
   findByIdentificationNumber(identificationNumber: string): Promise<PatientRecord | null>;
+  /** Lists patients sorted by name, optionally narrowed by name/DNI filters (TASK-035). */
+  findAll(filters?: PatientListFilters): Promise<PatientRecord[]>;
 }

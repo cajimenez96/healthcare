@@ -14,7 +14,13 @@ import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
 
 interface TreatmentFormProps {
-  treatment?: { id: string; name: string; price: number; description?: string };
+  treatment?: {
+    id: string;
+    name: string;
+    price: number;
+    description?: string;
+    estimatedDurationMinutes: number;
+  };
   onDone?: () => void;
 }
 
@@ -27,6 +33,7 @@ const TreatmentForm = ({ treatment, onDone }: TreatmentFormProps) => {
     defaultValues: {
       name: treatment?.name ?? "",
       price: treatment?.price ?? 0,
+      estimatedDurationMinutes: treatment?.estimatedDurationMinutes ?? 30,
       description: treatment?.description ?? "",
     },
   });
@@ -66,6 +73,15 @@ const TreatmentForm = ({ treatment, onDone }: TreatmentFormProps) => {
           name="price"
           label="Precio"
           placeholder="5000"
+          inputType="number"
+        />
+
+        <CustomFormField
+          fieldType={FormFieldType.INPUT}
+          control={form.control}
+          name="estimatedDurationMinutes"
+          label="Duración estimada (minutos)"
+          placeholder="30"
           inputType="number"
         />
 

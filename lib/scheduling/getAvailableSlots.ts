@@ -4,7 +4,7 @@ export interface DoctorAvailabilityEntry {
   endTime: string;
 }
 
-function toMinutes(time: string): number {
+export function toMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }
@@ -42,4 +42,26 @@ export function getAvailableSlots(
   }
 
   return slots;
+}
+
+// TASK-042: answers "is this exact date/time inside the doctor's configured
+// availability?" — reuses the same day/time-window math as getAvailableSlots
+// above (toMinutes + per-entry dayOfWeek/start/end comparison) instead of
+// duplicating it, but isn't tied to slot granularity: a manually-typed time
+// that doesn't land on a 30-minute boundary can still be "within
+// availability" as long as it falls inside a configured window.
+export function isWithinAvailability(
+  date: Date,
+  availability: DoctorAvailabilityEntry[],
+): boolean {
+  const dayOfWeek = date.getDay();
+  const minutes = date.getHours() * 60 + date.getMinutes();
+
+  return availability.some((entry) => {
+    if (entry.dayOfWeek !== dayOfWeek) return false;
+
+    const start = toMinutes(entry.startTime);
+    const end = toMinutes(entry.endTime);
+    return minutes >= start && minutes < end;
+  });
 }

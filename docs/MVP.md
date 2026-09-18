@@ -30,9 +30,9 @@ Un sistema que se pueda demostrar de punta a punta con los tres roles internos (
 ### 2.4 Gestión de Administradores — TASK-027
 - CRUD completo desde `/admin/admins`: alta, edición y desactivación, con salvaguarda server-side que impide desactivar al último Administrador activo. El seed script (`scripts/seed-admin.ts`) sigue siendo el único camino para el *primer* Admin de arranque.
 
-### 2.5 Turnos — TASK-007, TASK-018
-- Cálculo de horarios libres en tiempo real, anti-solapamiento validado en backend.
-- Alta directa desde `/admin` (`AdminNewAppointmentModal`) buscando un paciente **ya existente** por email/teléfono exacto — **no crea pacientes nuevos**, solo los encuentra.
+### 2.5 Turnos — TASK-007, TASK-018, TASK-040/041/042/043
+- Cálculo de horarios libres en tiempo real, anti-solapamiento real por `treatmentId`/`durationMinutes` (no un fijo de 30 minutos) validado en backend (bloqueo duro); horario fuera de la disponibilidad configurada del doctor es advertencia con confirmación, no bloqueo.
+- **`AdminNewAppointmentModal` fue eliminado (TASK-043)**. El alta de turno vive ahora en `/admin/turnos/nuevo`: buscar/crear paciente por DNI (TASK-033/039) y elegir doctor + prestación estimada en acordeones, luego un calendario semanal (`react-big-calendar`) del doctor elegido para clickear el horario directamente, viendo su disponibilidad y turnos ya ocupados.
 - Estados `scheduled | pending | cancelled | completed`, contados en el dashboard de Admin (TASK-016).
 
 ### 2.6 Ficha clínica y odontograma — TASK-008, TASK-009

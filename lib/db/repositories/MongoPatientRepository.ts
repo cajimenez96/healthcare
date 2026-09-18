@@ -3,10 +3,18 @@ import mongoose, { type HydratedDocument } from "mongoose";
 import type {
   CreatePatientInput,
   IPatientRepository,
+  PatientListFilters,
   PatientRecord,
 } from "../../repositories/IPatientRepository";
 import type { IPatient } from "../models/Patient";
 import { Patient } from "../models/Patient";
+
+// Escapes regex metacharacters so a filter value (e.g. a DNI containing
+// nothing special, but defensively for names like "Ana (Test)") is matched
+// as literal text rather than interpreted as a regex pattern.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function toPatientRecord(doc: HydratedDocument<IPatient>): PatientRecord {
   return {
@@ -53,5 +61,22 @@ export class MongoPatientRepository implements IPatientRepository {
   async findByIdentificationNumber(identificationNumber: string): Promise<PatientRecord | null> {
     const doc = await Patient.findOne({ identificationNumber });
     return doc ? toPatientRecord(doc) : null;
+  }
+
+  async findAll(filters: PatientListFilters = {}): Promise<PatientRecord[]> {
+    const query: Record<string, unknown> = {};
+
+    if (filters.name) {
+      query.name = { $regex: escapeRegExp(filters.name), $options: "i" };
+    }
+
+    if (filters.identificationNumber) {
+      query.identificationNumber = {
+        $regex: escapeRegExp(filters.identificationNumber),
+      };
+    }
+
+    const docs = await Patient.find(query).sort({ name: 1 });
+    return docs.map(toPatientRecord);
   }
 }

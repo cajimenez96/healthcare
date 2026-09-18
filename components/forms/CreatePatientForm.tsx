@@ -1,11 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { DoctorAvatar } from "@/components/DoctorAvatar";
 import { Form, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -31,13 +32,32 @@ import SubmitButton from "../SubmitButton";
 // app/recepcion/pacientes/nuevo/page.tsx and app/admin/pacientes/nuevo/page.tsx).
 // Adapted from RegisterForm.tsx's field set, but with no dependency on a
 // pre-existing User (there is none — patients have no login, TASK-023).
+//
+// TASK-039: `setOpen`/`defaultName`/`defaultIdentificationNumber` are
+// optional additions for the Dialog usage from PatientsList's
+// search-then-create flow (same `setOpen?` convention TASK-034 used on
+// CreateSecretariaForm etc.) — the two standalone `/nuevo` pages above don't
+// pass them, so they keep behaving exactly as before.
 export const CreatePatientForm = ({
   doctors,
   insuranceProviders,
+  setOpen,
+  defaultName,
+  defaultIdentificationNumber,
+  onCreated,
 }: {
-  doctors: { name: string; image: string }[];
+  doctors: { name: string; image?: string }[];
   insuranceProviders: { name: string }[];
+  setOpen?: Dispatch<SetStateAction<boolean>>;
+  defaultName?: string;
+  defaultIdentificationNumber?: string;
+  // TASK-043: optional hook for a caller that wants the newly-created
+  // patient back (e.g. "Nuevo turno" auto-selecting them for booking right
+  // away) instead of just refreshing/closing. Additive — every existing
+  // caller that doesn't pass it keeps behaving exactly as before.
+  onCreated?: (patient: { $id: string; name: string }) => void;
 }) => {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdPatientName, setCreatedPatientName] = useState<string | null>(null);
@@ -45,7 +65,7 @@ export const CreatePatientForm = ({
   const form = useForm<z.infer<typeof CreatePatientFormValidation>>({
     resolver: zodResolver(CreatePatientFormValidation),
     defaultValues: {
-      name: "",
+      name: defaultName ?? "",
       email: "",
       phone: "",
       gender: "Male",
@@ -57,7 +77,7 @@ export const CreatePatientForm = ({
       insuranceProvider: DEFAULT_INSURANCE_PROVIDER,
       insurancePolicyNumber: "",
       identificationType: "National Identity Card",
-      identificationNumber: "",
+      identificationNumber: defaultIdentificationNumber ?? "",
       identificationDocument: [],
     },
   });
@@ -99,6 +119,9 @@ export const CreatePatientForm = ({
       if (newPatient) {
         setCreatedPatientName(newPatient.name);
         form.reset();
+        router.refresh();
+        setOpen?.(false);
+        onCreated?.({ $id: newPatient.$id, name: newPatient.name });
       } else {
         setError("No se pudo crear el paciente. Intentá de nuevo.");
       }
@@ -249,13 +272,7 @@ export const CreatePatientForm = ({
             {doctors.map((doctor, i) => (
               <SelectItem key={doctor.name + i} value={doctor.name}>
                 <div className="flex cursor-pointer items-center gap-2">
-                  <Image
-                    src={doctor.image}
-                    width={32}
-                    height={32}
-                    alt="doctor"
-                    className="rounded-full border border-dark-500"
-                  />
+                  <DoctorAvatar name={doctor.name} image={doctor.image} size={32} />
                   <p>{doctor.name}</p>
                 </div>
               </SelectItem>

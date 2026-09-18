@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 
 import { ADMIN_CREDENTIALS, SECRETARIA_CREDENTIALS } from "./credentials";
 import { getPatientIdentificationFileIdByEmail } from "./db";
-import { loginAs, pickAppointmentDateTime } from "./helpers";
+import { loginAs } from "./helpers";
 
 const ID_DOCUMENT_PATH = "public/assets/icons/user.svg";
 
@@ -52,11 +52,14 @@ export async function createStaffPatient(
     await page.getByRole("option", { name: input.insuranceProviderName }).click();
   }
 
+  const identificationNumber =
+    input.identificationNumber ?? `30${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
   await page.getByRole("combobox", { name: "Tipo de identificación" }).click();
   await page.getByRole("option", { name: "Documento Nacional de Identidad (DNI)" }).click();
   await page
     .getByLabel("Número de identificación", { exact: true })
-    .fill(input.identificationNumber ?? `30${Date.now()}${Math.floor(Math.random() * 1000)}`);
+    .fill(identificationNumber);
   // Required on this form (unlike the old public flow) — there's no patient
   // present later to come back and add it.
   await page.locator("input[type=file]").setInputFiles(ID_DOCUMENT_PATH);
@@ -67,47 +70,96 @@ export async function createStaffPatient(
 
   const fileId = await getPatientIdentificationFileIdByEmail(input.email);
 
-  return { email: input.email, fileId };
+  // TASK-043: callers now need the DNI back too — the new "Nuevo turno" page
+  // (bookAppointmentAsAdmin below) searches for the patient by DNI
+  // (TASK-033), not by email/phone like the deleted AdminNewAppointmentModal.
+  return { email: input.email, fileId, identificationNumber };
 }
 
-// TASK-023/024: appointment requests are staff-side too now (there's no
-// patient session to request one for themselves) — reuses the Admin's
-// "Nuevo turno" flow from TASK-018 (AdminNewAppointmentModal), searching
-// for the patient just created by exact email.
-export async function bookAppointmentAsAdmin(
+// TASK-043: AdminNewAppointmentModal is gone — "Nuevo turno" is now the
+// full-page calendar at /admin/turnos/nuevo. Navigates there, searches for
+// the patient by DNI (TASK-033, not email/phone like the deleted modal),
+// and picks doctor + prestación, leaving the doctor's week calendar mounted
+// and ready for clickCalendarSlot below. Split out from the actual slot
+// click (unlike the old single-call helper) because ADM-09 needs two pages
+// to reach the identical calendar view independently before either clicks.
+export async function goToNewAppointmentWithSelection(
   page: Page,
   opts: {
-    patientEmail: string;
+    patientIdentificationNumber: string;
     doctorName: string;
-    dayOfMonth: string;
-    timeLabel: string;
-    reason: string;
-    // false lets a caller fill (and commit into react-hook-form state) a
-    // doctor+date+time slot while it's still free, then submit later once
-    // it's no longer free — reproducing ADM-09's slot-collision race.
-    submit?: boolean;
+    treatmentName: string;
   },
 ) {
   await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
-  await page.goto("/admin");
+  await page.goto("/admin/turnos/nuevo");
 
-  await page.getByRole("button", { name: "Nuevo turno" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
+  await page
+    .getByPlaceholder("DNI del paciente")
+    .fill(opts.patientIdentificationNumber);
+  await page.getByRole("button", { name: "Buscar" }).click();
 
-  await dialog.getByPlaceholder("Email o teléfono del paciente").fill(opts.patientEmail);
-  await dialog.getByRole("button", { name: "Buscar" }).click();
-
-  await dialog.getByRole("combobox", { name: "Doctor" }).click();
+  await page.getByRole("combobox", { name: "Doctor" }).click();
   await page.getByRole("option", { name: opts.doctorName }).click();
 
-  await pickAppointmentDateTime(page, opts.dayOfMonth, opts.timeLabel);
+  await page.getByRole("combobox", { name: "Prestación" }).click();
+  await page
+    .getByRole("option", { name: new RegExp(`^${opts.treatmentName}`) })
+    .click();
 
-  await dialog.getByLabel("Motivo del turno", { exact: true }).fill(opts.reason);
+  // The calendar (react-big-calendar week view) only mounts once patient +
+  // doctor + treatment are all selected.
+  await expect(page.locator(".rbc-time-content")).toBeVisible();
+}
 
-  if (opts.submit !== false) {
-    await dialog.getByRole("button", { name: "Solicitar turno" }).click();
+// Clicks an empty week-view slot at least `weeksAhead` weeks out, at
+// `dayIndex` (0-6, Monday-first per the "es" date-fns locale the calendar
+// uses) and `hour` (24h, on the hour — matches this suite's doctor, whose
+// availability spans every day 08:00-20:00, see 00-setup.spec.ts, so any
+// hour in that range books directly with no out-of-availability confirm).
+// Targets react-big-calendar's own DOM structure directly (step=30,
+// timeslots=1 on DoctorWeekCalendar means one .rbc-timeslot-group per
+// 30-minute slot) — there's no accessible name on an individual grid cell
+// to select by role/label instead.
+export async function clickCalendarSlot(
+  page: Page,
+  opts: { weeksAhead: number; dayIndex: number; hour: number },
+) {
+  const nextButton = page.getByRole("button", { name: "Siguiente" });
+  for (let i = 0; i < opts.weeksAhead; i++) {
+    await nextButton.click();
   }
 
-  return dialog;
+  const dayColumn = page
+    .locator(".rbc-time-content .rbc-day-slot")
+    .nth(opts.dayIndex);
+  const slotIndex = (opts.hour - 7) * 2; // DoctorWeekCalendar's MIN_TIME is 07:00
+  // force: true — react-big-calendar layers an absolutely-positioned (empty
+  // but present) .rbc-events-container over the slot grid to render events
+  // in the same visual area, which Playwright's actionability check flags
+  // as "intercepting" a plain click even though it's the intended overlay
+  // RBC's own Selection utility expects the click to land through.
+  await dayColumn
+    .locator(".rbc-timeslot-group")
+    .nth(slotIndex)
+    .locator(".rbc-time-slot")
+    .first()
+    .click({ force: true });
+}
+
+// Convenience wrapper for the common case (no need to click on two separate
+// pages first, unlike ADM-09) — navigates, selects, and books in one call.
+export async function bookAppointmentAsAdmin(
+  page: Page,
+  opts: {
+    patientIdentificationNumber: string;
+    doctorName: string;
+    treatmentName: string;
+    weeksAhead: number;
+    dayIndex: number;
+    hour: number;
+  },
+) {
+  await goToNewAppointmentWithSelection(page, opts);
+  await clickCalendarSlot(page, opts);
 }

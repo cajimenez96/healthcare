@@ -1,5 +1,6 @@
 import mongoose, { type HydratedDocument } from "mongoose";
 
+import { DEFAULT_TREATMENT_DURATION_MINUTES } from "../../../constants";
 import type {
   CreateTreatmentInput,
   ITreatmentRepository,
@@ -16,6 +17,12 @@ function toTreatmentRecord(doc: HydratedDocument<ITreatment>): TreatmentRecord {
     price: doc.price,
     description: doc.description,
     isActive: doc.isActive,
+    // Schema `default: 30` only fires for newly-created documents (see
+    // Treatment.test.ts) — this fallback guarantees a real number for
+    // documents that predate the field too, since TASK-041 depends on
+    // always being able to read a duration.
+    estimatedDurationMinutes:
+      doc.estimatedDurationMinutes ?? DEFAULT_TREATMENT_DURATION_MINUTES,
   };
 }
 
@@ -23,6 +30,14 @@ export class MongoTreatmentRepository implements ITreatmentRepository {
   async create(input: CreateTreatmentInput): Promise<TreatmentRecord> {
     const doc = await Treatment.create(input);
     return toTreatmentRecord(doc);
+  }
+
+  async findById(id: string): Promise<TreatmentRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await Treatment.findById(id);
+    return doc ? toTreatmentRecord(doc) : null;
   }
 
   async findActive(): Promise<TreatmentRecord[]> {

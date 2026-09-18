@@ -19,6 +19,9 @@ declare type CreateAppointmentParams = {
   schedule: Date;
   status: Status;
   note: string | undefined;
+  // TASK-041: the estimated treatment picked at booking time — required so
+  // its current duration can be snapshotted onto the appointment.
+  treatmentId: string;
 };
 
 declare type UpdateAppointmentParams = {
