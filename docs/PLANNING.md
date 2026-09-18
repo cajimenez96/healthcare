@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (1 Ticket)           |  (0 Tickets)          |  (43 Tickets)         |
+|  (1 Ticket)           |  (0 Tickets)          |  (44 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -17,11 +17,12 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## 📋 BACKLOG (Por Hacer)
 
-#### `[TASK-044]` `CreateDoctorModal` no permite ver los checkboxes de disponibilidad
-* **Descripción**: encontrado por el agente de TASK-043 verificando e2e — el `Dialog` de `CreateDoctorModal` (TASK-034) no tiene `max-h`/`overflow-y-auto` (a diferencia de `CreatePatientModal`, que sí lo tiene), así que los checkboxes de disponibilidad de `DoctorForm` quedan fuera del área visible/interactuable del diálogo. Esto bloqueaba por completo la suite de Playwright (`00-setup.spec.ts` en adelante depende de poder crear un doctor con disponibilidad).
+#### `[TASK-045]` `e2e/00-setup.spec.ts` no hace click en "Crear Doctor" antes de completar el formulario
+* **Descripción**: encontrado por el agente de TASK-044 verificando el fix del `Dialog` — el spec llama a `page.getByLabel("Nombre").fill(...)` sin haber abierto antes el diálogo de alta (falta el click en el botón "Crear Doctor"). Bug preexistente del spec en sí, no del código de la app — existe desde que se escribió (commit `946f41e`, TASK-014/021). Es la razón real por la que la suite completa de Playwright no corre de punta a punta hoy, no el bug de `CreateDoctorModal` que TASK-044 ya resolvió.
 * **Criterios de Aceptación**:
-  - [ ] `CreateDoctorModal` (y `EditDoctorForm` dentro de su propio `Dialog` en `DoctorRow`, si tiene el mismo problema) permite ver y tildar todos los checkboxes de disponibilidad sin que queden recortados.
-* **Prioridad**: Alta (bloquea toda la suite de e2e) | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+  - [ ] `e2e/00-setup.spec.ts` abre el diálogo de alta de Doctor (click en "Crear Doctor") antes de completar el formulario.
+  - [ ] La suite completa de Playwright corre de punta a punta sin bloquearse en este spec.
+* **Prioridad**: Media | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
 
 ---
 
@@ -725,3 +726,19 @@ Rediseño completo del flujo de asignación de turnos, a partir de hallazgos de 
   - No se agregó ningún punto de entrada de "Nuevo turno" para Secretaria/`/recepcion` — fuera de alcance, tal cual el ticket.
   - No se agregó reprogramación automática en cascada — decisión ya tomada para todo este epic (TASK-041/042).
   - **Verificación**: `tsc --noEmit` limpio. `pnpm build` compiló las 22 rutas del proyecto sin errores nuevos (mismos 2 warnings preexistentes no relacionados en `FileUploader.tsx`/`BillingForm.tsx`, y los mismos mensajes de "Dynamic server usage" ya vistos en tickets anteriores). Suite Vitest completa (`pnpm exec vitest run --exclude "e2e/**" --exclude ".claude/worktrees/**"`) verde: 210/210 (los 2 tests nuevos de `findByDoctorInRange` incluidos), corrida contra MongoDB real (`.env.local`/`MONGODB_URI` accesible en este entorno). Ver la observación anterior para el detalle de la verificación e2e real (6/6 escenarios propios en verde vía spec temporal; `02-flujo`/`03-adm-extra` actualizados pero bloqueados de punta a punta por un bug ajeno en `CreateDoctorModal`).
+
+---
+
+### EPIC 12: Fix del bloqueo e2e hallado en TASK-043
+
+#### `[TASK-044]` `CreateDoctorModal` no permite ver los checkboxes de disponibilidad
+* **Descripción**: encontrado por el agente de TASK-043 verificando e2e — el `Dialog` de `CreateDoctorModal` (TASK-034) no tiene `max-h`/`overflow-y-auto` (a diferencia de `CreatePatientModal`, que sí lo tiene), así que los checkboxes de disponibilidad de `DoctorForm` quedan fuera del área visible/interactuable del diálogo. Esto bloqueaba por completo la suite de Playwright (`00-setup.spec.ts` en adelante depende de poder crear un doctor con disponibilidad).
+* **Criterios de Aceptación**:
+  - [x] `CreateDoctorModal` (y `EditDoctorForm` dentro de su propio `Dialog` en `DoctorRow`, si tiene el mismo problema) permite ver y tildar todos los checkboxes de disponibilidad sin que queden recortados.
+* **Prioridad**: Alta (bloquea toda la suite de e2e) | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+* **Resultado**: Mismo tratamiento que `CreatePatientModal` (TASK-039) — se agregó `max-h-[90vh] overflow-y-auto` al `className` del `DialogContent` de `CreateDoctorModal`. Se verificó por lectura que `DoctorRow` (TASK-034) tiene exactamente el mismo `Dialog` sin acotar para su modo edición (`EditDoctorForm`, que también renderiza `DoctorAvailabilityPicker`) y se le aplicó el mismo fix — no era una suposición, el ticket pedía verificarlo explícitamente y el problema estaba efectivamente presente. Se revisaron además los otros tres `Create*Modal` (`CreateSecretariaModal`, `CreateAdminModal`, `CreateTreatmentModal`) y sus `*Row` de edición correspondientes (`SecretariaRow`, `AdminRow`, `TreatmentRow`): los tres formularios son cortos (3-4 campos simples, sin ningún widget tipo `DoctorAvailabilityPicker`) y ya entran cómodos en un viewport típico, así que se dejaron sin tocar — no se encontró el mismo problema ahí, y forzar el mismo cambio hubiera sido alcance innecesario. `DoctorAvailabilityPicker` en sí no tiene ningún contenedor con altura acotada propia (`space-y-4` + `flex flex-wrap`), así que el único recorte venía del `DialogContent` sin límite, confirmando que el fix en el nivel del diálogo es suficiente.
+  - **Archivos creados**: Ninguno.
+  - **Archivos modificados**: `components/CreateDoctorModal.tsx`, `components/DoctorRow.tsx`
+* **Observaciones**:
+  - **Verificación e2e real, con un hallazgo adicional y ajeno al alcance**: se intentó correr `e2e/00-setup.spec.ts` (`MONGODB_URI`/`.env.local` accesibles en este entorno, igual que en TASK-043) y siguió fallando, pero por un bug distinto y preexistente en el spec mismo, no por este ticket: `00-setup.spec.ts` nunca hace click en el botón trigger "Crear Doctor" antes de intentar `page.getByLabel("Nombre").fill(...)`, así que el `Dialog` nunca llega a abrirse (confirmado con captura de pantalla del fallo — la página muestra la lista vacía de doctores con el botón "Crear Doctor" sin clickear). Ese bug existe desde el commit original que creó el archivo (`946f41e`, TASK-014/021) y es independiente del `max-h`/`overflow-y-auto` que corrige este ticket. Arreglar `00-setup.spec.ts` está fuera del alcance de este ticket (que es específicamente sobre el recorte visual del `Dialog`, no sobre la corrección del propio spec), así que en vez de tocarlo se armó un spec temporal (`e2e/zz-temp-task044-verify.spec.ts`, borrado antes de cerrar el ticket, igual criterio que el spec temporal descartado en TASK-043) que sí hace click en "Crear Doctor" y confirma que los 7 checkboxes de disponibilidad (Domingo a Sábado) quedan visibles y clickeables con el fix aplicado — corrió en verde contra el server de e2e real (`next dev` + Mongo `-e2e`). La suite completa (`00-setup.spec.ts` en adelante) sigue sin poder correr de punta a punta hasta que se arregle ese bug ajeno del spec — se recomienda un ticket de seguimiento para agregar el `click` faltante en `00-setup.spec.ts`, no abierto acá por estar fuera de alcance.
+  - **Verificación**: `tsc --noEmit` limpio. `pnpm build` compiló las 21 rutas del proyecto sin errores nuevos (mismos mensajes preexistentes de "Dynamic server usage"). No se corrieron tests de Vitest nuevos — este ticket es un cambio puramente de clases CSS en JSX existente, sin lógica nueva que testear, mismo criterio ya aplicado a cambios de chrome de UI en tickets anteriores (TASK-034/037/039/042).

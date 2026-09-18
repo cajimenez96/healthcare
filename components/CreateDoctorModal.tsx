@@ -22,7 +22,7 @@ export const CreateDoctorModal = () => {
           Crear Doctor
         </Button>
       </DialogTrigger>
-      <DialogContent className="shad-dialog sm:max-w-lg">
+      <DialogContent className="shad-dialog max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Alta de doctor</DialogTitle>
         </DialogHeader>

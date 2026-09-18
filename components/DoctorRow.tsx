@@ -93,7 +93,7 @@ export const DoctorRow = ({ doctor }: DoctorRowProps) => {
       </li>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="shad-dialog sm:max-w-lg">
+        <DialogContent className="shad-dialog max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar doctor</DialogTitle>
           </DialogHeader>
