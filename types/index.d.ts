@@ -33,6 +33,11 @@ declare type UpdateAppointmentParams = {
     schedule?: Date;
     status?: Status;
     cancellationReason?: string;
+    // TASK-056: reschedule mode (the unified "Nuevo turno" view) lets the
+    // doctor/treatment be changed too, not just the date — when present,
+    // updateAppointment looks up its current estimatedDurationMinutes and
+    // snapshots both, same as createAppointment does at booking time.
+    treatmentId?: string;
   };
   type: string;
 };

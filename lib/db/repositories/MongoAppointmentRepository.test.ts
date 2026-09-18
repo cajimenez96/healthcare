@@ -27,8 +27,8 @@ const patientInput: CreatePatientInput = {
   privacyConsent: true,
 };
 
-async function createPatient() {
-  const doc = await Patient.create(patientInput);
+async function createPatient(overrides: Partial<CreatePatientInput> = {}) {
+  const doc = await Patient.create({ ...patientInput, ...overrides });
   return doc._id.toString();
 }
 
@@ -130,6 +130,138 @@ describe("MongoAppointmentRepository", () => {
       expect(results[0].patient.name).toBe("John Doe");
       expect(results[0].patient.id).toBe(patientId);
     });
+
+    // TASK-054: combinable fecha/paciente/doctor/estado filters for the
+    // admin dashboard's turnos list.
+    it("filters by an exact calendar day", async () => {
+      const patientId = await createPatient();
+      const onTargetDay = await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 1, 9, 0),
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        schedule: new Date(2026, 7, 2, 9, 0),
+      });
+
+      const results = await repository.findRecent({
+        date: new Date(2026, 7, 1),
+      });
+
+      expect(results.map((r) => r.id)).toEqual([onTargetDay.id]);
+    });
+
+    it("filters by doctor (primaryPhysician), exact match", async () => {
+      const patientId = await createPatient();
+      const cameron = await repository.create({
+        ...appointmentInput(patientId),
+        primaryPhysician: "Dr. Cameron",
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        primaryPhysician: "Dr. House",
+      });
+
+      const results = await repository.findRecent({
+        primaryPhysician: "Dr. Cameron",
+      });
+
+      expect(results.map((r) => r.id)).toEqual([cameron.id]);
+    });
+
+    it("filters by status, exact match", async () => {
+      const patientId = await createPatient();
+      const scheduled = await repository.create({
+        ...appointmentInput(patientId),
+        status: "scheduled",
+      });
+      await repository.create({
+        ...appointmentInput(patientId),
+        status: "cancelled",
+      });
+
+      const results = await repository.findRecent({ status: "scheduled" });
+
+      expect(results.map((r) => r.id)).toEqual([scheduled.id]);
+    });
+
+    it("filters by patient name, partial and case-insensitive", async () => {
+      const janePatientId = await createPatient({
+        name: "Jane Smith",
+        identificationNumber: "11111111",
+      });
+      const johnPatientId = await createPatient({
+        name: "John Doe",
+        identificationNumber: "22222222",
+      });
+      const janeAppointment = await repository.create(
+        appointmentInput(janePatientId),
+      );
+      await repository.create(appointmentInput(johnPatientId));
+
+      const results = await repository.findRecent({ patientSearch: "jane" });
+
+      expect(results.map((r) => r.id)).toEqual([janeAppointment.id]);
+    });
+
+    it("filters by patient identification number (DNI), partial match", async () => {
+      const janePatientId = await createPatient({
+        name: "Jane Smith",
+        identificationNumber: "11112222",
+      });
+      const johnPatientId = await createPatient({
+        name: "John Doe",
+        identificationNumber: "99998888",
+      });
+      const janeAppointment = await repository.create(
+        appointmentInput(janePatientId),
+      );
+      await repository.create(appointmentInput(johnPatientId));
+
+      const results = await repository.findRecent({ patientSearch: "1112" });
+
+      expect(results.map((r) => r.id)).toEqual([janeAppointment.id]);
+    });
+
+    it("combines filters with AND", async () => {
+      const janePatientId = await createPatient({
+        name: "Jane Smith",
+        identificationNumber: "33334444",
+      });
+      const matching = await repository.create({
+        ...appointmentInput(janePatientId),
+        primaryPhysician: "Dr. Cameron",
+        status: "scheduled",
+        schedule: new Date(2026, 7, 1, 9, 0),
+      });
+      // Same patient/day, different doctor — must be excluded by the doctor filter.
+      await repository.create({
+        ...appointmentInput(janePatientId),
+        primaryPhysician: "Dr. House",
+        status: "scheduled",
+        schedule: new Date(2026, 7, 1, 10, 0),
+      });
+
+      const results = await repository.findRecent({
+        date: new Date(2026, 7, 1),
+        patientSearch: "jane",
+        primaryPhysician: "Dr. Cameron",
+        status: "scheduled",
+      });
+
+      expect(results.map((r) => r.id)).toEqual([matching.id]);
+    });
+
+    it("returns an empty list when no patient matches patientSearch", async () => {
+      const patientId = await createPatient();
+      await repository.create(appointmentInput(patientId));
+
+      const results = await repository.findRecent({
+        patientSearch: "nonexistent-name-xyz",
+      });
+
+      expect(results).toEqual([]);
+    });
   });
 
   describe("findByDoctor", () => {
@@ -226,6 +358,24 @@ describe("MongoAppointmentRepository", () => {
         { status: "cancelled" },
       );
       expect(result).toBeNull();
+    });
+
+    // TASK-056: rescheduling through the unified "Nuevo turno" view can
+    // change the treatment (not just the date/doctor, TASK-041) — the
+    // repository must persist both treatmentId and its recomputed
+    // durationMinutes together, same snapshot discipline as create.
+    it("updates treatmentId and durationMinutes when rescheduling to a different treatment", async () => {
+      const patientId = await createPatient();
+      const created = await repository.create(appointmentInput(patientId));
+      const newTreatmentId = new mongoose.Types.ObjectId().toString();
+
+      const updated = await repository.update(created.id, {
+        treatmentId: newTreatmentId,
+        durationMinutes: 60,
+      });
+
+      expect(updated?.treatmentId).toBe(newTreatmentId);
+      expect(updated?.durationMinutes).toBe(60);
     });
   });
 

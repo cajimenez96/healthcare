@@ -58,18 +58,6 @@ export const CreateAppointmentSchema = z.object({
   cancellationReason: z.string().optional(),
 });
 
-export const ScheduleAppointmentSchema = z.object({
-  primaryPhysician: z.string().min(2, "Seleccioná al menos un doctor"),
-  // Not required here: rescheduling an existing appointment doesn't change
-  // its already-snapshotted treatment (TASK-041) — only present so
-  // AppointmentForm's `values` type stays uniform across create/schedule/cancel.
-  treatmentId: z.string().optional(),
-  schedule: z.coerce.date(),
-  reason: z.string().optional(),
-  note: z.string().optional(),
-  cancellationReason: z.string().optional(),
-});
-
 export const CancelAppointmentSchema = z.object({
   primaryPhysician: z.string().min(2, "Seleccioná al menos un doctor"),
   treatmentId: z.string().optional(),
@@ -168,13 +156,10 @@ export const PaymentFormValidation = z.object({
   }),
 });
 
-export function getAppointmentSchema(type: string) {
-  switch (type) {
-    case "create":
-      return CreateAppointmentSchema;
-    case "cancel":
-      return CancelAppointmentSchema;
-    default:
-      return ScheduleAppointmentSchema;
-  }
+// TASK-056: the "schedule" (reschedule) case moved to the unified "Nuevo
+// turno" view (NewAppointmentView/DoctorWeekCalendar), which calls
+// updateAppointment directly rather than going through this form — only
+// "create" and "cancel" reach AppointmentForm now.
+export function getAppointmentSchema(type: "create" | "cancel") {
+  return type === "create" ? CreateAppointmentSchema : CancelAppointmentSchema;
 }

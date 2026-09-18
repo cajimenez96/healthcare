@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
@@ -8,6 +9,7 @@ import { Appointment } from "@/types/appwrite.types";
 import { AppointmentModal } from "../AppointmentModal";
 import { DoctorAvatar } from "../DoctorAvatar";
 import { StatusBadge } from "../StatusBadge";
+import { Button } from "../ui/button";
 
 type DoctorOption = { name: string; image?: string };
 
@@ -75,29 +77,40 @@ export const getColumns = (
   {
     id: "actions",
     header: () => <div className="pl-4">Acciones</div>,
+    // TASK-056: "Confirmar turno" (the old AppointmentModal type="schedule"
+    // dialog) is replaced by a link into the unified "Nuevo turno" view in
+    // reschedule mode — it pre-fills this appointment's
+    // patient/doctor/prestación and lets the calendar pick a new date.
+    // "Cancelar" stays exactly the same AppointmentModal type="cancel"
+    // dialog, unchanged. Both are now gated by status: a `completed`
+    // appointment (already attended/billed) gets no actions at all, a
+    // `cancelled` one can only be reagendado (nothing to cancel again), and
+    // `pending`/`scheduled` get both.
     cell: ({ row }) => {
       const appointment = row.original;
 
+      if (appointment.status === "completed") {
+        return null;
+      }
+
       return (
         <div className="flex gap-1">
-          <AppointmentModal
-            patientId={appointment.patient.$id}
-            userId={appointment.userId}
-            appointment={appointment}
-            type="schedule"
-            title="Confirmar turno"
-            description="Confirmá los siguientes datos para agendar el turno."
-            doctors={activeDoctors}
-          />
-          <AppointmentModal
-            patientId={appointment.patient.$id}
-            userId={appointment.userId}
-            appointment={appointment}
-            type="cancel"
-            title="Cancelar turno"
-            description="¿Estás seguro de que querés cancelar el turno?"
-            doctors={activeDoctors}
-          />
+          <Button asChild variant="ghost" className="text-green-500">
+            <Link href={`/admin/turnos/nuevo?appointmentId=${appointment.$id}`}>
+              Reagendar
+            </Link>
+          </Button>
+          {appointment.status !== "cancelled" && (
+            <AppointmentModal
+              patientId={appointment.patient.$id}
+              userId={appointment.userId}
+              appointment={appointment}
+              type="cancel"
+              title="Cancelar turno"
+              description="¿Estás seguro de que querés cancelar el turno?"
+              doctors={activeDoctors}
+            />
+          )}
         </div>
       );
     },

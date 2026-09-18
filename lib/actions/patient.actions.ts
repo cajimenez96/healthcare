@@ -84,6 +84,26 @@ export const getPatientById = async (id: string) => {
   }
 };
 
+// GET PATIENT FOR AN APPOINTMENT (TASK-056: the unified "Nuevo turno" view's
+// reschedule mode pre-fills the existing appointment's patient — gated like
+// listPatients/findPatientByIdentificationNumber (Secretaria or Admin, the
+// same roles that can reach that view), unlike getPatientById above which is
+// Doctor-only and therefore unusable from an admin page.)
+export const getPatientForAppointment = async (id: string) => {
+  try {
+    await requireSecretariaOrAdminSession();
+    await connectToDatabase();
+    const patient = await patientRepository.findById(id);
+
+    return patient ? parseStringify(toPatient(patient)) : undefined;
+  } catch (error) {
+    console.error(
+      "An error occurred while retrieving the patient for an appointment:",
+      error
+    );
+  }
+};
+
 // FIND PATIENT BY IDENTIFICATION NUMBER (Admin — direct appointment booking,
 // TASK-018/033. Front-desk staff identify patients by DNI, not email/phone.)
 export const findPatientByIdentificationNumber = async (query: string) => {

@@ -35,8 +35,11 @@ export const OutOfAvailabilityAlertDialog = ({
       <AlertDialogHeader>
         <AlertDialogTitle>Horario fuera de disponibilidad</AlertDialogTitle>
         <AlertDialogDescription>
-          Este horario no corresponde a la disponibilidad configurada del
-          doctor. ¿Desea asignar el turno igualmente?
+          <span>
+            Este horario no corresponde a la disponibilidad configurada del
+            doctor.
+          </span>
+          <p>¿Desea asignar el turno igualmente?</p>
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

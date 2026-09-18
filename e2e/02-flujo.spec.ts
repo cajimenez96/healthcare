@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { ADMIN_CREDENTIALS, SECRETARIA_CREDENTIALS } from "./credentials";
 import { loginAs, uniqueSuffix } from "./helpers";
-import { bookAppointmentAsAdmin, createStaffPatient } from "./patient-flow";
+import {
+  bookAppointmentAsAdmin,
+  clickCalendarSlot,
+  createStaffPatient,
+} from "./patient-flow";
 import { readState, writeState } from "./state";
 
 test.describe.configure({ mode: "serial" });
@@ -95,19 +99,37 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
 });
 
 test.describe("FLU-02 - confirmacion y atencion clinica", () => {
-  test("ADM-08 - Administrador confirma el turno pending -> scheduled", async ({ page }) => {
+  // TASK-056: "Confirmar" (the old AppointmentModal type="schedule" dialog)
+  // is gone — "Reagendar" now navigates to the unified "Nuevo turno" view
+  // (/admin/turnos/nuevo?appointmentId=), pre-filled with this appointment's
+  // patient/doctor/prestación, where picking a new calendar slot updates it
+  // in place instead of opening a small dialog.
+  test("ADM-08 - Administrador reagenda el turno pending -> scheduled", async ({ page }) => {
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
     await page.goto("/admin");
 
     const row = page.locator("tr", { hasText: PATIENT_NAME });
-    await row.getByRole("button", { name: "Confirmar", exact: true }).click();
+    await row.getByRole("link", { name: "Reagendar" }).click();
 
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Confirmar turno" }).click();
+    await expect(page).toHaveURL(/\/admin\/turnos\/nuevo\?appointmentId=/);
+    // Reschedule mode pre-fills patient + doctor + prestación, so the
+    // summary bar/"Ver calendario" trigger is already there — no search or
+    // doctor/treatment selection needed, unlike bookAppointmentAsAdmin.
+    await page.getByRole("button", { name: "Ver calendario" }).click();
+    await expect(page.locator(".rbc-time-content")).toBeVisible();
 
-    await expect(dialog).toBeHidden();
-    await page.reload();
+    // A week further out than the original booking (WEEKS_AHEAD) so this
+    // picks a genuinely different slot rather than the appointment's own
+    // current one.
+    await clickCalendarSlot(page, {
+      weeksAhead: WEEKS_AHEAD + 1,
+      dayIndex: DAY_INDEX,
+      hour: HOUR,
+    });
+
+    await expect(page.getByText("Turno reagendado con éxito.")).toBeVisible();
+
+    await page.goto("/admin");
     const refreshedRow = page.locator("tr", { hasText: PATIENT_NAME });
     await expect(refreshedRow.getByText("Confirmada", { exact: true })).toBeVisible();
   });

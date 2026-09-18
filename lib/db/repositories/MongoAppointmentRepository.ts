@@ -2,6 +2,7 @@ import mongoose, { type HydratedDocument } from "mongoose";
 
 import { DEFAULT_TREATMENT_DURATION_MINUTES } from "../../../constants";
 import type {
+  AppointmentListFilters,
   AppointmentRecord,
   AppointmentWithPatient,
   CreateAppointmentInput,
@@ -11,16 +12,23 @@ import type {
 import type { PatientRecord } from "../../repositories/IPatientRepository";
 import type { IAppointment } from "../models/Appointment";
 import { Appointment } from "../models/Appointment";
-// Side-effect import: this file only ever imports IPatient as a *type*
-// below, which TypeScript erases entirely at compile time — Mongoose's
-// model registry never runs lib/db/models/Patient.ts's `model("Patient", ...)`
-// call as a result, so `.populate("patientId")` fails at runtime with
-// "Schema hasn't been registered for model 'Patient'" whenever this is the
-// first code path to touch the Patient model in a given process. Importing
-// the module for its side effect (registration) fixes this without needing
-// the value itself.
-import "../models/Patient";
-import type { IPatient } from "../models/Patient";
+// Value import (not just a type import): findRecent's patientSearch filter
+// (TASK-054) needs to actually query the Patient collection, not just
+// register its schema. Importing the value also registers the model, so the
+// side-effect-only import this used to be is no longer needed separately —
+// see the comment that used to sit here about .populate("patientId")
+// otherwise failing with "Schema hasn't been registered for model 'Patient'".
+import { Patient, type IPatient } from "../models/Patient";
+
+// Escapes regex metacharacters so a filter value is matched as literal text
+// rather than interpreted as a regex pattern — same helper, same rationale,
+// as MongoPatientRepository's local escapeRegExp (no shared export exists
+// for it in this codebase; TASK-035 kept it file-local and this follows the
+// same precedent rather than introducing a new shared utility for one caller
+// each).
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function toAppointmentRecord(
   doc: HydratedDocument<IAppointment>,
@@ -80,8 +88,43 @@ export class MongoAppointmentRepository implements IAppointmentRepository {
     return toAppointmentRecord(doc);
   }
 
-  async findRecent(): Promise<AppointmentWithPatient[]> {
-    const docs = await Appointment.find({})
+  async findRecent(
+    filters: AppointmentListFilters = {},
+  ): Promise<AppointmentWithPatient[]> {
+    const query: Record<string, unknown> = {};
+
+    if (filters.date) {
+      // Local calendar day, same start/end-of-day construction as
+      // findBookedTimes below (no timezone carried by the filter, same
+      // implicit "server-local = clinic time" assumption for this MVP).
+      const d = filters.date;
+      const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      query.schedule = { $gte: startOfDay, $lt: endOfDay };
+    }
+
+    if (filters.primaryPhysician) {
+      query.primaryPhysician = filters.primaryPhysician;
+    }
+
+    if (filters.status) {
+      query.status = filters.status;
+    }
+
+    if (filters.patientSearch) {
+      // Appointment.patientId is a ref, not the patient's own fields —
+      // find() can't match against a populated path directly, so this
+      // resolves matching patient ids first, then narrows appointments to
+      // that set. Same $or-across-name-and-DNI shape as
+      // PatientListFilters.search (TASK-035/050).
+      const regex = { $regex: escapeRegExp(filters.patientSearch), $options: "i" };
+      const matchingPatients = await Patient.find({
+        $or: [{ name: regex }, { identificationNumber: regex }],
+      }).select("_id");
+      query.patientId = { $in: matchingPatients.map((p) => p._id) };
+    }
+
+    const docs = await Appointment.find(query)
       .sort({ createdAt: -1, _id: -1 })
       .populate<{ patientId: IPatient }>("patientId");
 

@@ -199,6 +199,53 @@ export const getRecentAppointmentList = async () => {
   }
 };
 
+// LIST APPOINTMENTS WITH FILTERS (TASK-054 — combinable fecha/paciente/
+// doctor/estado filters for the admin dashboard's recent-appointments
+// table). Re-queries on every submit rather than filtering a client-side
+// copy, same shape/rationale as listPatients (TASK-035): findRecent()
+// already fetches the whole appointments collection unbounded (there's no
+// existing "last N" limit to preserve), so pushing the filter into the query
+// narrows what actually crosses the wire instead of shipping everything to
+// the browser and filtering it there. Deliberately does NOT recompute the
+// dashboard's status counters (scheduledCount/pendingCount/etc., see
+// getRecentAppointmentList below) — those stay tied to the unfiltered
+// totals; only the table itself is filtered.
+export type AppointmentListFilterParams = {
+  /** "YYYY-MM-DD" from a native <input type="date">, parsed as a local calendar day. */
+  date?: string;
+  patientSearch?: string;
+  primaryPhysician?: string;
+  status?: Status;
+};
+
+export const listAppointments = async (
+  filters: AppointmentListFilterParams = {},
+) => {
+  try {
+    await connectToDatabase();
+
+    let date: Date | undefined;
+    if (filters.date) {
+      const [year, month, day] = filters.date.split("-").map(Number);
+      if (year && month && day) {
+        date = new Date(year, month - 1, day);
+      }
+    }
+
+    const appointments = await appointmentRepository.findRecent({
+      date,
+      patientSearch: filters.patientSearch?.trim() || undefined,
+      primaryPhysician: filters.primaryPhysician?.trim() || undefined,
+      status: filters.status || undefined,
+    });
+
+    return parseStringify(appointments.map(toAppointmentWithPatient));
+  } catch (error) {
+    console.error("An error occurred while listing appointments:", error);
+    return [];
+  }
+};
+
 //  SEND SMS NOTIFICATION
 export const sendSMSNotification = async (userId: string, content: string) => {
   try {
@@ -226,13 +273,30 @@ export const updateAppointment = async ({
   try {
     await connectToDatabase();
 
+    // TASK-056: reschedule mode (the unified "Nuevo turno" view) can change
+    // the doctor/treatment while picking a new date, not just the date
+    // itself (TASK-041 only ever changed date/doctor). When a treatmentId is
+    // given, look up its *current* estimatedDurationMinutes and snapshot it
+    // alongside — same one-time-lookup discipline createAppointment already
+    // uses, never recomputed later from a live Treatment lookup.
+    let newDurationMinutes: number | undefined;
+    if (appointment.treatmentId) {
+      const treatment = await treatmentRepository.findById(appointment.treatmentId);
+      if (!treatment) {
+        throw new Error("TREATMENT_NOT_FOUND");
+      }
+      newDurationMinutes = treatment.estimatedDurationMinutes;
+    }
+
     if (type !== "cancel" && appointment.schedule && appointment.primaryPhysician) {
-      // TASK-041: rescheduling doesn't change the treatment/duration that
-      // was snapshotted at booking time — read it back from the existing
-      // appointment so the overlap check uses its real duration, not a
-      // fixed assumption.
+      // TASK-041: rescheduling without a treatment change doesn't touch the
+      // duration snapshotted at booking time — read it back from the
+      // existing appointment so the overlap check uses its real duration,
+      // not a fixed assumption. A treatment change (TASK-056, above) uses
+      // its freshly-looked-up duration instead.
       const existing = await appointmentRepository.findById(appointmentId);
-      const durationMinutes = existing?.durationMinutes ?? 30;
+      const durationMinutes =
+        newDurationMinutes ?? existing?.durationMinutes ?? 30;
 
       const isTaken = await appointmentRepository.existsOverlapping(
         appointment.primaryPhysician,
@@ -245,10 +309,12 @@ export const updateAppointment = async ({
       }
     }
 
-    const updatedAppointment = await appointmentRepository.update(
-      appointmentId,
-      appointment
-    );
+    const updatedAppointment = await appointmentRepository.update(appointmentId, {
+      ...appointment,
+      ...(newDurationMinutes !== undefined
+        ? { durationMinutes: newDurationMinutes }
+        : {}),
+    });
 
     if (!updatedAppointment) throw Error;
 
@@ -275,9 +341,14 @@ export const updateAppointment = async ({
   }
 };
 
-// GET APPOINTMENT
+// GET APPOINTMENT (TASK-056: powers the unified "Nuevo turno" view's
+// reschedule mode — fetches the existing appointment's
+// patient/doctor/treatment to pre-fill from. Gated the same way
+// getDoctorAppointmentsInRange is, since `reason`/`note` are health-adjacent
+// and this is now load-bearing for an admin-only page rather than dead code.)
 export const getAppointment = async (appointmentId: string) => {
   try {
+    await requireAdminSession();
     await connectToDatabase();
     const appointment = await appointmentRepository.findById(appointmentId);
 

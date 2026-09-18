@@ -62,7 +62,9 @@ export const AppointmentForm = ({
   // User — only used to resolve a phone number for the SMS confirmation.
   userId?: string;
   patientId: string;
-  type: "create" | "schedule" | "cancel";
+  // TASK-056: "schedule" (reschedule) moved to the unified "Nuevo turno"
+  // view — this form now only ever creates or cancels.
+  type: "create" | "cancel";
   appointment?: Appointment;
   setOpen?: Dispatch<SetStateAction<boolean>>;
   doctors: DoctorOption[];
@@ -135,17 +137,7 @@ export const AppointmentForm = ({
     setIsLoading(true);
     setSubmitError(null);
 
-    let status;
-    switch (type) {
-      case "schedule":
-        status = "scheduled";
-        break;
-      case "cancel":
-        status = "cancelled";
-        break;
-      default:
-        status = "pending";
-    }
+    const status = type === "cancel" ? "cancelled" : "pending";
 
     try {
       if (type === "create" && patientId) {
@@ -167,8 +159,8 @@ export const AppointmentForm = ({
           // TASK-023/024: type="create" is only reached from staff flows now
           // (AdminNewAppointmentModal) — there's no more public patient
           // success page to redirect to. Close the dialog (same as the
-          // schedule/cancel path below) and refresh so the caller's list
-          // picks up the new appointment.
+          // cancel path below) and refresh so the caller's list picks up
+          // the new appointment.
           setOpen?.(false);
           router.refresh();
         } else {
@@ -177,6 +169,8 @@ export const AppointmentForm = ({
           );
         }
       } else {
+        // type === "cancel" — the only remaining non-"create" case since
+        // TASK-056 moved rescheduling to the unified "Nuevo turno" view.
         const appointmentToUpdate = {
           userId,
           appointmentId: appointment?.$id!,
@@ -195,10 +189,6 @@ export const AppointmentForm = ({
         if (updatedAppointment) {
           setOpen && setOpen(false);
           form.reset();
-        } else if (type === "schedule") {
-          setSubmitError(
-            "No se pudo guardar el turno. Es posible que el horario ya no esté disponible — elegí otro e intentá de nuevo."
-          );
         }
       }
     } catch (error) {
@@ -237,17 +227,7 @@ export const AppointmentForm = ({
     await submitAppointment(values);
   };
 
-  let buttonLabel;
-  switch (type) {
-    case "cancel":
-      buttonLabel = "Cancelar turno";
-      break;
-    case "schedule":
-      buttonLabel = "Confirmar turno";
-      break;
-    default:
-      buttonLabel = "Solicitar turno";
-  }
+  const buttonLabel = type === "cancel" ? "Cancelar turno" : "Solicitar turno";
 
   return (
     <Form {...form}>
@@ -323,7 +303,6 @@ export const AppointmentForm = ({
                 name="reason"
                 label="Motivo del turno"
                 placeholder="Control anual"
-                disabled={type === "schedule"}
               />
 
               <CustomFormField
@@ -332,7 +311,6 @@ export const AppointmentForm = ({
                 name="note"
                 label="Comentarios/notas"
                 placeholder="Preferentemente por la tarde, si es posible"
-                disabled={type === "schedule"}
               />
             </div>
           </>

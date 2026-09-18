@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import {
   createAppointment,
   getDoctorAppointmentsInRange,
+  updateAppointment,
 } from "@/lib/actions/appointment.actions";
 import { isWithinAvailability } from "@/lib/scheduling/getAvailableSlots";
 
@@ -76,6 +77,15 @@ interface CalendarEvent {
 // still shows a brief notice instead of selecting/booking anything; the real
 // invariant is still createAppointment's server-side existsOverlapping hard
 // block (TASK-041) regardless.
+//
+// TASK-056: also doubles as the reschedule calendar for the unified "Nuevo
+// turno" view — when `appointmentId` is passed, confirming a slot calls
+// updateAppointment on that existing appointment (status "scheduled")
+// instead of createAppointment. Same isWithinAvailability warning and
+// server-side existsOverlapping block apply unchanged either way;
+// existsOverlapping already excludes the appointment being rescheduled from
+// itself (TASK-007/041), and the busy events list here filters it out too so
+// its own old slot doesn't render as an occupied conflict.
 export const DoctorWeekCalendar = ({
   doctorName,
   availability,
@@ -83,7 +93,20 @@ export const DoctorWeekCalendar = ({
   userId,
   treatmentId,
   treatmentName,
+  // TASK-053: fired after a successful create/reschedule, once the success
+  // message below is already set. NewAppointmentView (the only current
+  // caller) uses this to redirect back to /admin — kept as a callback rather
+  // than a redirect inside this component, since this calendar has no
+  // business knowing which route hosts it.
   onBooked,
+  // TASK-056: when set, this is reschedule mode — confirming a slot calls
+  // updateAppointment on this existing appointment instead of
+  // createAppointment. Also used to filter this appointment's own current
+  // slot out of the busy-events list below, so rescheduling doesn't show it
+  // to itself as an occupied conflict (existsOverlapping already excludes it
+  // server-side, TASK-041/updateAppointment — this is purely the client-side
+  // rendering counterpart of that same exclusion).
+  appointmentId,
 }: {
   doctorName: string;
   availability: DoctorAvailabilityEntry[];
@@ -92,6 +115,7 @@ export const DoctorWeekCalendar = ({
   treatmentId: string;
   treatmentName: string;
   onBooked?: () => void;
+  appointmentId?: string;
 }) => {
   const [date, setDate] = useState(() => new Date());
   const [range, setRange] = useState(() => {
@@ -136,43 +160,61 @@ export const DoctorWeekCalendar = ({
 
   const events: CalendarEvent[] = useMemo(
     () =>
-      appointments.map((appointment) => {
-        const start = new Date(appointment.schedule);
-        const end = new Date(
-          start.getTime() + appointment.durationMinutes * 60_000,
-        );
-        const hours = start.getHours().toString().padStart(2, "0");
-        const minutes = start.getMinutes().toString().padStart(2, "0");
-        return {
-          title: `${appointment.patient.name} · ${hours}:${minutes}`,
-          start,
-          end,
-          resource: { appointmentId: appointment.$id },
-        };
-      }),
-    [appointments],
+      appointments
+        .filter((appointment) => appointment.$id !== appointmentId)
+        .map((appointment) => {
+          const start = new Date(appointment.schedule);
+          const end = new Date(
+            start.getTime() + appointment.durationMinutes * 60_000,
+          );
+          const hours = start.getHours().toString().padStart(2, "0");
+          const minutes = start.getMinutes().toString().padStart(2, "0");
+          return {
+            title: `${appointment.patient.name} · ${hours}:${minutes}`,
+            start,
+            end,
+            resource: { appointmentId: appointment.$id },
+          };
+        }),
+    [appointments, appointmentId],
   );
 
   const book = async (schedule: Date) => {
     setIsBooking(true);
     setMessage(null);
 
-    // Same defaults AdminNewAppointmentModal/AppointmentForm used for a
-    // direct staff-side booking: status "pending" (a secretary/admin
-    // confirms it afterward via the existing "Confirmar turno" flow,
-    // unchanged by this ticket). This screen has no free-text "Motivo del
-    // turno" field of its own (a click-to-book slot, not a form) — the
-    // estimated treatment's name is a reasonable stand-in reason.
-    const created = await createAppointment({
-      userId,
-      patient: patientId,
-      primaryPhysician: doctorName,
-      treatmentId,
-      schedule,
-      reason: treatmentName,
-      status: "pending",
-      note: undefined,
-    });
+    // TASK-056: reschedule mode (appointmentId set, from the unified "Nuevo
+    // turno" view's ?appointmentId= query param) updates the existing
+    // appointment instead of creating a new one — status "scheduled", same
+    // as the old AppointmentForm "schedule" case this replaces. Otherwise,
+    // same create-mode defaults as before: status "pending" (a
+    // secretary/admin reschedules it into "scheduled" afterward via this
+    // same view). Neither mode has a free-text "Motivo del turno" field of
+    // its own (a click-to-book/reschedule slot, not a form) — the estimated
+    // treatment's name is a reasonable stand-in reason.
+    const result = appointmentId
+      ? await updateAppointment({
+          userId,
+          appointmentId,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          appointment: {
+            primaryPhysician: doctorName,
+            treatmentId,
+            schedule,
+            status: "scheduled",
+          },
+          type: "schedule",
+        })
+      : await createAppointment({
+          userId,
+          patient: patientId,
+          primaryPhysician: doctorName,
+          treatmentId,
+          schedule,
+          reason: treatmentName,
+          status: "pending",
+          note: undefined,
+        });
 
     setIsBooking(false);
     // TASK-052: whether the booking attempt succeeded or failed, the
@@ -182,8 +224,13 @@ export const DoctorWeekCalendar = ({
     setSelectedSlot(null);
     await loadAppointments();
 
-    if (created) {
-      setMessage({ type: "success", text: "Turno agendado con éxito." });
+    if (result) {
+      setMessage({
+        type: "success",
+        text: appointmentId
+          ? "Turno reagendado con éxito."
+          : "Turno agendado con éxito.",
+      });
       onBooked?.();
     } else {
       setMessage({

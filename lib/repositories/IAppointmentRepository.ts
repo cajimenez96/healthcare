@@ -32,6 +32,28 @@ export interface AppointmentWithPatient extends AppointmentRecord {
   patient: PatientRecord;
 }
 
+/**
+ * Combinable (AND) filters for findRecent() — TASK-054, admin dashboard
+ * filtering. Same overall shape/spirit as PatientListFilters (TASK-035):
+ * each key is optional and independently ANDed with the others.
+ */
+export interface AppointmentListFilters {
+  /**
+   * A single calendar day (local time, same start/end-of-day convention as
+   * findBookedTimes below) — TASK-054 picked a single-day filter over a
+   * date range because "who's on today's board" is the dashboard's everyday
+   * front-desk use case; nothing here rules a range filter out later, but a
+   * range wasn't the common case worth building yet.
+   */
+  date?: Date;
+  /** Partial, case-insensitive match against the patient's name OR identification number (same combined shape as PatientListFilters.search). */
+  patientSearch?: string;
+  /** Exact match on primaryPhysician — populated from a bounded doctor picker (getAllDoctors), not free text. */
+  primaryPhysician?: string;
+  /** Exact match on one of the 4 status values. */
+  status?: Status;
+}
+
 export type CreateAppointmentInput = Omit<
   AppointmentRecord,
   "id" | "status" | "treatmentId"
@@ -43,12 +65,25 @@ export type CreateAppointmentInput = Omit<
 };
 
 export type UpdateAppointmentInput = Partial<
-  Pick<AppointmentRecord, "primaryPhysician" | "schedule" | "status" | "cancellationReason">
+  Pick<
+    AppointmentRecord,
+    | "primaryPhysician"
+    | "schedule"
+    | "status"
+    | "cancellationReason"
+    // TASK-056: rescheduling through the unified "Nuevo turno" view lets the
+    // doctor/treatment be changed too, not just the date — treatmentId's
+    // duration is recomputed by the action and both are snapshotted here
+    // together, same discipline as create's initial snapshot (TASK-041).
+    | "treatmentId"
+    | "durationMinutes"
+  >
 >;
 
 export interface IAppointmentRepository {
   create(input: CreateAppointmentInput): Promise<AppointmentRecord>;
-  findRecent(): Promise<AppointmentWithPatient[]>;
+  /** Newest-first, with the patient populated, optionally narrowed by combinable filters (TASK-054). */
+  findRecent(filters?: AppointmentListFilters): Promise<AppointmentWithPatient[]>;
   update(id: string, data: UpdateAppointmentInput): Promise<AppointmentRecord | null>;
   findById(id: string): Promise<AppointmentRecord | null>;
   /** "HH:mm" times already booked (non-cancelled) for a doctor on a given calendar day. */

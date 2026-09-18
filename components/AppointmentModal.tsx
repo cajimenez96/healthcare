@@ -17,11 +17,9 @@ import { AppointmentForm } from "./forms/AppointmentForm";
 
 import "react-datepicker/dist/react-datepicker.css";
 
-const TRIGGER_LABELS = {
-  schedule: "Confirmar",
-  cancel: "Cancelar",
-};
-
+// TASK-056: rescheduling ("schedule") moved to the unified "Nuevo turno"
+// view (a Link to /admin/turnos/nuevo?appointmentId=, wired directly in
+// columns.tsx) — this modal now only ever handles cancellation.
 export const AppointmentModal = ({
   patientId,
   userId,
@@ -35,7 +33,7 @@ export const AppointmentModal = ({
   // Optional since TASK-023/024: staff-created patients have no linked User.
   userId?: string;
   appointment?: Appointment;
-  type: "schedule" | "cancel";
+  type: "cancel";
   title: string;
   description: string;
   doctors: {
@@ -49,12 +47,7 @@ export const AppointmentModal = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          className={type === "schedule" ? "text-green-500" : undefined}
-        >
-          {TRIGGER_LABELS[type]}
-        </Button>
+        <Button variant="ghost">Cancelar</Button>
       </DialogTrigger>
       <DialogContent className="shad-dialog sm:max-w-md">
         <DialogHeader className="mb-4 space-y-3">

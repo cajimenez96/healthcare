@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { CreatePatientModal } from "@/components/CreatePatientModal";
@@ -77,23 +78,48 @@ interface TreatmentOption {
 // clear the relevant selection, which drops `patient`/`selectedDoctor` back
 // to falsy and brings the accordion back — no separate "back to accordion"
 // state needed.
+//
+// TASK-056: also the reschedule view for an existing appointment, driven by
+// an optional `appointmentId` (same ?appointmentId= query-param pattern as
+// /doctor/patient/[id], TASK-008) — the page passes it down along with that
+// appointment's current patient/doctor/treatment as `initial*` props to
+// pre-fill this same accordion/summary/calendar flow. Doctor and treatment
+// stay fully editable in reschedule mode (the point of the ticket: not just
+// the date), same as the old AppointmentForm "schedule" case's doctor
+// picker. The patient does NOT — that case never let you change the patient
+// either, and reassigning an existing appointment to a different patient
+// isn't a real "reschedule" — so the patient accordion/summary never offer
+// "Cambiar paciente" here, only a fixed read-only display.
 export const NewAppointmentView = ({
   doctors,
   treatments,
   insuranceProviders,
+  appointmentId,
+  initialPatient,
+  initialDoctorName,
+  initialTreatmentId,
 }: {
   doctors: DoctorOption[];
   treatments: TreatmentOption[];
   insuranceProviders: { name: string }[];
+  appointmentId?: string;
+  initialPatient?: FoundPatient;
+  initialDoctorName?: string;
+  initialTreatmentId?: string;
 }) => {
+  const isReschedule = Boolean(appointmentId);
+  const router = useRouter();
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoundPatient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [patient, setPatient] = useState<FoundPatient | null>(null);
+  const [patient, setPatient] = useState<FoundPatient | null>(
+    initialPatient ?? null,
+  );
 
-  const [doctorName, setDoctorName] = useState("");
-  const [treatmentId, setTreatmentId] = useState("");
+  const [doctorName, setDoctorName] = useState(initialDoctorName ?? "");
+  const [treatmentId, setTreatmentId] = useState(initialTreatmentId ?? "");
 
   // TASK-051: the calendar Dialog's own open state — separate from the
   // patient/doctor/treatment selection so closing it (to check the summary
@@ -195,13 +221,26 @@ export const NewAppointmentView = ({
     (treatment) => treatment.id === treatmentId,
   );
 
+  // TASK-053: this view is the only one that knows it's hosted at
+  // /admin/turnos/nuevo, so the post-booking redirect lives here rather than
+  // inside DoctorWeekCalendar (which stays reusable/host-agnostic). A short
+  // delay lets DoctorWeekCalendar's own "Turno agendado/reagendado con
+  // éxito." message register before the dashboard takes over — the table
+  // there will already show the (re)scheduled appointment.
+  const handleBooked = () => {
+    setTimeout(() => {
+      router.push("/admin");
+    }, 1200);
+  };
+
   return (
     <section className="w-full max-w-4xl space-y-6">
       <div className="space-y-2">
-        <h1 className="header">Nuevo turno</h1>
+        <h1 className="header">{isReschedule ? "Reagendar turno" : "Nuevo turno"}</h1>
         <p className="text-dark-700">
-          Buscá al paciente, elegí doctor y prestación, y seleccioná el horario
-          en el calendario.
+          {isReschedule
+            ? "Elegí doctor, prestación y el nuevo horario en el calendario."
+            : "Buscá al paciente, elegí doctor y prestación, y seleccioná el horario en el calendario."}
         </p>
       </div>
 
@@ -224,14 +263,16 @@ export const NewAppointmentView = ({
               <span className="text-green-500">{selectedTreatment.name}</span>
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="shad-gray-btn"
-                onClick={changePatient}
-              >
-                Cambiar paciente
-              </Button>
+              {!isReschedule && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shad-gray-btn"
+                  onClick={changePatient}
+                >
+                  Cambiar paciente
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -278,6 +319,8 @@ export const NewAppointmentView = ({
                   userId={patient.userId}
                   treatmentId={selectedTreatment.id}
                   treatmentName={selectedTreatment.name}
+                  appointmentId={appointmentId}
+                  onBooked={handleBooked}
                 />
               </div>
             </DialogContent>
@@ -378,14 +421,16 @@ export const NewAppointmentView = ({
                         · {patient.phone}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="shad-gray-btn"
-                      onClick={changePatient}
-                    >
-                      Cambiar paciente
-                    </Button>
+                    {!isReschedule && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="shad-gray-btn"
+                        onClick={changePatient}
+                      >
+                        Cambiar paciente
+                      </Button>
+                    )}
                   </div>
                 )}
               </AccordionContent>
