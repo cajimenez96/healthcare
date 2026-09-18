@@ -9,7 +9,7 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 ```text
 +-----------------------+-----------------------+-----------------------+
 |  📋 BACKLOG           |  🚧 EN PROGRESO       |  ✅ COMPLETADO        |
-|  (1 Ticket)           |  (0 Tickets)          |  (44 Tickets)         |
+|  (1 Ticket)           |  (0 Tickets)          |  (45 Tickets)         |
 +-----------------------+-----------------------+-----------------------+
 ```
 
@@ -17,12 +17,12 @@ Este archivo centraliza el plan de ejecución y el backlog de actividades para l
 
 ## 📋 BACKLOG (Por Hacer)
 
-#### `[TASK-045]` `e2e/00-setup.spec.ts` no hace click en "Crear Doctor" antes de completar el formulario
-* **Descripción**: encontrado por el agente de TASK-044 verificando el fix del `Dialog` — el spec llama a `page.getByLabel("Nombre").fill(...)` sin haber abierto antes el diálogo de alta (falta el click en el botón "Crear Doctor"). Bug preexistente del spec en sí, no del código de la app — existe desde que se escribió (commit `946f41e`, TASK-014/021). Es la razón real por la que la suite completa de Playwright no corre de punta a punta hoy, no el bug de `CreateDoctorModal` que TASK-044 ya resolvió.
+#### `[TASK-046]` Odontograma no aísla el estado entre pacientes (`DOC-06`)
+* **Descripción**: encontrado por el agente de TASK-045 en la primera corrida completa de la suite de Playwright — `DOC-06 - aislamiento del odontograma entre pacientes` falla: un diente queda pintado `bg-white` en vez de `bg-blue-500` después de cambiar de paciente en `/doctor/patient/[id]`, con un `ECONNRESET` del servidor justo antes en el log. No se investigó la causa raíz — puede ser un bug real de re-render/estado del componente `Odontogram` al cambiar de paciente, o una condición de carrera. Al estar dentro de un `test.describe.serial`, esta falla también impidió correr los 4 tests siguientes del mismo bloque (`DOC-09`, la aceptación de FLU-02, y dos de FLU-03).
 * **Criterios de Aceptación**:
-  - [ ] `e2e/00-setup.spec.ts` abre el diálogo de alta de Doctor (click en "Crear Doctor") antes de completar el formulario.
-  - [ ] La suite completa de Playwright corre de punta a punta sin bloquearse en este spec.
-* **Prioridad**: Media | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+  - [ ] Investigar la causa raíz (bug real de `Odontogram.tsx`/`getOdontogram` vs. condición de carrera del test).
+  - [ ] `DOC-06` (y los 4 tests que quedaron sin correr en el mismo bloque serial) pasan en una corrida completa de `pnpm test:e2e`.
+* **Prioridad**: Media | **Esfuerzo**: sin estimar (depende de la causa raíz) | **Dependencias**: Ninguna
 
 ---
 
@@ -742,3 +742,17 @@ Rediseño completo del flujo de asignación de turnos, a partir de hallazgos de 
 * **Observaciones**:
   - **Verificación e2e real, con un hallazgo adicional y ajeno al alcance**: se intentó correr `e2e/00-setup.spec.ts` (`MONGODB_URI`/`.env.local` accesibles en este entorno, igual que en TASK-043) y siguió fallando, pero por un bug distinto y preexistente en el spec mismo, no por este ticket: `00-setup.spec.ts` nunca hace click en el botón trigger "Crear Doctor" antes de intentar `page.getByLabel("Nombre").fill(...)`, así que el `Dialog` nunca llega a abrirse (confirmado con captura de pantalla del fallo — la página muestra la lista vacía de doctores con el botón "Crear Doctor" sin clickear). Ese bug existe desde el commit original que creó el archivo (`946f41e`, TASK-014/021) y es independiente del `max-h`/`overflow-y-auto` que corrige este ticket. Arreglar `00-setup.spec.ts` está fuera del alcance de este ticket (que es específicamente sobre el recorte visual del `Dialog`, no sobre la corrección del propio spec), así que en vez de tocarlo se armó un spec temporal (`e2e/zz-temp-task044-verify.spec.ts`, borrado antes de cerrar el ticket, igual criterio que el spec temporal descartado en TASK-043) que sí hace click en "Crear Doctor" y confirma que los 7 checkboxes de disponibilidad (Domingo a Sábado) quedan visibles y clickeables con el fix aplicado — corrió en verde contra el server de e2e real (`next dev` + Mongo `-e2e`). La suite completa (`00-setup.spec.ts` en adelante) sigue sin poder correr de punta a punta hasta que se arregle ese bug ajeno del spec — se recomienda un ticket de seguimiento para agregar el `click` faltante en `00-setup.spec.ts`, no abierto acá por estar fuera de alcance.
   - **Verificación**: `tsc --noEmit` limpio. `pnpm build` compiló las 21 rutas del proyecto sin errores nuevos (mismos mensajes preexistentes de "Dynamic server usage"). No se corrieron tests de Vitest nuevos — este ticket es un cambio puramente de clases CSS en JSX existente, sin lógica nueva que testear, mismo criterio ya aplicado a cambios de chrome de UI en tickets anteriores (TASK-034/037/039/042).
+
+#### `[TASK-045]` `e2e/00-setup.spec.ts` no hace click en "Crear Doctor" antes de completar el formulario
+* **Descripción**: encontrado por el agente de TASK-044 verificando el fix del `Dialog` — el spec llama a `page.getByLabel("Nombre").fill(...)` sin haber abierto antes el diálogo de alta (falta el click en el botón "Crear Doctor"). Bug preexistente del spec en sí, no del código de la app — existe desde que se escribió (commit `946f41e`, TASK-014/021). Es la razón real por la que la suite completa de Playwright no corre de punta a punta hoy, no el bug de `CreateDoctorModal` que TASK-044 ya resolvió.
+* **Criterios de Aceptación**:
+  - [x] `e2e/00-setup.spec.ts` abre el diálogo de alta de Doctor (click en "Crear Doctor") antes de completar el formulario.
+  - [x] La suite completa de Playwright corre de punta a punta sin bloquearse en este spec.
+* **Prioridad**: Media | **Esfuerzo**: Bajo | **Dependencias**: Ninguna
+* **Resultado**: Se agregó `await page.getByRole("button", { name: "Crear Doctor" }).click();` en `e2e/00-setup.spec.ts`, justo después de `page.goto("/admin/doctors")` y antes del primer `page.getByLabel("Nombre").fill(...)`, en el test `ADM-02 - alta de doctor con disponibilidad todos los dias`. El texto exacto del botón se verificó leyendo `components/CreateDoctorModal.tsx`: el `DialogTrigger` envuelve un `Button` con el texto literal "Crear Doctor" (con D mayúscula, distinto del botón de submit dentro del formulario, "Crear doctor" con d minúscula, que el spec ya usaba correctamente en la línea siguiente). Se buscó con `rg` el mismo patrón (`getByLabel("Nombre")`/`Especialidad`/`Matrícula`/creación de doctor) en el resto de specs (`01-auth`, `02-flujo`, `03-adm-extra`, `04-security`, `patient-flow.ts`, `helpers.ts`) y no se encontró ningún otro lugar que cree un doctor a través del formulario — todos los demás specs consumen el doctor ya creado por `00-setup.spec.ts` vía `state.ts`/`writeState`, así que el bug no estaba duplicado en ningún otro archivo.
+  - **Archivos creados**: Ninguno.
+  - **Archivos modificados**: `e2e/00-setup.spec.ts`.
+* **Observaciones**:
+  - **Verificado con una corrida real y completa de `pnpm test:e2e`, no parcial**: contra el server de e2e real (`next dev` + Mongo `-e2e`, TASK-014, `.env.local`/`MONGODB_URI` accesibles en este entorno). Resultado: **28 passed, 1 failed, 4 did not run** de 33 tests totales (3.3 min). Los 3 tests de `00-setup.spec.ts` (ADM-02, ADM-06, y el login del doctor recién creado) pasan en verde, confirmando que el fix de este ticket funciona y que la suite ya no se bloquea ahí — el bloqueo real descripto en el ticket quedó resuelto.
+  - **Falla encontrada, no relacionada a este ticket, reportada sin tocar**: `02-flujo.spec.ts:230` (`DOC-06 - aislamiento del odontograma entre pacientes`) falla por un `expect(locator).toHaveClass(/bg-blue-500/)` que nunca se cumple (el botón de la pieza dental queda con `bg-white` en vez del color esperado tras cambiar de paciente) — timeout de 45s, con un `[Error: aborted] { code: 'ECONNRESET' }` del webserver en el log justo antes. Es un bug de la app (u otra condición de carrera ajena a este ticket) en el odontograma, no del spec de creación de doctor. Al estar `DOC-06` dentro del mismo `test.describe.serial` que los 4 tests siguientes (`DOC-09`, el criterio de aceptación de FLU-02, y dos de `FLU-03`), Playwright los marcó como "did not run" — no fallaron por este ticket, sino por la política de `describe.serial` de abortar el resto del bloque tras la primera falla. El resto de la suite (`03-adm-extra.spec.ts` completo, `04-security.spec.ts` completo, y el resto de `02-flujo.spec.ts` antes de DOC-06) corrió y pasó en verde. No se investigó ni se tocó esta falla por estar fuera del alcance de TASK-045 — queda como candidato a un ticket de seguimiento.
+  - **Verificación**: `tsc --noEmit` limpio (los specs de Playwright son TypeScript). `pnpm build` compiló las 22 rutas del proyecto sin errores nuevos (mismos warnings preexistentes de "Dynamic server usage"). No se corrió Vitest nuevo — este ticket es exclusivamente un cambio de un spec e2e, sin lógica de aplicación involucrada.

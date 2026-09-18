@@ -18,6 +18,8 @@ test.describe.serial("00-setup: ADM-02 + ADM-06 (Doctor with access)", () => {
 
     await page.goto("/admin/doctors");
 
+    await page.getByRole("button", { name: "Crear Doctor" }).click();
+
     await page.getByLabel("Nombre").fill(DOCTOR_NAME);
     await page.getByLabel("Especialidad").fill("Odontología General QA");
     await page.getByLabel("Matrícula").fill(`MP-QA-${RUN_ID}`);
