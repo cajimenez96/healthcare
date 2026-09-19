@@ -13,7 +13,10 @@ export const CreatePatientFormValidation = z.object({
   email: z.string().email("Correo electrónico inválido"),
   phone: z
     .string()
-    .refine((phone) => /^\+\d{10,15}$/.test(phone), "Número de teléfono inválido"),
+    .refine(
+      (phone) => /^\+\d{10,15}$/.test(phone),
+      "Número de teléfono inválido"
+    ),
   birthDate: z.coerce.date(),
   gender: z.enum(["Male", "Female", "Other"]),
   address: z
@@ -22,8 +25,8 @@ export const CreatePatientFormValidation = z.object({
     .max(500, "La dirección debe tener como máximo 500 caracteres"),
   occupation: z
     .string()
-    .min(2, "La ocupación debe tener al menos 2 caracteres")
-    .max(500, "La ocupación debe tener como máximo 500 caracteres"),
+    .max(500, "La ocupación debe tener como máximo 500 caracteres")
+    .optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactNumber: z
     .string()
@@ -39,11 +42,32 @@ export const CreatePatientFormValidation = z.object({
   identificationNumber: z
     .string()
     .min(2, "El número de identificación debe tener al menos 2 caracteres")
-    .max(50, "El número de identificación debe tener como máximo 50 caracteres"),
+    .max(
+      50,
+      "El número de identificación debe tener como máximo 50 caracteres"
+    ),
   // TASK-032: the scanned file is optional now — identificationType/Number
   // above remain required and are the actual DNI-based lookup key TASK-033
   // needs. Same optional-file pattern already used by DoctorEditFormValidation.
   identificationDocument: z.custom<File[]>().optional(),
+});
+
+// TASK-059: editing a patient collects exactly the same field set as
+// creating one (unlike Secretaria/Admin, which drop `password` on edit —
+// Patient has no such write-only field to omit here), so this is a plain
+// alias rather than an `.omit()` — named separately purely for discoverability
+// alongside SecretariaEditFormValidation/AdminEditFormValidation/
+// DoctorEditFormValidation.
+export const PatientEditFormValidation = CreatePatientFormValidation;
+
+// TASK-069: the 4 antecedentes médicos fields, doctor-editable only — free
+// text, all optional (a doctor may only have something to say about one of
+// the four at any given visit).
+export const MedicalBackgroundFormValidation = z.object({
+  allergies: z.string().optional(),
+  currentMedication: z.string().optional(),
+  familyMedicalHistory: z.string().optional(),
+  pastMedicalHistory: z.string().optional(),
 });
 
 export const CreateAppointmentSchema = z.object({
@@ -147,7 +171,10 @@ export const TreatmentFormValidation = z.object({
     .number()
     .int("La duración debe ser un número entero de minutos")
     .min(5, "La duración debe ser de al menos 5 minutos"),
-  description: z.string().max(500, "La descripción debe tener como máximo 500 caracteres").optional(),
+  description: z
+    .string()
+    .max(500, "La descripción debe tener como máximo 500 caracteres")
+    .optional(),
 });
 
 export const PaymentFormValidation = z.object({

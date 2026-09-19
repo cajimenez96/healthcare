@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdminSession } from "../auth/requireAdminSession";
 import { requireDoctorSession } from "../auth/requireDoctorSession";
+import { requireSecretariaOrAdminSession } from "../auth/requireSecretariaOrAdminSession";
 import { connectToDatabase } from "../db/mongodb";
 import { MongoAppointmentRepository } from "../db/repositories/MongoAppointmentRepository";
 import { MongoDoctorRepository } from "../db/repositories/MongoDoctorRepository";
@@ -23,6 +23,13 @@ const userRepository = new MongoUserRepository();
 const notificationService = new TwilioNotificationService();
 
 //  CREATE APPOINTMENT
+// TASK-063: unlike getAppointment/getDoctorAppointmentsInRange below, this
+// has no session gate at all — deliberately (see
+// appointment.actions.test.ts's "updateAppointment - treatment change on
+// reschedule" describe block for the documented rationale: testing
+// orchestration logic directly against Vitest without fighting next-auth).
+// Left as-is: adding a gate here is a separate, out-of-scope decision from
+// "loosen Admin-only to Secretaria-or-Admin" — see the final report.
 export const createAppointment = async (
   appointment: CreateAppointmentParams
 ) => {
@@ -96,16 +103,17 @@ export const getAvailableSlotsForDoctor = async (
 // GET A DOCTOR'S APPOINTMENTS WITHIN A DATE RANGE (TASK-043 — the "Nuevo
 // turno" calendar page's week view, scoped to the visible range rather than
 // the doctor's whole history like findByDoctor/getMyAppointments below).
-// Gated the same way findPatientByIdentificationNumber is (requireAdminSession)
-// since the result carries patient names — this is only ever called from the
-// admin-only booking page.
+// Gated the same way findPatientByIdentificationNumber is
+// (requireSecretariaOrAdminSession, TASK-063) since the result carries
+// patient names — this is called from the booking page, now shared by
+// Secretaria (/recepcion/turnos) and Admin (/admin/turnos, TASK-060).
 export const getDoctorAppointmentsInRange = async (
   primaryPhysician: string,
   start: Date,
   end: Date,
 ) => {
   try {
-    await requireAdminSession();
+    await requireSecretariaOrAdminSession();
     await connectToDatabase();
 
     const appointments = await appointmentRepository.findByDoctorInRange(
@@ -263,6 +271,8 @@ export const sendSMSNotification = async (userId: string, content: string) => {
 };
 
 //  UPDATE APPOINTMENT
+// TASK-063: same as createAppointment above — no session gate exists here,
+// deliberately (see appointment.actions.test.ts). Left as-is.
 export const updateAppointment = async ({
   appointmentId,
   userId,
@@ -344,11 +354,13 @@ export const updateAppointment = async ({
 // GET APPOINTMENT (TASK-056: powers the unified "Nuevo turno" view's
 // reschedule mode — fetches the existing appointment's
 // patient/doctor/treatment to pre-fill from. Gated the same way
-// getDoctorAppointmentsInRange is, since `reason`/`note` are health-adjacent
-// and this is now load-bearing for an admin-only page rather than dead code.)
+// getDoctorAppointmentsInRange is (requireSecretariaOrAdminSession,
+// TASK-063) — `reason`/`note` here are booking-logistics fields ("Motivo del
+// turno"/"Comentarios", AppointmentForm.tsx), not clinical charting data, so
+// there's nothing here Secretaria doesn't already handle when booking.)
 export const getAppointment = async (appointmentId: string) => {
   try {
-    await requireAdminSession();
+    await requireSecretariaOrAdminSession();
     await connectToDatabase();
     const appointment = await appointmentRepository.findById(appointmentId);
 

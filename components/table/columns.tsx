@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
 
 import { AppointmentModal } from "../AppointmentModal";
+import { ConfirmAppointmentButton } from "../ConfirmAppointmentButton";
 import { DoctorAvatar } from "../DoctorAvatar";
 import { StatusBadge } from "../StatusBadge";
 import { Button } from "../ui/button";
@@ -16,6 +17,13 @@ type DoctorOption = { name: string; image?: string };
 export const getColumns = (
   allDoctors: DoctorOption[],
   activeDoctors: DoctorOption[],
+  // TASK-063: this table is now shared by /admin/turnos and
+  // /recepcion/turnos (previously admin-only, TASK-060) — "Reagendar" used
+  // to hardcode /admin/turnos, which would send Secretaria's reschedule link
+  // into a route middleware.ts blocks for her role. basePath lets each page
+  // pass its own list route instead of forking this whole column definition
+  // just to change one link's prefix.
+  basePath: string,
 ): ColumnDef<Appointment>[] => [
   {
     header: "#",
@@ -86,6 +94,10 @@ export const getColumns = (
     // appointment (already attended/billed) gets no actions at all, a
     // `cancelled` one can only be reagendado (nothing to cancel again), and
     // `pending`/`scheduled` get both.
+    // TASK-067: "Confirmar" (pending -> scheduled, same date/doctor) is back
+    // as its own action, only for `pending` — TASK-056 removed it assuming
+    // rescheduling would double as confirmation, which left no way to
+    // confirm a turno without also changing its date.
     cell: ({ row }) => {
       const appointment = row.original;
 
@@ -95,8 +107,11 @@ export const getColumns = (
 
       return (
         <div className="flex gap-1">
+          {appointment.status === "pending" && (
+            <ConfirmAppointmentButton appointment={appointment} />
+          )}
           <Button asChild variant="ghost" className="text-green-500">
-            <Link href={`/admin/turnos/nuevo?appointmentId=${appointment.$id}`}>
+            <Link href={`${basePath}?appointmentId=${appointment.$id}`}>
               Reagendar
             </Link>
           </Button>

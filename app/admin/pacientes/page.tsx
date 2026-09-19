@@ -7,9 +7,10 @@ import { listPatients } from "@/lib/actions/patient.actions";
 // Administrador can also list/filter patients — same dual-role split
 // TASK-024 established for patient creation (two routes, one shared
 // component/action).
-// TASK-039: doctors/insuranceProviders are fetched here (same as
-// /admin/pacientes/nuevo) and passed through so PatientsList can offer
-// contextual patient creation without an extra round trip.
+// TASK-039/059: doctors/insuranceProviders are fetched here and passed
+// through so PatientsList can offer both contextual and always-visible
+// patient creation (Dialog-based, no separate /nuevo route since TASK-059)
+// without an extra round trip — also reused by EditPatientForm's pickers.
 const AdminPatientsPage = async () => {
   const [patients, doctors, insuranceProviders] = await Promise.all([
     listPatients(),

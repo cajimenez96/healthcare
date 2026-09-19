@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,10 @@ interface AppointmentsTableProps {
   data: Appointment[];
   allDoctors: DoctorOption[];
   activeDoctors: DoctorOption[];
+  // TASK-063: the unified turnos list route, shared by /admin/turnos and
+  // /recepcion/turnos — forwarded to getColumns so "Reagendar" links back
+  // into whichever role's route this table is rendered under.
+  basePath: string;
 }
 
 // The 4 real Status values (types/index.d.ts) with their existing Spanish
@@ -64,6 +68,7 @@ export function AppointmentsTable({
   data,
   allDoctors,
   activeDoctors,
+  basePath,
 }: AppointmentsTableProps) {
   const [appointments, setAppointments] = useState(data);
   const [date, setDate] = useState("");
@@ -72,7 +77,7 @@ export function AppointmentsTable({
   const [status, setStatus] = useState(ALL);
   const [isSearching, setIsSearching] = useState(false);
 
-  const columns = getColumns(allDoctors, activeDoctors);
+  const columns = getColumns(allDoctors, activeDoctors, basePath);
 
   const runSearch = async (filters: {
     date?: string;
@@ -85,6 +90,31 @@ export function AppointmentsTable({
     setAppointments(result);
     setIsSearching(false);
   };
+
+  // TASK-068: `data` only ever seeded local state on mount — confirming,
+  // cancelling or rescheduling a turno correctly calls router.refresh() (or
+  // navigates back after a reschedule), which re-fetches this page's server
+  // data and passes a new `data` array down, but this component never
+  // noticed: useState(data) ignores prop changes on every render after the
+  // first. Skips the very first run (that data is already what's on screen)
+  // and re-applies whatever filters are currently set instead of blindly
+  // overwriting them with the unfiltered `data` prop, so a refresh while a
+  // search is active re-fetches that same filtered view instead of
+  // discarding it.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    runSearch({
+      date: date || undefined,
+      patientSearch: patientSearch.trim() || undefined,
+      primaryPhysician: doctor !== ALL ? doctor : undefined,
+      status: status !== ALL ? (status as Status) : undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();

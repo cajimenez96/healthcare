@@ -3,7 +3,8 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { LogoutButton } from "@/components/LogoutButton";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,19 @@ interface AppSidebarNavProps {
 // centered modal's hardcoded position/animation classes.
 export const AppSidebarNav = ({ items }: AppSidebarNavProps) => {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  // TASK-061: the links above only exist in the DOM while this Radix Dialog
+  // is open (it unmounts its content when closed), so Next.js's automatic
+  // IntersectionObserver-based <Link> prefetch never gets a chance to fire —
+  // the links aren't visible (or present) until the user has already opened
+  // the menu. router.prefetch() doesn't depend on DOM visibility, so calling
+  // it imperatively here warms the cache regardless of the Dialog's state.
+  useEffect(() => {
+    for (const item of items) {
+      router.prefetch(item.href);
+    }
+  }, [items, router]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

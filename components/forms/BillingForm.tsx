@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -9,7 +10,7 @@ import { z } from "zod";
 import { Form } from "@/components/ui/form";
 import { SelectItem } from "@/components/ui/select";
 import { closeAppointmentBilling } from "@/lib/actions/payment.actions";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { PaymentFormValidation } from "@/lib/validation";
 
 import CustomFormField, { FormFieldType } from "../CustomFormField";
@@ -36,8 +37,15 @@ interface BillingFormProps {
   activeTreatments: { id: string; name: string; price: number }[];
 }
 
+// TASK-072: each card used to render fully expanded (patient info + full
+// itemized breakdown + payment form all visible at once) — reported as too
+// large, losing the overview across several billable turnos at once.
+// Collapsed by default now: a summary row (patient · doctor · hora · total)
+// is all that shows until clicked, same "click to reveal detail" idea as
+// NewAppointmentView's accordion sections.
 const BillingForm = ({ appointment, activeTreatments }: BillingFormProps) => {
   const router = useRouter();
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
@@ -78,86 +86,109 @@ const BillingForm = ({ appointment, activeTreatments }: BillingFormProps) => {
     }
   };
 
+  const total = appointment.hasChartedTreatments
+    ? appointment.totalAmount
+    : manualTotal;
+
   return (
-    <div className="space-y-4 rounded-md border border-dark-500 p-4">
-      <div>
-        <p className="text-14-medium">{appointment.patientName}</p>
-        <p className="text-12-regular text-dark-700">
-          {appointment.doctorName} · {formatDateTime(appointment.schedule).dateTime}
-        </p>
-      </div>
-
-      {appointment.hasChartedTreatments ? (
-        <>
-          <ul className="text-14-regular space-y-1">
-            {appointment.items.map((item, i) => (
-              <li key={i} className="flex justify-between">
-                <span>{item.name}</span>
-                <span>${item.price.toLocaleString("es-AR")}</span>
-              </li>
-            ))}
-          </ul>
-
-          <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
-            <span>Total</span>
-            <span>${appointment.totalAmount.toLocaleString("es-AR")}</span>
-          </p>
-        </>
-      ) : (
-        <div className="space-y-2">
-          <p className="text-14-regular text-dark-700">
-            El doctor no cargó prestaciones para este turno — seleccioná las que corresponda cobrar:
-          </p>
-          <div className="space-y-2">
-            {activeTreatments.map((treatment) => (
-              <label
-                key={treatment.id}
-                className="flex cursor-pointer items-center gap-2 text-14-regular"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedTreatmentIds.includes(treatment.id)}
-                  onChange={() => toggleTreatment(treatment.id)}
-                />
-                {treatment.name} — ${treatment.price.toLocaleString("es-AR")}
-              </label>
-            ))}
-          </div>
-          <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
-            <span>Total</span>
-            <span>${manualTotal.toLocaleString("es-AR")}</span>
+    <div className="rounded-md border border-dark-500">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((current) => !current)}
+        className="flex w-full items-center justify-between gap-4 p-4 text-left"
+      >
+        <div>
+          <p className="text-14-medium">{appointment.patientName}</p>
+          <p className="text-12-regular text-dark-700">
+            {appointment.doctorName} · {formatDateTime(appointment.schedule).dateTime}
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          <span className="text-14-medium">${total.toLocaleString("es-AR")}</span>
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-dark-700 transition-transform",
+              isExpanded && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="space-y-4 border-t border-dark-500 p-4">
+          {appointment.hasChartedTreatments ? (
+            <>
+              <ul className="text-14-regular space-y-1">
+                {appointment.items.map((item, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span>{item.name}</span>
+                    <span>${item.price.toLocaleString("es-AR")}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
+                <span>Total</span>
+                <span>${appointment.totalAmount.toLocaleString("es-AR")}</span>
+              </p>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-14-regular text-dark-700">
+                El doctor no cargó prestaciones para este turno — seleccioná las que corresponda cobrar:
+              </p>
+              <div className="space-y-2">
+                {activeTreatments.map((treatment) => (
+                  <label
+                    key={treatment.id}
+                    className="flex cursor-pointer items-center gap-2 text-14-regular"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedTreatmentIds.includes(treatment.id)}
+                      onChange={() => toggleTreatment(treatment.id)}
+                    />
+                    {treatment.name} — ${treatment.price.toLocaleString("es-AR")}
+                  </label>
+                ))}
+              </div>
+              <p className="text-14-medium flex justify-between border-t border-dark-500 pt-2">
+                <span>Total</span>
+                <span>${manualTotal.toLocaleString("es-AR")}</span>
+              </p>
+            </div>
+          )}
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <CustomFormField
+                fieldType={FormFieldType.SELECT}
+                control={form.control}
+                name="paymentMethod"
+                label="Medio de pago"
+                placeholder="Seleccioná un medio de pago"
+              >
+                {PAYMENT_METHOD_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </CustomFormField>
+
+              {error && <p className="shad-error text-14-regular">{error}</p>}
+
+              <Button
+                type="submit"
+                className="shad-primary-btn w-full"
+                isLoading={isLoading}
+                disabled={!appointment.hasChartedTreatments && selectedTreatmentIds.length === 0}
+              >
+                Cobrar y cerrar turno
+              </Button>
+            </form>
+          </Form>
+        </div>
       )}
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <CustomFormField
-            fieldType={FormFieldType.SELECT}
-            control={form.control}
-            name="paymentMethod"
-            label="Medio de pago"
-            placeholder="Seleccioná un medio de pago"
-          >
-            {PAYMENT_METHOD_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </CustomFormField>
-
-          {error && <p className="shad-error text-14-regular">{error}</p>}
-
-          <Button
-            type="submit"
-            className="shad-primary-btn w-full"
-            isLoading={isLoading}
-            disabled={!appointment.hasChartedTreatments && selectedTreatmentIds.length === 0}
-          >
-            Cobrar y cerrar turno
-          </Button>
-        </form>
-      </Form>
     </div>
   );
 };

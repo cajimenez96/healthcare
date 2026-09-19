@@ -91,4 +91,18 @@ describe("Patient model", () => {
     expect(patient.insuranceProvider).toBe("Particular / Sin Convenio");
     expect(patient.insurancePolicyNumber).toBeUndefined();
   });
+
+  // TASK-059: same isActive/soft-delete discipline TASK-025 established for
+  // User — schema default only fires for newly-created documents.
+  it("defaults isActive to true (TASK-059)", async () => {
+    const patient = await Patient.create(validPatient);
+
+    expect(patient.isActive).toBe(true);
+  });
+
+  it("allows creating a patient with isActive explicitly false (TASK-059)", async () => {
+    const patient = await Patient.create({ ...validPatient, isActive: false });
+
+    expect(patient.isActive).toBe(false);
+  });
 });

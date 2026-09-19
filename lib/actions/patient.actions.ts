@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { requireAdminSession } from "../auth/requireAdminSession";
 import { requireDoctorSession } from "../auth/requireDoctorSession";
 import { requireSecretariaOrAdminSession } from "../auth/requireSecretariaOrAdminSession";
@@ -20,7 +22,7 @@ export type CreatePatientParams = {
   birthDate: Date;
   gender: Gender;
   address: string;
-  occupation: string;
+  occupation?: string;
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   primaryPhysician: string;
@@ -149,5 +151,130 @@ export const listPatients = async (filters: ListPatientsFilters = {}) => {
   } catch (error) {
     console.error("An error occurred while listing patients:", error);
     return [];
+  }
+};
+
+export type UpdatePatientParams = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  birthDate: Date;
+  gender: Gender;
+  address: string;
+  occupation?: string;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  primaryPhysician: string;
+  insuranceProvider?: string;
+  insurancePolicyNumber?: string;
+  identificationType?: string;
+  identificationNumber?: string;
+  // Optional re-upload — omit to keep whatever document is already on file
+  // (same "leave it as-is unless provided" shape as updateDoctor's `photo`,
+  // TASK-036).
+  identificationDocument?: FormData;
+};
+
+// UPDATE PATIENT (TASK-059: unified list+Dialog CRUD — same dual-role
+// gating as createPatient/listPatients, editable field set matches
+// CreatePatientForm's).
+export const updatePatient = async ({
+  id,
+  identificationDocument,
+  ...patient
+}: UpdatePatientParams) => {
+  try {
+    await requireSecretariaOrAdminSession();
+    await connectToDatabase();
+
+    const existing = await patientRepository.findById(id);
+    if (!existing) {
+      return undefined;
+    }
+
+    let identificationDocumentId = existing.identificationDocumentId;
+    let identificationDocumentUrl = existing.identificationDocumentUrl;
+
+    const blobFile = identificationDocument?.get("blobFile") as Blob | null;
+    const fileName = identificationDocument?.get("fileName") as string | null;
+
+    if (blobFile && fileName) {
+      const uploadedFile = await fileStorage.upload(blobFile, fileName);
+      identificationDocumentId = uploadedFile.id;
+      identificationDocumentUrl = uploadedFile.url;
+    }
+
+    const updated = await patientRepository.update(id, {
+      ...patient,
+      identificationDocumentId,
+      identificationDocumentUrl,
+    });
+
+    revalidatePath("/admin/pacientes");
+    revalidatePath("/recepcion/pacientes");
+
+    return updated ? parseStringify(toPatient(updated)) : undefined;
+  } catch (error) {
+    console.error("An error occurred while updating the patient:", error);
+  }
+};
+
+export type UpdatePatientMedicalBackgroundParams = {
+  id: string;
+  allergies?: string;
+  currentMedication?: string;
+  familyMedicalHistory?: string;
+  pastMedicalHistory?: string;
+};
+
+// UPDATE PATIENT MEDICAL BACKGROUND (antecedentes médicos) — TASK-069.
+// Doctor-only, separate from updatePatient above (Secretaria/Admin,
+// demographic/administrative fields): these are clinical fields nobody but
+// the treating doctor should edit, and nothing in the app ever set them
+// before this ticket — they existed on the Patient model/read views only.
+// Uses MongoPatientRepository.updateMedicalBackground's $set-style partial
+// update rather than update() (which replaces the full editable field set).
+export const updatePatientMedicalBackground = async ({
+  id,
+  ...fields
+}: UpdatePatientMedicalBackgroundParams) => {
+  try {
+    await requireDoctorSession();
+    await connectToDatabase();
+
+    const updated = await patientRepository.updateMedicalBackground(id, fields);
+
+    revalidatePath(`/doctor/patient/${id}`);
+
+    return updated ? parseStringify(toPatient(updated)) : undefined;
+  } catch (error) {
+    console.error(
+      "An error occurred while updating the patient's medical background:",
+      error
+    );
+  }
+};
+
+// DEACTIVATE / REACTIVATE PATIENT (TASK-059: soft-delete — a patient has
+// turnos/historia clínica/facturación tied to it, so this never deletes the
+// record, only flips isActive — same pattern as
+// setDoctorActive/setSecretariaActive).
+export const setPatientActive = async (id: string, isActive: boolean) => {
+  try {
+    await requireSecretariaOrAdminSession();
+    await connectToDatabase();
+
+    const updated = await patientRepository.setActiveById(id, isActive);
+
+    revalidatePath("/admin/pacientes");
+    revalidatePath("/recepcion/pacientes");
+
+    return updated ? parseStringify(toPatient(updated)) : undefined;
+  } catch (error) {
+    console.error(
+      "An error occurred while changing the patient's active status:",
+      error,
+    );
   }
 };

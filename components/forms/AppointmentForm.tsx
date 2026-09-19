@@ -189,6 +189,11 @@ export const AppointmentForm = ({
         if (updatedAppointment) {
           setOpen && setOpen(false);
           form.reset();
+          // Bug: this branch never refreshed the caller's list after a
+          // successful cancellation, unlike the "create" branch above —
+          // the cancelled status never showed up in /admin's table until a
+          // manual full reload.
+          router.refresh();
         }
       }
     } catch (error) {

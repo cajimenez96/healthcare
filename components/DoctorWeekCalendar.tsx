@@ -107,6 +107,10 @@ export const DoctorWeekCalendar = ({
   // server-side, TASK-041/updateAppointment — this is purely the client-side
   // rendering counterpart of that same exclusion).
   appointmentId,
+  // TASK-067: the appointment's status before this reschedule — preserved
+  // on save instead of the old hardcoded "scheduled" (TASK-056), which
+  // silently confirmed a `pending` turno just for having its date changed.
+  currentStatus,
 }: {
   doctorName: string;
   availability: DoctorAvailabilityEntry[];
@@ -116,6 +120,7 @@ export const DoctorWeekCalendar = ({
   treatmentName: string;
   onBooked?: () => void;
   appointmentId?: string;
+  currentStatus?: Status;
 }) => {
   const [date, setDate] = useState(() => new Date());
   const [range, setRange] = useState(() => {
@@ -185,13 +190,22 @@ export const DoctorWeekCalendar = ({
 
     // TASK-056: reschedule mode (appointmentId set, from the unified "Nuevo
     // turno" view's ?appointmentId= query param) updates the existing
-    // appointment instead of creating a new one — status "scheduled", same
-    // as the old AppointmentForm "schedule" case this replaces. Otherwise,
-    // same create-mode defaults as before: status "pending" (a
-    // secretary/admin reschedules it into "scheduled" afterward via this
-    // same view). Neither mode has a free-text "Motivo del turno" field of
-    // its own (a click-to-book/reschedule slot, not a form) — the estimated
-    // treatment's name is a reasonable stand-in reason.
+    // appointment instead of creating a new one. Otherwise, same create-mode
+    // defaults as before: status "pending". Neither mode has a free-text
+    // "Motivo del turno" field of its own (a click-to-book/reschedule slot,
+    // not a form) — the estimated treatment's name is a reasonable
+    // stand-in reason.
+    // TASK-067: reschedule no longer forces status "scheduled" — that
+    // silently confirmed a `pending` turno just for having its date moved.
+    // It now preserves pending/scheduled as-is; confirming is a separate
+    // explicit action (ConfirmAppointmentButton). Rescheduling a `cancelled`
+    // turno (columns.tsx still allows it) goes back to `pending` rather than
+    // staying cancelled with a new date, or missing reconfirmation entirely.
+    const nextStatus: Status =
+      currentStatus === "pending" || currentStatus === "scheduled"
+        ? currentStatus
+        : "pending";
+
     const result = appointmentId
       ? await updateAppointment({
           userId,
@@ -201,7 +215,7 @@ export const DoctorWeekCalendar = ({
             primaryPhysician: doctorName,
             treatmentId,
             schedule,
-            status: "scheduled",
+            status: nextStatus,
           },
           type: "schedule",
         })

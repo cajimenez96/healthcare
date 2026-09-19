@@ -14,10 +14,12 @@ import {
 
 // TASK-039: Dialog wrapper around CreatePatientForm (TASK-024), same shape as
 // CreateDoctorModal/CreateSecretariaModal (TASK-034). Used from PatientsList
-// as the contextual "search-then-create" entry point (mirrors
-// AdminNewAppointmentModal's search-then-offer-create UX, TASK-018/024) — the
-// standalone /admin/pacientes/nuevo and /recepcion/pacientes/nuevo pages
-// (TASK-024) remain untouched as the primary, always-available entry point.
+// both as the contextual "search-then-create" entry point (mirrors
+// AdminNewAppointmentModal's search-then-offer-create UX, TASK-018/024) and,
+// since TASK-059 retired the standalone /admin/pacientes/nuevo and
+// /recepcion/pacientes/nuevo pages, as the normal always-visible "Crear
+// paciente" entry point too — PatientsList mounts two instances of this same
+// component for the two use cases.
 //
 // `defaultName`/`defaultIdentificationNumber` pre-fill the form from
 // whatever the caller already typed into PatientsList's search filters, so

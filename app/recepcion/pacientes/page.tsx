@@ -6,9 +6,10 @@ import { listPatients } from "@/lib/actions/patient.actions";
 // TASK-035: primary listing screen, mirrors how patient creation
 // (TASK-024) is primarily a Secretaria/front-desk task. Same
 // PatientsList shared with /admin/pacientes.
-// TASK-039: doctors/insuranceProviders fetched here (same as
-// /recepcion/pacientes/nuevo) so PatientsList can offer contextual patient
-// creation.
+// TASK-039/059: doctors/insuranceProviders fetched here so PatientsList can
+// offer both contextual and always-visible patient creation (Dialog-based,
+// no separate /nuevo route since TASK-059) — also reused by
+// EditPatientForm's pickers.
 const PatientsPage = async () => {
   const [patients, doctors, insuranceProviders] = await Promise.all([
     listPatients(),
@@ -17,7 +18,7 @@ const PatientsPage = async () => {
   ]);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col space-y-14">
+    <div className="mx-auto flex max-w-7xl flex-col space-y-14">
       <main className="admin-main">
         <PatientsList
           initialPatients={patients}

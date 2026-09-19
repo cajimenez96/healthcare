@@ -17,7 +17,7 @@ export interface IPatient {
   birthDate: Date;
   gender: Gender;
   address: string;
-  occupation: string;
+  occupation?: string;
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   primaryPhysician: string;
@@ -32,6 +32,11 @@ export interface IPatient {
   identificationDocumentId?: string;
   identificationDocumentUrl?: string;
   privacyConsent: boolean;
+  // Soft-delete flag (TASK-059), same discipline TASK-025 established for
+  // User: schema default only fires for newly-created documents — existing
+  // patients persisted before this field existed will read back as
+  // `undefined`, not `true`. Callers must treat `undefined` as active.
+  isActive?: boolean;
 }
 
 const patientSchema = new Schema<IPatient>(
@@ -48,7 +53,7 @@ const patientSchema = new Schema<IPatient>(
     birthDate: { type: Date, required: true },
     gender: { type: String, enum: ["Male", "Female", "Other"], required: true },
     address: { type: String, required: true },
-    occupation: { type: String, required: true },
+    occupation: { type: String, required: false },
     emergencyContactName: { type: String, required: false },
     emergencyContactNumber: { type: String, required: false },
     primaryPhysician: { type: String, required: true },
@@ -74,6 +79,7 @@ const patientSchema = new Schema<IPatient>(
         message: "privacyConsent must be accepted",
       },
     },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

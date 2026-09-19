@@ -98,6 +98,8 @@ export const NewAppointmentView = ({
   initialPatient,
   initialDoctorName,
   initialTreatmentId,
+  initialStatus,
+  basePath,
 }: {
   doctors: DoctorOption[];
   treatments: TreatmentOption[];
@@ -106,6 +108,16 @@ export const NewAppointmentView = ({
   initialPatient?: FoundPatient;
   initialDoctorName?: string;
   initialTreatmentId?: string;
+  // TASK-067: the appointment's current status, threaded down to
+  // DoctorWeekCalendar so rescheduling preserves it instead of forcing
+  // "scheduled".
+  initialStatus?: Status;
+  // TASK-063: this view is now hosted at both /admin/turnos and
+  // /recepcion/turnos (previously admin-only, TASK-060) — basePath is the
+  // unified list route to redirect back to after booking, so the component
+  // stays agnostic of which role's route rendered it instead of hardcoding
+  // /admin/turnos for both.
+  basePath: string;
 }) => {
   const isReschedule = Boolean(appointmentId);
   const router = useRouter();
@@ -115,7 +127,7 @@ export const NewAppointmentView = ({
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [patient, setPatient] = useState<FoundPatient | null>(
-    initialPatient ?? null,
+    initialPatient ?? null
   );
 
   const [doctorName, setDoctorName] = useState(initialDoctorName ?? "");
@@ -144,7 +156,7 @@ export const NewAppointmentView = ({
     if (patient && !patientCollapsedRef.current) {
       patientCollapsedRef.current = true;
       setOpenSections((prev) =>
-        prev.filter((section) => section !== "patient"),
+        prev.filter((section) => section !== "patient")
       );
     }
     if (!patient) {
@@ -218,25 +230,30 @@ export const NewAppointmentView = ({
 
   const selectedDoctor = doctors.find((doctor) => doctor.name === doctorName);
   const selectedTreatment = treatments.find(
-    (treatment) => treatment.id === treatmentId,
+    (treatment) => treatment.id === treatmentId
   );
 
-  // TASK-053: this view is the only one that knows it's hosted at
-  // /admin/turnos/nuevo, so the post-booking redirect lives here rather than
-  // inside DoctorWeekCalendar (which stays reusable/host-agnostic). A short
-  // delay lets DoctorWeekCalendar's own "Turno agendado/reagendado con
-  // éxito." message register before the dashboard takes over — the table
-  // there will already show the (re)scheduled appointment.
+  // TASK-053: this view is the only one that knows which route hosts it, so
+  // the post-booking redirect lives here rather than inside
+  // DoctorWeekCalendar (which stays reusable/host-agnostic). A short delay
+  // lets DoctorWeekCalendar's own "Turno agendado/reagendado con éxito."
+  // message register before the list takes over — the table there will
+  // already show the (re)scheduled appointment.
+  // TASK-063: redirects to `basePath` instead of a hardcoded /admin/turnos,
+  // so booking/rescheduling from /recepcion/turnos returns Secretaria to her
+  // own route rather than to an admin-only one middleware.ts would block.
   const handleBooked = () => {
     setTimeout(() => {
-      router.push("/admin");
+      router.push(basePath);
     }, 1200);
   };
 
   return (
     <section className="w-full max-w-4xl space-y-6">
       <div className="space-y-2">
-        <h1 className="header">{isReschedule ? "Reagendar turno" : "Nuevo turno"}</h1>
+        <h1 className="header">
+          {isReschedule ? "Reagendar turno" : "Nuevo turno"}
+        </h1>
         <p className="text-dark-700">
           {isReschedule
             ? "Elegí doctor, prestación y el nuevo horario en el calendario."
@@ -251,23 +268,27 @@ export const NewAppointmentView = ({
         // calendar Dialog for space. "Cambiar paciente"/"Cambiar doctor"
         // are the way back: they clear the relevant selection, which falls
         // this condition back to false and brings the accordion back.
-        <div className="space-y-3 rounded-md border border-dark-500 bg-dark-400 px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-14-medium">
-              Paciente: <span className="text-green-500">{patient.name}</span>
-              {" · "}
-              Doctor:{" "}
-              <span className="text-green-500">{selectedDoctor.name}</span>
-              {" · "}
-              Prestación:{" "}
-              <span className="text-green-500">{selectedTreatment.name}</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
+        <div className="space-y-3 rounded-md border border-dark-500 bg-dark-400 p-4">
+          <div className="flex w-full justify-between">
+            <div className="flex h-full flex-col gap-2">
+              <p className="text-14-medium">
+                · Paciente:{" "}
+                <span className="text-green-500">{patient.name}</span>
+              </p>
+              <p className="text-14-medium">
+                · Doctor:{" "}
+                <span className="text-green-500">{selectedDoctor.name}</span>
+              </p>
+              <p className="text-14-medium">
+                · Prestación:{" "}
+                <span className="text-green-500">{selectedTreatment.name}</span>
+              </p>
+            </div>
+            <div className="flex h-full flex-wrap items-start gap-2">
               {!isReschedule && (
                 <Button
                   type="button"
                   variant="outline"
-                  className="shad-gray-btn"
                   onClick={changePatient}
                 >
                   Cambiar paciente
@@ -276,7 +297,6 @@ export const NewAppointmentView = ({
               <Button
                 type="button"
                 variant="outline"
-                className="shad-gray-btn"
                 onClick={changeDoctor}
               >
                 Cambiar doctor
@@ -286,7 +306,7 @@ export const NewAppointmentView = ({
 
           <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
             <DialogTrigger asChild>
-              <Button type="button" className="shad-primary-btn">
+              <Button type="button">
                 Ver calendario
               </Button>
             </DialogTrigger>
@@ -294,7 +314,7 @@ export const NewAppointmentView = ({
                 layout. flex/flex-col + min-h-0 on the scroll area keeps the
                 fixed header from being squeezed by react-big-calendar's own
                 fixed 600px height. */}
-            <DialogContent className="shad-dialog flex h-[90vh] w-[80vw] max-w-none flex-col overflow-hidden">
+            <DialogContent className="flex h-[90vh] w-[80vw] max-w-none flex-col overflow-hidden">
               <DialogHeader className="shrink-0">
                 <DialogTitle>Calendario de turnos</DialogTitle>
                 <p className="text-14-regular text-dark-700">
@@ -320,6 +340,7 @@ export const NewAppointmentView = ({
                   treatmentId={selectedTreatment.id}
                   treatmentName={selectedTreatment.name}
                   appointmentId={appointmentId}
+                  currentStatus={initialStatus}
                   onBooked={handleBooked}
                 />
               </div>
@@ -349,7 +370,6 @@ export const NewAppointmentView = ({
                 {!patient && (
                   <div className="space-y-4">
                     <Input
-                      className="shad-input"
                       placeholder="Buscar por nombre o DNI"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
@@ -425,7 +445,6 @@ export const NewAppointmentView = ({
                       <Button
                         type="button"
                         variant="outline"
-                        className="shad-gray-btn"
                         onClick={changePatient}
                       >
                         Cambiar paciente
@@ -450,15 +469,12 @@ export const NewAppointmentView = ({
               <AccordionContent>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <p className="shad-input-label">Doctor</p>
+                    <p className="text-14-medium text-dark-700">Doctor</p>
                     <Select value={doctorName} onValueChange={setDoctorName}>
-                      <SelectTrigger
-                        className="shad-select-trigger"
-                        aria-label="Doctor"
-                      >
+                      <SelectTrigger aria-label="Doctor">
                         <SelectValue placeholder="Seleccioná un doctor" />
                       </SelectTrigger>
-                      <SelectContent className="shad-select-content">
+                      <SelectContent>
                         {doctors.map((doctor) => (
                           <SelectItem key={doctor.name} value={doctor.name}>
                             <div className="flex cursor-pointer items-center gap-2">
@@ -476,15 +492,12 @@ export const NewAppointmentView = ({
                   </div>
 
                   <div className="space-y-2">
-                    <p className="shad-input-label">Prestación</p>
+                    <p className="text-14-medium text-dark-700">Prestación</p>
                     <Select value={treatmentId} onValueChange={setTreatmentId}>
-                      <SelectTrigger
-                        className="shad-select-trigger"
-                        aria-label="Prestación"
-                      >
+                      <SelectTrigger aria-label="Prestación">
                         <SelectValue placeholder="Seleccioná la prestación estimada" />
                       </SelectTrigger>
-                      <SelectContent className="shad-select-content">
+                      <SelectContent>
                         {treatments.map((treatment) => (
                           <SelectItem key={treatment.id} value={treatment.id}>
                             {treatment.name} (

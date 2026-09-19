@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth/next";
 
 import { StatusBadge } from "@/components/StatusBadge";
 import { getMyAppointments } from "@/lib/actions/appointment.actions";
+import { authOptions } from "@/lib/auth/authOptions";
 import { formatDateTime } from "@/lib/utils";
 
 interface DoctorAppointment {
@@ -13,16 +15,24 @@ interface DoctorAppointment {
 }
 
 const DoctorPage = async () => {
-  const { appointments, hasLinkedProfile } = (await getMyAppointments()) as {
-    appointments: DoctorAppointment[];
-    hasLinkedProfile: boolean;
-  };
+  const [session, { appointments, hasLinkedProfile }] = await Promise.all([
+    getServerSession(authOptions),
+    getMyAppointments() as Promise<{
+      appointments: DoctorAppointment[];
+      hasLinkedProfile: boolean;
+    }>,
+  ]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
       <main className="admin-main">
         <section className="w-full space-y-4">
-          <h1 className="header">Mis turnos</h1>
+          <div className="space-y-1">
+            <h1 className="header">
+              ¡Hola{session?.user?.name ? `, ${session.user.name}` : ""}! 👋
+            </h1>
+            <p className="text-dark-700">Mis turnos</p>
+          </div>
           {!hasLinkedProfile && (
             <p className="shad-error text-14-regular">
               Tu usuario no tiene un perfil de doctor vinculado, contactá al Administrador.

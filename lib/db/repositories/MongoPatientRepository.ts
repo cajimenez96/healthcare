@@ -5,6 +5,8 @@ import type {
   IPatientRepository,
   PatientListFilters,
   PatientRecord,
+  UpdatePatientInput,
+  UpdatePatientMedicalBackgroundInput,
 } from "../../repositories/IPatientRepository";
 import type { IPatient } from "../models/Patient";
 import { Patient } from "../models/Patient";
@@ -41,6 +43,7 @@ function toPatientRecord(doc: HydratedDocument<IPatient>): PatientRecord {
     identificationDocumentId: doc.identificationDocumentId,
     identificationDocumentUrl: doc.identificationDocumentUrl,
     privacyConsent: doc.privacyConsent,
+    isActive: doc.isActive,
   };
 }
 
@@ -83,5 +86,54 @@ export class MongoPatientRepository implements IPatientRepository {
 
     const docs = await Patient.find(query).sort({ name: 1 });
     return docs.map(toPatientRecord);
+  }
+
+  async update(
+    id: string,
+    input: UpdatePatientInput,
+  ): Promise<PatientRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    // Unlike MongoUserRepository.update, Patient has no unique index on
+    // email/identificationNumber today, so there's no EMAIL_TAKEN-style
+    // conflict to translate here — a plain update is enough (TASK-059).
+    const doc = await Patient.findByIdAndUpdate(id, input, {
+      returnDocument: "after",
+    });
+    return doc ? toPatientRecord(doc) : null;
+  }
+
+  async updateMedicalBackground(
+    id: string,
+    input: UpdatePatientMedicalBackgroundInput,
+  ): Promise<PatientRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    // Explicit $set, unlike update() above — a plain object without $
+    // operators makes findByIdAndUpdate replace the whole document, which
+    // would wipe every field this method isn't given.
+    const doc = await Patient.findByIdAndUpdate(
+      id,
+      { $set: input },
+      { returnDocument: "after" },
+    );
+    return doc ? toPatientRecord(doc) : null;
+  }
+
+  async setActiveById(
+    id: string,
+    isActive: boolean,
+  ): Promise<PatientRecord | null> {
+    if (!mongoose.isValidObjectId(id)) {
+      return null;
+    }
+    const doc = await Patient.findByIdAndUpdate(
+      id,
+      { isActive },
+      { returnDocument: "after" },
+    );
+    return doc ? toPatientRecord(doc) : null;
   }
 }

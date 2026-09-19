@@ -11,7 +11,10 @@ const ID_DOCUMENT_PATH = "public/assets/icons/user.svg";
 // more public self-registration/login flow to drive through Playwright.
 // This replaces the old createPatientUser + registerFullPatient two-step
 // dance with a single staff-side submission of CreatePatientForm, via
-// /recepcion/pacientes/nuevo (the primary flow — Secretaria).
+// /recepcion/pacientes (the primary flow — Secretaria).
+// TASK-059: the standalone /recepcion/pacientes/nuevo page is gone —
+// creation now happens through the "Crear paciente" Dialog on the unified
+// list screen, same pattern already used by "Crear Doctor" (00-setup.spec.ts).
 export async function createStaffPatient(
   page: Page,
   input: {
@@ -24,7 +27,10 @@ export async function createStaffPatient(
   },
 ) {
   await loginAs(page, SECRETARIA_CREDENTIALS.email, SECRETARIA_CREDENTIALS.password);
-  await page.goto("/recepcion/pacientes/nuevo");
+  await page.goto("/recepcion/pacientes");
+  await page.getByRole("button", { name: "Crear paciente" }).click();
+
+  const dialog = page.getByRole("dialog");
 
   await page.getByLabel("Nombre completo", { exact: true }).fill(input.name);
   await page.getByLabel("Correo electrónico", { exact: true }).fill(input.email);
@@ -64,9 +70,17 @@ export async function createStaffPatient(
   // present later to come back and add it.
   await page.locator("input[type=file]").setInputFiles(ID_DOCUMENT_PATH);
 
-  await page.getByRole("button", { name: "Crear paciente" }).click();
+  // Scoped to the dialog — the "Crear paciente" trigger button (always
+  // visible on the list, TASK-059) stays in the DOM behind the overlay with
+  // the exact same accessible name as this submit button.
+  await dialog.getByRole("button", { name: "Crear paciente" }).click();
 
-  await expect(page.getByText(`Paciente ${input.name} creado con éxito.`)).toBeVisible();
+  // The dialog closes on success (CreatePatientForm's setOpen?.(false)), so
+  // instead of a success message that may already be gone by the time this
+  // assertion runs, wait for the new patient to show up in the underlying
+  // list (PatientsList refreshes itself via the onCreated callback).
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText(input.name, { exact: false }).first()).toBeVisible();
 
   const fileId = await getPatientIdentificationFileIdByEmail(input.email);
 
@@ -77,12 +91,14 @@ export async function createStaffPatient(
 }
 
 // TASK-043: AdminNewAppointmentModal is gone — "Nuevo turno" is now the
-// full-page calendar at /admin/turnos/nuevo. Navigates there, searches for
-// the patient by DNI (TASK-033, not email/phone like the deleted modal),
-// and picks doctor + prestación, leaving the doctor's week calendar mounted
-// and ready for clickCalendarSlot below. Split out from the actual slot
-// click (unlike the old single-call helper) because ADM-09 needs two pages
-// to reach the identical calendar view independently before either clicks.
+// full-page calendar, unified with the appointment list at /admin/turnos
+// (TASK-060, ?new=true triggers the booking flow instead of a separate
+// /nuevo route). Navigates there, searches for the patient by DNI
+// (TASK-033, not email/phone like the deleted modal), and picks doctor +
+// prestación, leaving the doctor's week calendar mounted and ready for
+// clickCalendarSlot below. Split out from the actual slot click (unlike the
+// old single-call helper) because ADM-09 needs two pages to reach the
+// identical calendar view independently before either clicks.
 export async function goToNewAppointmentWithSelection(
   page: Page,
   opts: {
@@ -92,7 +108,7 @@ export async function goToNewAppointmentWithSelection(
   },
 ) {
   await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
-  await page.goto("/admin/turnos/nuevo");
+  await page.goto("/admin/turnos?new=true");
 
   // TASK-050: real-time debounced search (name OR DNI), no separate "Buscar"
   // button anymore — type the DNI and click the matching result card once it

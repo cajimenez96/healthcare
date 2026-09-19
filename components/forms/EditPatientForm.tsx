@@ -1,8 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { type Dispatch, type SetStateAction, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -18,8 +17,8 @@ import {
   IdentificationTypeLabels,
   IdentificationTypes,
 } from "@/constants";
-import { createPatient } from "@/lib/actions/patient.actions";
-import { CreatePatientFormValidation } from "@/lib/validation";
+import { updatePatient } from "@/lib/actions/patient.actions";
+import { PatientEditFormValidation } from "@/lib/validation";
 
 import "react-datepicker/dist/react-datepicker.css";
 import "react-phone-number-input/style.css";
@@ -27,79 +26,73 @@ import CustomFormField, { FormFieldType } from "../CustomFormField";
 import { FileUploader } from "../FileUploader";
 import { Button } from "../ui/button";
 
-// TASK-024: staff-side patient creation, used from both /recepcion and
-// /admin, mounted inside CreatePatientModal's Dialog (TASK-039/059) rather
-// than a standalone page — the original /recepcion/pacientes/nuevo and
-// /admin/pacientes/nuevo pages this form used to live on directly were
-// retired by TASK-059 once the list screen gained a normal "Crear paciente"
-// button.
-// Adapted from RegisterForm.tsx's field set, but with no dependency on a
-// pre-existing User (there is none — patients have no login, TASK-023).
-//
-// TASK-039: `setOpen`/`defaultName`/`defaultIdentificationNumber` are
-// optional additions for the Dialog usage from PatientsList's
-// search-then-create flow (same `setOpen?` convention TASK-034 used on
-// CreateSecretariaForm etc.).
-export const CreatePatientForm = ({
-  doctors,
-  insuranceProviders,
-  setOpen,
-  defaultName,
-  defaultIdentificationNumber,
-  onCreated,
-}: {
-  doctors: { name: string; image?: string }[];
-  insuranceProviders: { name: string }[];
-  setOpen?: Dispatch<SetStateAction<boolean>>;
-  defaultName?: string;
-  defaultIdentificationNumber?: string;
-  // TASK-043: optional hook for a caller that wants the newly-created
-  // patient back (e.g. "Nuevo turno" auto-selecting them for booking right
-  // away) instead of just refreshing/closing. Additive — every existing
-  // caller that doesn't pass it keeps behaving exactly as before.
-  // TASK-050: widened (additively) with identificationNumber/phone so
-  // NewAppointmentView can show the same confirmation fields for a
-  // freshly-created patient as it does for one found via search.
-  onCreated?: (patient: {
+// TASK-059: edit counterpart to CreatePatientForm (TASK-024), reusing the
+// exact same field set/validation (PatientEditFormValidation is an alias of
+// CreatePatientFormValidation, see lib/validation.ts) — same "editable
+// fields = what the create form collects" scope the ticket asked for.
+// Identification number stays editable here on purpose (typos happen), and
+// the scanned document is optional-to-replace (mirrors EditDoctorForm's
+// "leave it as-is unless provided" photo pattern, TASK-034/036) rather than
+// required again.
+interface EditPatientFormProps {
+  patient: {
     $id: string;
     name: string;
-    identificationNumber?: string;
+    email: string;
     phone: string;
-  }) => void;
-}) => {
-  const router = useRouter();
+    birthDate: string | Date;
+    gender: Gender;
+    address: string;
+    occupation: string;
+    emergencyContactName?: string;
+    emergencyContactNumber?: string;
+    primaryPhysician: string;
+    insuranceProvider?: string;
+    insurancePolicyNumber?: string;
+    identificationType?: string;
+    identificationNumber?: string;
+  };
+  doctors: { name: string; image?: string }[];
+  insuranceProviders: { name: string }[];
+  onDone: () => void;
+}
+
+export const EditPatientForm = ({
+  patient,
+  doctors,
+  insuranceProviders,
+  onDone,
+}: EditPatientFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdPatientName, setCreatedPatientName] = useState<string | null>(
-    null
-  );
 
-  const form = useForm<z.infer<typeof CreatePatientFormValidation>>({
-    resolver: zodResolver(CreatePatientFormValidation),
+  const form = useForm<z.infer<typeof PatientEditFormValidation>>({
+    resolver: zodResolver(PatientEditFormValidation),
     defaultValues: {
-      name: defaultName ?? "",
-      email: "",
-      phone: "",
-      gender: "Male",
-      address: "",
-      occupation: "",
-      emergencyContactName: "",
-      emergencyContactNumber: "",
-      primaryPhysician: "",
-      insuranceProvider: DEFAULT_INSURANCE_PROVIDER,
-      insurancePolicyNumber: "",
-      identificationType: "DNI",
-      identificationNumber: defaultIdentificationNumber ?? "",
+      name: patient.name,
+      email: patient.email,
+      phone: patient.phone,
+      birthDate: new Date(patient.birthDate),
+      gender: patient.gender,
+      address: patient.address,
+      occupation: patient.occupation,
+      emergencyContactName: patient.emergencyContactName ?? "",
+      emergencyContactNumber: patient.emergencyContactNumber ?? "",
+      primaryPhysician: patient.primaryPhysician,
+      insuranceProvider:
+        patient.insuranceProvider ?? DEFAULT_INSURANCE_PROVIDER,
+      insurancePolicyNumber: patient.insurancePolicyNumber ?? "",
+      identificationType: patient.identificationType ?? "DNI",
+      identificationNumber: patient.identificationNumber ?? "",
       identificationDocument: [],
     },
   });
 
   const onSubmit = async (
-    values: z.infer<typeof CreatePatientFormValidation>
+    values: z.infer<typeof PatientEditFormValidation>
   ) => {
     setIsLoading(true);
     setError(null);
-    setCreatedPatientName(null);
 
     const formData = new FormData();
     const identificationFile = values.identificationDocument?.[0];
@@ -112,7 +105,8 @@ export const CreatePatientForm = ({
     }
 
     try {
-      const newPatient = await createPatient({
+      const updated = await updatePatient({
+        id: patient.$id,
         name: values.name,
         email: values.email,
         phone: values.phone,
@@ -130,23 +124,14 @@ export const CreatePatientForm = ({
         identificationDocument: formData,
       });
 
-      if (newPatient) {
-        setCreatedPatientName(newPatient.name);
-        form.reset();
-        router.refresh();
-        setOpen?.(false);
-        onCreated?.({
-          $id: newPatient.$id,
-          name: newPatient.name,
-          identificationNumber: newPatient.identificationNumber,
-          phone: newPatient.phone,
-        });
+      if (updated) {
+        onDone();
       } else {
-        setError("No se pudo crear el paciente. Intentá de nuevo.");
+        setError("No se pudo actualizar el paciente. Intentá de nuevo.");
       }
     } catch (submitError) {
-      console.log(submitError);
-      setError("No se pudo crear el paciente. Intentá de nuevo.");
+      console.error(submitError);
+      setError("No se pudo actualizar el paciente. Intentá de nuevo.");
     }
 
     setIsLoading(false);
@@ -154,27 +139,10 @@ export const CreatePatientForm = ({
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="flex-1 space-y-12"
-      >
-        <section className="space-y-4">
-          <h1 className="header">Nuevo paciente</h1>
-          <p className="text-dark-700">Cargá los datos del paciente.</p>
-        </section>
-
-        {createdPatientName && (
-          <p className="text-14-regular text-green-500">
-            Paciente {createdPatientName} creado con éxito.
-          </p>
-        )}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {error && <p className="shad-error text-14-regular">{error}</p>}
 
         <section className="space-y-6">
-          <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Información Personal</h2>
-          </div>
-
           <CustomFormField
             fieldType={FormFieldType.INPUT}
             control={form.control}
@@ -227,8 +195,11 @@ export const CreatePatientForm = ({
                   >
                     {GenderOptions.map((option, i) => (
                       <div key={option + i} className="radio-group">
-                        <RadioGroupItem value={option} id={option} />
-                        <Label htmlFor={option} className="cursor-pointer">
+                        <RadioGroupItem value={option} id={`edit-${option}`} />
+                        <Label
+                          htmlFor={`edit-${option}`}
+                          className="cursor-pointer"
+                        >
                           {GenderLabels[option] ?? option}
                         </Label>
                       </div>
@@ -277,10 +248,6 @@ export const CreatePatientForm = ({
         </section>
 
         <section className="space-y-6">
-          <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Información Médica</h2>
-          </div>
-
           <CustomFormField
             fieldType={FormFieldType.SELECT}
             control={form.control}
@@ -328,10 +295,6 @@ export const CreatePatientForm = ({
         </section>
 
         <section className="space-y-6">
-          <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Documento de identidad</h2>
-          </div>
-
           <CustomFormField
             fieldType={FormFieldType.SELECT}
             control={form.control}
@@ -358,7 +321,7 @@ export const CreatePatientForm = ({
             fieldType={FormFieldType.SKELETON}
             control={form.control}
             name="identificationDocument"
-            label="Copia escaneada del documento de identificación (opcional)"
+            label="Nuevo documento escaneado (opcional, dejá igual si no lo cambiás)"
             renderSkeleton={(field) => (
               <FormControl>
                 <FileUploader files={field.value} onChange={field.onChange} />
@@ -372,11 +335,11 @@ export const CreatePatientForm = ({
           className="shad-primary-btn w-full"
           isLoading={isLoading}
         >
-          Crear paciente
+          Guardar cambios
         </Button>
       </form>
     </Form>
   );
 };
 
-export default CreatePatientForm;
+export default EditPatientForm;

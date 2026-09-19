@@ -275,4 +275,162 @@ describe("MongoPatientRepository", () => {
       });
     });
   });
+
+  // TASK-059: same isActive/soft-delete discipline as MongoUserRepository
+  // (TASK-025/026) — new patients default to isActive: true.
+  describe("isActive default", () => {
+    it("defaults a newly-created patient to isActive: true", async () => {
+      const patient = await repository.create(basePatient);
+
+      expect(patient.isActive).toBe(true);
+    });
+  });
+
+  describe("update", () => {
+    it("updates a patient's editable fields", async () => {
+      const created = await repository.create(basePatient);
+
+      const updated = await repository.update(created.id, {
+        name: "Jane Doe",
+        email: "jane@example.com",
+        phone: "+199999999",
+        birthDate: new Date("1985-05-05"),
+        gender: "Female",
+        address: "456 Other St",
+        occupation: "Doctor",
+        emergencyContactName: "John Doe",
+        emergencyContactNumber: "+188888888",
+        primaryPhysician: "Dr. House",
+        insuranceProvider: "OSDE",
+        insurancePolicyNumber: "XYZ999",
+        identificationType: "National Identity Card",
+        identificationNumber: "40555666",
+      });
+
+      expect(updated?.name).toBe("Jane Doe");
+      expect(updated?.email).toBe("jane@example.com");
+      expect(updated?.primaryPhysician).toBe("Dr. House");
+      expect(updated?.identificationNumber).toBe("40555666");
+
+      const found = await repository.findById(created.id);
+      expect(found?.name).toBe("Jane Doe");
+      expect(found?.insuranceProvider).toBe("OSDE");
+    });
+
+    it("returns null when no patient matches that id", async () => {
+      const result = await repository.update(
+        new mongoose.Types.ObjectId().toString(),
+        {
+          name: "Whoever",
+          email: "whoever@example.com",
+          phone: "+1",
+          birthDate: new Date("1990-01-01"),
+          gender: "Male",
+          address: "Somewhere",
+          occupation: "Someone",
+          primaryPhysician: "Dr. Cameron",
+        },
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(
+        repository.update("not-an-object-id", {
+          name: "Whoever",
+          email: "whoever@example.com",
+          phone: "+1",
+          birthDate: new Date("1990-01-01"),
+          gender: "Male",
+          address: "Somewhere",
+          occupation: "Someone",
+          primaryPhysician: "Dr. Cameron",
+        }),
+      ).resolves.toBeNull();
+    });
+  });
+
+  // TASK-069: doctors get their own narrow update seam for the 4 antecedentes
+  // fields (allergies/currentMedication/familyMedicalHistory/
+  // pastMedicalHistory) — nothing in the app ever set these before this
+  // ticket. Deliberately NOT built on top of update() above: Mongoose's
+  // findByIdAndUpdate(id, plainObject) without $set performs a full MongoDB
+  // document *replacement*, not a merge — passing only these 4 fields
+  // through update() would silently wipe every other field (name, email,
+  // primaryPhysician, etc.). This test protects that invariant directly.
+  describe("updateMedicalBackground", () => {
+    it("updates only the medical background fields, leaving every other field untouched", async () => {
+      const created = await repository.create({
+        ...basePatient,
+        allergies: "Penicilina",
+        currentMedication: "Ninguna",
+      });
+
+      const updated = await repository.updateMedicalBackground(created.id, {
+        allergies: "Penicilina, Aspirina",
+        currentMedication: "Ibuprofeno 400mg",
+        familyMedicalHistory: "Diabetes materna",
+        pastMedicalHistory: "Apendicectomía 2015",
+      });
+
+      expect(updated?.allergies).toBe("Penicilina, Aspirina");
+      expect(updated?.currentMedication).toBe("Ibuprofeno 400mg");
+      expect(updated?.familyMedicalHistory).toBe("Diabetes materna");
+      expect(updated?.pastMedicalHistory).toBe("Apendicectomía 2015");
+
+      // The invariant under test: nothing outside the 4 fields above moved.
+      expect(updated?.name).toBe(basePatient.name);
+      expect(updated?.email).toBe(basePatient.email);
+      expect(updated?.phone).toBe(basePatient.phone);
+      expect(updated?.primaryPhysician).toBe(basePatient.primaryPhysician);
+      expect(updated?.insuranceProvider).toBe(basePatient.insuranceProvider);
+
+      const found = await repository.findById(created.id);
+      expect(found?.name).toBe(basePatient.name);
+      expect(found?.pastMedicalHistory).toBe("Apendicectomía 2015");
+    });
+
+    it("returns null when no patient matches that id", async () => {
+      const result = await repository.updateMedicalBackground(
+        new mongoose.Types.ObjectId().toString(),
+        { allergies: "Penicilina" },
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(
+        repository.updateMedicalBackground("not-an-object-id", {
+          allergies: "Penicilina",
+        }),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe("setActiveById", () => {
+    it("flips isActive on the patient with that id", async () => {
+      const created = await repository.create(basePatient);
+      expect(created.isActive).toBe(true);
+
+      const updated = await repository.setActiveById(created.id, false);
+
+      expect(updated?.isActive).toBe(false);
+      const found = await repository.findById(created.id);
+      expect(found?.isActive).toBe(false);
+    });
+
+    it("returns null when no patient matches that id", async () => {
+      const result = await repository.setActiveById(
+        new mongoose.Types.ObjectId().toString(),
+        false,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a malformed id instead of throwing", async () => {
+      await expect(
+        repository.setActiveById("not-an-object-id", false),
+      ).resolves.toBeNull();
+    });
+  });
 });

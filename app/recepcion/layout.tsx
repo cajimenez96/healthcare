@@ -1,39 +1,46 @@
-import Image from "next/image";
-import Link from "next/link";
+import { CalendarPlus, Home, Users, Wallet } from "lucide-react";
 
-import { AppSidebarNav } from "@/components/AppSidebarNav";
+import { RoleLayout } from "@/components/RoleLayout";
+
+const iconClass = "size-5 shrink-0";
 
 // TASK-037: shared nav for every /recepcion/** screen, replacing the
 // per-page `<header className="admin-header">` duplicated across
-// /recepcion, /recepcion/pacientes and /recepcion/pacientes/nuevo.
+// /recepcion and /recepcion/pacientes.
+// TASK-058: header/logo/container JSX itself now lives in RoleLayout, shared
+// with app/admin/layout.tsx and app/doctor/layout.tsx.
+// TASK-059: "Nuevo paciente" removed — /recepcion/pacientes is now the
+// single destination for creating, listing, editing and deactivating
+// patients (Dialog-based "Crear paciente"), so the standalone
+// /recepcion/pacientes/nuevo route/nav entry no longer exists.
+// TASK-063: "Turnos" points at the unified listado (same "nav → management
+// screen" pattern as ADMIN_NAV_ITEMS's own "Turnos" entry, TASK-060) —
+// /recepcion/turnos has its own "Nuevo turno" button for the create action.
+// TASK-071: "Recepción" (home) now shows today's turnos instead of billing —
+// "Cobros" is billing's own new destination/nav item.
 const SECRETARIA_NAV_ITEMS = [
-  { label: "Recepción", href: "/recepcion" },
-  { label: "Nuevo paciente", href: "/recepcion/pacientes/nuevo" },
-  { label: "Pacientes", href: "/recepcion/pacientes" },
+  { label: "Recepción", href: "/recepcion", icon: <Home className={iconClass} /> },
+  {
+    label: "Turnos",
+    href: "/recepcion/turnos",
+    icon: <CalendarPlus className={iconClass} />,
+  },
+  { label: "Pacientes", href: "/recepcion/pacientes", icon: <Users className={iconClass} /> },
+  { label: "Cobros", href: "/recepcion/cobros", icon: <Wallet className={iconClass} /> },
 ];
 
 const RecepcionLayout = ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
   return (
-    <>
-      <div className="mx-auto flex max-w-4xl flex-col">
-        <header className="admin-header">
-          <Link href="/recepcion" className="cursor-pointer">
-            <Image
-              src="/assets/icons/logo-full.svg"
-              height={32}
-              width={162}
-              alt="logo"
-              className="h-8 w-fit"
-            />
-          </Link>
-
-          <AppSidebarNav items={SECRETARIA_NAV_ITEMS} />
-        </header>
-      </div>
+    <RoleLayout
+      navItems={SECRETARIA_NAV_ITEMS}
+      homeHref="/recepcion"
+      maxWidth="7xl"
+      containerClassName="mb-5 mt-2"
+    >
       {children}
-    </>
+    </RoleLayout>
   );
 };
 

@@ -90,7 +90,11 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
 
   test("Criterio de aceptacion FLU-01 - el turno pending es visible para el Administrador", async ({ page }) => {
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
-    await page.goto("/admin");
+    // TASK-060 moved the appointments table from /admin to /admin/turnos —
+    // this navigation was left stale pointing at /admin (no longer has a
+    // table there, only stat cards), fixed while touching this same flow
+    // for TASK-067.
+    await page.goto("/admin/turnos");
 
     const row = page.locator("tr", { hasText: PATIENT_NAME });
     await expect(row).toBeVisible();
@@ -100,18 +104,23 @@ test.describe("FLU-01 - alta de paciente hasta turno pending", () => {
 
 test.describe("FLU-02 - confirmacion y atencion clinica", () => {
   // TASK-056: "Confirmar" (the old AppointmentModal type="schedule" dialog)
-  // is gone — "Reagendar" now navigates to the unified "Nuevo turno" view
-  // (/admin/turnos/nuevo?appointmentId=), pre-filled with this appointment's
-  // patient/doctor/prestación, where picking a new calendar slot updates it
-  // in place instead of opening a small dialog.
-  test("ADM-08 - Administrador reagenda el turno pending -> scheduled", async ({ page }) => {
+  // was replaced by "Reagendar", which navigates to the unified appointments
+  // view (/admin/turnos?appointmentId=, TASK-060), pre-filled with this
+  // appointment's patient/doctor/prestación, where picking a new calendar
+  // slot updates it in place instead of opening a small dialog.
+  // TASK-067: rescheduling used to also force status "scheduled" as a side
+  // effect, so there was no way to confirm a turno without moving its date.
+  // It now preserves "pending" across a reschedule, and a separate
+  // "Confirmar" action (columns.tsx, pending-only) is what actually
+  // transitions it to "scheduled".
+  test("ADM-08 - Administrador reagenda (sigue pending) y confirma el turno -> scheduled", async ({ page }) => {
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
-    await page.goto("/admin");
+    await page.goto("/admin/turnos");
 
     const row = page.locator("tr", { hasText: PATIENT_NAME });
     await row.getByRole("link", { name: "Reagendar" }).click();
 
-    await expect(page).toHaveURL(/\/admin\/turnos\/nuevo\?appointmentId=/);
+    await expect(page).toHaveURL(/\/admin\/turnos\?appointmentId=/);
     // Reschedule mode pre-fills patient + doctor + prestación, so the
     // summary bar/"Ver calendario" trigger is already there — no search or
     // doctor/treatment selection needed, unlike bookAppointmentAsAdmin.
@@ -129,9 +138,13 @@ test.describe("FLU-02 - confirmacion y atencion clinica", () => {
 
     await expect(page.getByText("Turno reagendado con éxito.")).toBeVisible();
 
-    await page.goto("/admin");
-    const refreshedRow = page.locator("tr", { hasText: PATIENT_NAME });
-    await expect(refreshedRow.getByText("Confirmada", { exact: true })).toBeVisible();
+    await page.goto("/admin/turnos");
+    const rescheduledRow = page.locator("tr", { hasText: PATIENT_NAME });
+    await expect(rescheduledRow.getByText("Pendiente", { exact: true })).toBeVisible();
+
+    await rescheduledRow.getByRole("button", { name: "Confirmar" }).click();
+    const confirmedRow = page.locator("tr", { hasText: PATIENT_NAME });
+    await expect(confirmedRow.getByText("Confirmada", { exact: true })).toBeVisible();
   });
 
   test("DOC-03 - Doctor entra a la ficha del paciente desde su agenda", async ({ page }) => {

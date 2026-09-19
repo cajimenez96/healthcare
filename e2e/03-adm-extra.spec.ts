@@ -131,8 +131,9 @@ test.describe("ADM-05 - desactivar / reactivar doctor", () => {
 
     // Disappears from the active-doctors dropdown used by "Nuevo turno"
     // (Admin's direct booking flow, TASK-043 — the full-page calendar that
-    // replaced AdminNewAppointmentModal, TASK-018).
-    await page.goto("/admin/turnos/nuevo");
+    // replaced AdminNewAppointmentModal, TASK-018, later unified with the
+    // appointment list at /admin/turnos, TASK-060).
+    await page.goto("/admin/turnos?new=true");
     // TASK-050: real-time debounced search (name OR DNI), no separate
     // "Buscar" button anymore.
     await page.getByPlaceholder("Buscar por nombre o DNI").fill(patientDni);
